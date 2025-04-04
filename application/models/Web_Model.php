@@ -1330,8 +1330,8 @@ public function getsubjectnamebyid($id){
         return $this->db->query("SELECT * FROM S_Session WHERE id = '$id' ")->result();
 		// return $this->db->query("SELECT * FROM login WHERE id = '$id'")->row_array();
     }
-    public function delete_S_session($id){
-        $val = $this->db->query("UPDATE S_Session SET status = 0 WHERE id = '$id'");
+    public function delete_S_session($id, $status = 0){
+        $val = $this->db->query("UPDATE S_Session SET status = '$status' WHERE id = '$id'");
         return $val;
     }
     

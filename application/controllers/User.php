@@ -3478,7 +3478,6 @@ if (isset($_POST['submit'])) {
 	
 		
 		
-		
 			public function editTeachers(){
 			if(!empty($this->session->userdata('id'))){
 				$id = $this->input->post("id");
@@ -3881,23 +3880,100 @@ public function add_session(){
 		}
 	}
 
+	public function get_batch_by_id(){
+		if(!empty($this->session->userdata('id'))){
+			$id = $this->input->post('id');
+			$batch = $this->web->getSessionById($id);
+			echo json_encode($batch[0]);
+		}
+	}
 
-public function add_newsession(){
+	public function update_batch(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata = $this->input->post();
+			$id = $postdata['batch_id'];
+			
+			// Handle multiple branches
+			$branches = '';
+			if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+				$branches = implode(',', $postdata['dept']); 
+			}
+			
+			// Update data in database
+			$data = array(
+				'dep_id' => $branches,
+				'session_name' => $postdata['session']
+			);
+			
+			$this->db->where('id', $id);
+			$result = $this->db->update('S_Session', $data);
+			
+			if($result){
+				$this->session->set_flashdata('msg', 'Batch Updated Successfully!');
+			}
+			redirect('add_batch');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+	public function add_newsession(){
 		if(!empty($this->session->userdata('id'))){
 			$postdata=$this->input->post();
+			
+			print_r($postdata['dept']); // Print dept array
+			
+			// Handle multiple branches
+			$branches = '';
+			if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+				$branches = implode(',', $postdata['dept']); 
+			}
+			
+			
+			// Create array with session data
 			$postdata=array(
-			    'dep_id'=>$postdata['dept'],
-				'session_name'=>$postdata['session'],
+			    'dep_id'=>$branches,
+				'session_name'=>$postdata['session'], 
 				'bid'=>$postdata['bid'],
 				'date_time'=>time()
 			);
+			
+			// Insert into database
 			$data=$this->db->insert('S_Session',$postdata);
 			if($data > 0){
-			   
-			
 				$this->session->set_flashdata('msg','New Session Added!');
 				redirect('add_session');
 			}
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+public function editsession(){
+		if(!empty($this->session->userdata('id'))){
+			$check=$_REQUEST;
+			print_r($check);
+			
+			$name = $_POST['name'];
+			$id = $_POST['id'];
+			$branches = '';
+			
+			if(isset($_POST['dept']) && is_array($_POST['dept'])) {
+				$branches = implode(',', $_POST['dept']);
+			}
+			
+			$data = array(
+				'session_name' => $name,
+				'dep_id' => $branches
+			);
+			
+			print_r($data);
+			$this->db->where('id',$id);
+			$res = $this->db->update('S_Session',$data);
+			echo $res;
+			return($res);
 		}
 		else{
 			redirect('user-login');
@@ -3908,17 +3984,24 @@ public function add_newsession(){
 public function delete_S_session(){
 		if (!empty($this->session->userdata('id'))) {
 			$id = $this->input->post('id');
-			$res= $this->web->delete_S_session($id);
+			
+			// Get current status
+			$session = $this->web->getSessionById($id);
+			$current_status = $session[0]->status;
+			
+			// Toggle status between 0 and 1
+			$new_status = ($current_status == 1) ? 0 : 1;
+			
+			$res = $this->web->delete_S_session($id, $new_status);
+			
 			if ($res) {
-			    
 				echo $id;
 				return($id);
 			}
 		} else {
 			redirect('user-login');
 		}
-		
-	}
+}
 
 
 

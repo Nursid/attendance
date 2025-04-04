@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -51,24 +50,22 @@ $buid=$this->web->session->userdata('login_id');
       <div class="container-fluid">
         <div class="row">
           <!-- left column -->
-          <div class="col-md-12">
+          <div class="col-md-4">
             <div class="card card-primary">
               <div class="card-header">
-                <h3 class="card-title">Add Batch</h3><br>
+                <h3 class="card-title"><span id="form_title">Add Batch</span></h3><br>
                 <span style="color: red"><?php echo $this->session->flashdata('msg');?></span>
               </div>
-              <form action="<?php echo base_url('User/add_newsession')?>" method="post">
+              <form id="batch_form" action="<?php echo base_url('User/add_newsession')?>" method="post">
               <div class="card-body">
                 <div class="row">
-                  <div class="col-5">
+                  <div class="col-12 mb-3">
                     <?php
                         $data = $this->web->getBusinessDepByBusinessId($buid);
                     ?>
 
-                    <select class="form-control select2" style="width: 100%;" name="dept">
-                      <option value="" disabled selected>Select Branch</option>
+                    <select class="form-control select2" id="dept_select" style="width: 100%;" name="dept[]" multiple="multiple" data-placeholder="Select Branches">
                       
-
                         <?php
                         foreach($data as $key => $val){
                           
@@ -76,15 +73,20 @@ $buid=$this->web->session->userdata('login_id');
                       } 
                      ?>
 
-
                     </select>
                        
                   </div>
-                  <div class="col-5">
-                    <input type="text" class="form-control" name="session" placeholder="Enter a name" required>
+                  <div class="col-12 mb-3">
+                    <input type="text" class="form-control" id="session_name" name="session" placeholder="Enter a name" required>
+                    <input type="hidden" id="batch_id" name="batch_id" value="">
                   </div>
                   <input type="hidden" class="form-control" name="bid" value="<?php echo $buid ; ?>">
-                  <button class="btn btn-danger">Add Now</button>
+                  <div class="col-12">
+                    <button type="submit" id="submit_btn" class="btn btn-danger btn-block">Add Now</button>
+                  </div>
+                  <div class="col-12 mt-2" id="cancel_div" style="display: none;">
+                    <button type="button" id="cancel_btn" class="btn btn-secondary btn-block">Cancel</button>
+                  </div>
                 </div>
               </div>
               </form>
@@ -92,11 +94,9 @@ $buid=$this->web->session->userdata('login_id');
             </div>
             <!-- /.card -->
           </div>
-        </div>
 
-        <div class="row">
-          <!-- left column -->
-          <div class="col-md-12">
+          <!-- right column -->
+          <div class="col-md-8">
             <div class="card card-primary">
               <div class="card-header">
                 <h3 class="card-title">Batch List</h3>
@@ -108,7 +108,7 @@ $buid=$this->web->session->userdata('login_id');
                     <th>S.No</th>
                     <th>Branch Name</th>
                     <th>Batch Name</th>
-                   <th>Delete</th>
+                    <th>Actions</th>
                   </tr>
                   </thead>
                   <tbody>
@@ -120,13 +120,25 @@ $buid=$this->web->session->userdata('login_id');
                       <tr>
                         <td><?php echo $count++?></td>
                        
-                        <td><?php $dname=$this->web->getBusinessDepByUserId($res->dep_id); 
-                                  echo $dname[0]->name;
-                                // echo $res->dep_id;
+                        <td><?php 
+                            $dep_ids = explode(',', $res->dep_id);
+                            $branch_names = array();
+                            
+                            foreach($dep_ids as $dep_id) {
+                                $dname = $this->web->getBusinessDepByUserId($dep_id);
+                                if(!empty($dname)) {
+                                    $branch_names[] = $dname[0]->name;
+                                }
+                            }
+                            
+                            echo implode(', ', $branch_names);
                         ?></td>
-                         <td><?php echo $res->session_name." (Code:- ".$res->id.")"?></td>
+                         <td><?php echo $res->session_name?></td>
                          <td id="delete<?php echo $res->id; ?>">
-                          <button class="btn btn-danger" onclick="delete_classname('<?php echo $res->id; ?>')" >
+                          <button class="btn btn-primary btn-sm edit-btn" data-id="<?php echo $res->id; ?>">
+                            <i class="fa fa-edit" style="color:white"></i>
+                          </button>
+                          <button class="btn btn-danger btn-sm" onclick="delete_classname('<?php echo $res->id; ?>')" >
                           <i class="fa fa-times" style="color:white"></i>
                           </button>
                         </td>
@@ -185,7 +197,10 @@ $buid=$this->web->session->userdata('login_id');
 <script>
 $(function () {
     //Initialize Select2 Elements
-    $('.select2').select2()
+    $('.select2').select2({
+      placeholder: "Select Branches",
+      allowClear: true
+    })
 
     //Initialize Select2 Elements
     $('.select2bs4').select2({
@@ -229,6 +244,56 @@ $(function () {
 	
     })
   }
+
+  $(document).ready(function() {
+    // Edit button click handler
+    $('.edit-btn').on('click', function() {
+      var id = $(this).data('id');
+      
+      // Change form title and button
+      $('#form_title').text('Edit Batch');
+      $('#submit_btn').text('Update');
+      $('#submit_btn').removeClass('btn-danger').addClass('btn-primary');
+      $('#cancel_div').show();
+      
+      // Change form action for update
+      $('#batch_form').attr('action', '<?php echo base_url('User/update_batch')?>');
+      
+      // Get batch data by ID
+      $.ajax({
+        type: "POST",
+        url: "<?php echo base_url('User/get_batch_by_id')?>",
+        data: {id: id},
+        dataType: 'json',
+        success: function(data) {
+          // Set batch ID for update
+          $('#batch_id').val(data.id);
+          
+          // Set session name
+          $('#session_name').val(data.session_name);
+          
+          // Set selected departments
+          var depIds = data.dep_id.split(',');
+          $('#dept_select').val(depIds).trigger('change');
+        }
+      });
+    });
+    
+    // Cancel button click handler
+    $('#cancel_btn').on('click', function() {
+      // Reset form
+      $('#batch_form').attr('action', '<?php echo base_url('User/add_newsession')?>');
+      $('#batch_form')[0].reset();
+      $('#batch_id').val('');
+      $('#form_title').text('Add Batch');
+      $('#submit_btn').text('Add Now');
+      $('#submit_btn').removeClass('btn-primary').addClass('btn-danger');
+      $('#cancel_div').hide();
+      
+      // Clear select2
+      $('#dept_select').val(null).trigger('change');
+    });
+  });
 </script>
 </body>
 </html>
