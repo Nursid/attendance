@@ -7,7 +7,7 @@
   <!-- Tell the browser to be responsive to screen width -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Font Awesome -->
+ <!-- Font Awesome -->
   <link rel="stylesheet" href="<?php echo base_url('adminassets/plugins/fontawesome-free/css/all.min.css')?>">
   <!-- Ionicons -->
   <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
@@ -25,7 +25,7 @@
 <body class="hold-transition sidebar-mini">
 <div class="wrapper">
 <?php $this->load->view('student/student_menu')?>
-<!-- Content Wrapper. Contains page content -->
+  <!-- Content Wrapper. Contains page content -->
   <div class="content-wrapper">
     <!-- Content Header (Page header) -->
     <section class="content-header">
@@ -35,14 +35,12 @@
           <div class="col-sm-12">
             <ol class="breadcrumb float-sm-right">
               <li class="breadcrumb-item"><a href="#">Home</a></li>
-              <li class="breadcrumb-item active">Add Section</li>
+              <li class="breadcrumb-item active">Add Semester</li>
             </ol>
           </div>
         </div>
       </div><!-- /.container-fluid -->
     </section>
-
-
 <?php 
 
 $buid=$this->web->session->userdata('login_id');
@@ -51,14 +49,14 @@ $buid=$this->web->session->userdata('login_id');
     <section class="content">
       <div class="container-fluid">
         <div class="row">
-          <!-- left column - Add Section Form -->
+          <!-- left column -->
           <div class="col-md-4">
             <div class="card card-primary">
               <div class="card-header">
-                <h3 class="card-title">Add Section</h3><br>
+                <h3 class="card-title"><span id="form_title">Add Semester</span></h3><br>
                 <span style="color: red"><?php echo $this->session->flashdata('msg');?></span>
               </div>
-              <form action="<?php echo base_url('User/add_newsection')?>" method="post">
+              <form id="batch_form" action="<?php echo base_url('User/add_newsemester')?>" method="post">
               <div class="card-body">
                 <div class="row">
                   <div class="col-12 mb-3">
@@ -66,30 +64,43 @@ $buid=$this->web->session->userdata('login_id');
                         $data = $this->web->getBusinessDepByBusinessId($buid);
                     ?>
 
-                    <select class="select2" id="departs" style="width: 100%;" name="dept">
-                      <option value="" disabled selected>Select Branch</option>
-
-                        <?php foreach($data as $key => $val){
+                    <select class="form-control select2" id="dept_select" style="width: 100%;" name="dept[]" multiple="multiple" data-placeholder="Select Branches">
+                      
+                        <?php
+                        foreach($data as $key => $val){
                           
-                            echo "<option value=" . $val->id . ">" .$val->name."</option>";                          
-                        } ?>
-                    </select>
-                  </div>
-                  
-                  <div class="col-12 mb-3">
-                    <select class="select2" id="sdeparts" data-placeholder="Select a Session" style="width: 100%;" name="session">
-                      <option value="" disabled selected>Select Batch</option>
-                    </select>
-                  </div>
-                  
-                  <div class="col-12 mb-3">
-                    <input type="text" class="form-control" name="name" placeholder="Enter a name" id="depart" required>
-                  </div>
+                           echo "<option value=" . $val->id . ">" .$val->name."</option>";                          
+                      } 
+                     ?>
 
-                  <input type="hidden" class="form-control" name="bid" value="<?php echo $buid ; ?>">
+                    </select>
+                       
+                  </div>
                   
+                  <div class="col-12 mb-3">
+                    <select class="form-control" id="year" name="year" required>
+                      <option value="">Select Year</option>
+                      <option value="1">1st Year</option>
+                      <option value="2">2nd Year</option>
+                      <option value="3">3rd Year</option>
+                      <option value="4">4th Year</option>
+                      <option value="5">5th Year</option>
+                      <option value="6">6th Year</option>
+                      <option value="7">7th Year</option>
+                      <option value="8">8th Year</option>
+                    </select>
+                  </div>
+                  
+                  <div class="col-12 mb-3">
+                    <input type="text" class="form-control" id="semestar_name" name="semestar_name" placeholder="Enter a name" required>
+                    <input type="hidden" id="semester_id" name="id" value="">
+                  </div>
+                  <input type="hidden" class="form-control" name="bid" value="<?php echo $buid ; ?>">
                   <div class="col-12">
-                    <button type="submit" class="btn btn-danger btn-block">Add Now</button>
+                    <button type="submit" id="submit_btn" class="btn btn-danger btn-block">Add Now</button>
+                  </div>
+                  <div class="col-12 mt-2" id="cancel_div" style="display: none;">
+                    <button type="button" id="cancel_btn" class="btn btn-secondary btn-block">Cancel</button>
                   </div>
                 </div>
               </div>
@@ -99,47 +110,53 @@ $buid=$this->web->session->userdata('login_id');
             <!-- /.card -->
           </div>
 
-          <!-- right column - Section List -->
+          <!-- right column -->
           <div class="col-md-8">
             <div class="card card-primary">
               <div class="card-header">
-                <h3 class="card-title">Section List</h3>
+                <h3 class="card-title">Semester List</h3>
               </div>
               <div class="card-body">
               <table id="example1" class="table table-bordered table-striped">
                   <thead>
                   <tr>
                     <th>S.No</th>
-                    <th>Branch</th>
-                    <th>Batch </th>
-                    <th>Section</th>
+                    <th>Branch Name</th>
+                    <th>Year</th>
+                    <th>Semester Name</th>
                     <th>Actions</th>
                   </tr>
                   </thead>
                   <tbody>
                       <?php
-                      $res=$this->web->getall_S_sectionbyid($buid);
+                      $res=$this->web->getallSemesters($buid);
+
                       $count=1;
                       foreach($res as $res){
                       ?>
                       <tr>
                         <td><?php echo $count++?></td>
                        
-                        <td><?php $dname=$this->web->getBusinessDepByUserId($res->dep_id); 
-                                  echo $dname[0]->name;
-                                // echo $res->dep_id;
-                        ?>
-                        </td>
-                         <td><?php $sname=$this->web->getSessionById($res->session_id); 
-                                  echo $sname[0]->session_name;
-                                  ?></td>
-
-                         <td><?php echo $res->name."(Code:- ".$res->id.")"; ?></td>
-                          <td id="delete<?php echo $res->id; ?>">
-                          <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#myModal" onclick="mclick('<?php echo $res->id; ?>')">
-                            <i class="fas fa-edit" style="color:white"></i>
+                        <td><?php 
+                            $dep_ids = explode(',', $res->dep_id);
+                            $branch_names = array();
+                            
+                            foreach($dep_ids as $dep_id) {
+                                $dname = $this->web->getBusinessDepByUserId($dep_id);
+                                if(!empty($dname)) {
+                                    $branch_names[] = $dname[0]->name;
+                                }
+                            }
+                            
+                            echo implode(', ', $branch_names);
+                        ?></td>
+                        <td><?php echo $res->year?> Year</td>
+                        <td><?php echo $res->semestar_name?></td>
+                         <td id="delete<?php echo $res->id; ?>">
+                          <button class="btn btn-primary btn-sm edit-btn" data-id="<?php echo $res->id; ?>">
+                            <i class="fa fa-edit" style="color:white"></i>
                           </button>
-                          <button class="btn btn-danger btn-sm" onclick="delete_classname('<?php echo $res->id; ?>')" >
+                          <button class="btn btn-danger btn-sm" onclick="delete_semester('<?php echo $res->id; ?>')" >
                           <i class="fa fa-times" style="color:white"></i>
                           </button>
                         </td>
@@ -171,33 +188,6 @@ $buid=$this->web->session->userdata('login_id');
 </div>
 <!-- ./wrapper -->
 
-
-
-
-
-<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h4 class="modal-title" id="myModalLabel">Edit Section</h4>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-      </div>
-      <div class="modal-body">
-        <div id="modform">
-          
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
-
-
 <!-- jQuery -->
 <script src="<?php echo base_url('adminassets/plugins/jquery/jquery.min.js')?>"></script>
 <!-- Bootstrap 4 -->
@@ -216,25 +206,25 @@ $buid=$this->web->session->userdata('login_id');
 <script src="<?php echo base_url('adminassets/dist/js/demo.js')?>"></script>
 <script>
   $(function () {
-   var table = $('#example1').DataTable({
+    var table = $('#example1').DataTable({
      "responsive": true,
       "autoWidth": false,
     });
-   
   });
 </script>
 <script>
-function mclick(data){
-  var add_section_data = "add_section";
-  $.ajax({
-      type: "POST",
-      url: "User/getajaxRequest",
-      data: {data,add_section_data},
-    success: function(response){
-      $('#modform').html(response);
-    }
+$(function () {
+    //Initialize Select2 Elements
+    $('.select2').select2({
+      placeholder: "Select Branches",
+      allowClear: true
     })
-}
+
+    //Initialize Select2 Elements
+    $('.select2bs4').select2({
+      theme: 'bootstrap4'
+    })
+  });
 </script>
 <script>$(document).ready(function () { 
 $('.nav-link').click(function(e) {
@@ -261,10 +251,10 @@ $(function () {
 });
 </script>
 <script>
-  function delete_classname(id){
+  function delete_semester(id){
     $.ajax({
       type: "POST",
-      url: "User/delete_S_Section",
+      url: "User/delete_semester",
       data: {id},
      success: function(){
     $('#delete'+id).text("deleted");
@@ -272,44 +262,57 @@ $(function () {
 	
     })
   }
-</script>
 
-<script>
-$(function () {
-    //Initialize Select2 Elements
-    $('.select2').select2()
-
-    //Initialize Select2 Elements
-    $('.select2bs4').select2({
-      theme: 'bootstrap4'
-    })
+  $(document).ready(function() {
+    // Edit button click handler
+    $('.edit-btn').on('click', function() {
+      var id = $(this).data('id');
+      
+      // Change form title and button
+      $('#form_title').text('Edit Semester');
+      $('#submit_btn').text('Update');
+      $('#submit_btn').removeClass('btn-danger').addClass('btn-primary');
+      $('#cancel_div').show();
+      
+      // Change form action for update
+      $('#batch_form').attr('action', '<?php echo base_url('User/update_newsemester')?>');
+      
+      // Get semester data by ID
+      $.ajax({
+        type: "POST",
+        url: "<?php echo base_url('User/get_semester_by_id')?>",
+        data: {id: id},
+        dataType: 'json',
+        success: function(data) {
+          // Set semester ID for update
+          $('#semester_id').val(data.id);
+          
+          // Set semester name and year
+          $('#semestar_name').val(data.semestar_name);
+          $('#year').val(data.year);
+          
+          // Set selected departments
+          var depIds = data.dep_id.split(',');
+          $('#dept_select').val(depIds).trigger('change');
+        }
+      });
+    });
+    
+    // Cancel button click handler
+    $('#cancel_btn').on('click', function() {
+      // Reset form
+      $('#batch_form').attr('action', '<?php echo base_url('User/add_newsemester')?>');
+      $('#batch_form')[0].reset();
+      $('#semester_id').val('');
+      $('#form_title').text('Add Semester');
+      $('#submit_btn').text('Add Now');
+      $('#submit_btn').removeClass('btn-primary').addClass('btn-danger');
+      $('#cancel_div').hide();
+      
+      // Clear select2
+      $('#dept_select').val(null).trigger('change');
+    });
   });
- 
- 
-
- $('#departs').on('change', function() {
-  var id = this.value;
-  var datatypes_session = "sessionlist";
-  $.ajax({
-    type: "post",
-    url: "User/getajaxRequest",
-    data: {id,datatypes_session},
-    success: function(data){
-      $('#sdeparts').html(data);
-    }
-  });
-});
 </script>
-
-
-
-
-
-
-
-
-
-
-
 </body>
 </html>

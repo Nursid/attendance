@@ -218,6 +218,12 @@
                 </a>
               </li> 
               <li class="nav-item">
+                <a href="<?php echo base_url('add_semester')?>" class="nav-link">
+                  <i class="far fa-user nav-icon"></i>
+                  <p>Semester </p>
+                </a>
+              </li> 
+              <li class="nav-item">
                 <a href="<?php echo base_url('add_s_section')?>" class="nav-link">
                   <i class="far fa-user nav-icon"></i>
                   <p>Section  </p>

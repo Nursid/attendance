@@ -1257,6 +1257,37 @@ if(isset($_REQUEST['datatypes_session'])=="sessionlist") {
 
 
 <?php
+if(isset($_REQUEST['datatypes_session'])=="sessionlist_multiple") {
+  $ids = $this->input->post('ids');
+  $bid = $this->web->session->userdata('login_id');
+  
+  echo "<option value='' disabled selected>Select Semesters</option>";
+  
+  // For each branch ID, get related semesters
+  if(is_array($ids)) {
+    $processed_semesters = array(); // To track already added semesters
+    
+    foreach($ids as $did) {
+      $result = $this->web->getallSemesters($bid);
+      
+      if(!empty($result)) {
+        foreach($result as $semester) {
+          // Check if the semester is related to this branch
+          $dep_ids = explode(',', $semester->dep_id);
+          if(in_array($did, $dep_ids) && !in_array($semester->id, $processed_semesters)) {
+            echo "<option value='" . $semester->id . "'>" . $semester->semestar_name . " (" . $semester->year . " Year)</option>";
+            $processed_semesters[] = $semester->id; // Track this semester as processed
+          }
+        }
+      }
+    }
+  }
+}
+?>
+
+
+
+<?php
 if(isset($_REQUEST['datatypes_section'])=="sectionlist") {
   $did = $this->input->post('id');
   $result = $this->web->getSectionBySessionId($did);  print_r($result);

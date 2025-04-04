@@ -171,6 +171,7 @@ $route['add_class'] = 'User/add_class';
 $route['add_branch'] = 'User/add_branch';
 $route['add_session'] = 'User/add_batch';
 $route['add_batch'] = 'User/add_batch';
+$route['add_semester'] = 'User/add_semester';
 $route['add_s_section'] = 'User/add_s_section';
 $route['add_period'] = 'User/add_period';
 $route['add_subject'] = 'User/add_subject';

@@ -3477,7 +3477,6 @@ if (isset($_POST['submit'])) {
 			}
 	
 		
-		
 			public function editTeachers(){
 			if(!empty($this->session->userdata('id'))){
 				$id = $this->input->post("id");
@@ -3612,18 +3611,33 @@ public function add_sdepartment(){
 		public function add_newsection(){
 		if(!empty($this->session->userdata('id'))){
 			$postdata=$this->input->post();
+			
+			// Handle multiple branches
+			$branches = '';
+			if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+				$branches = implode(',', $postdata['dept']);
+			} else if(isset($postdata['dept'])) {
+				$branches = $postdata['dept'];
+			}
+			
+			// Handle multiple sessions/semesters
+			$sessions = '';
+			if(isset($postdata['session']) && is_array($postdata['session'])) {
+				$sessions = implode(',', $postdata['session']);
+			} else if(isset($postdata['session'])) {
+				$sessions = $postdata['session'];
+			}
+			
 			$postdata=array(
-			  //  'class_id'=>$postdata['class'],
-			  'dep_id'=>$postdata['dept'],
-			  'session_id'=>$postdata['session'],
-				'name'=>$postdata['name'],
-				'bid'=>$postdata['bid'],
-				'date_time'=>time()
+				'dep_id' => $branches,
+				'session_id' => $sessions,
+				'name' => $postdata['name'],
+				'bid' => $postdata['bid'],
+				'date_time' => time()
 			);
+			
 			$data=$this->db->insert('S_section',$postdata);
 			if($data > 0){
-			   
-			
 				$this->session->set_flashdata('msg','New Section Added!');
 				redirect('add_s_section');
 			}
@@ -3654,12 +3668,32 @@ public function delete_S_Section(){
 		if(!empty($this->session->userdata('id'))){
 			$check=$_REQUEST;
 			print_r($check);
-			echo $name = $_POST['name'];
-			echo $id = $_POST['id'];
-			$data = array(
-				'name' => $name
 			
+			// Handle multiple branches
+			$branches = '';
+			if(isset($_POST['dept']) && is_array($_POST['dept'])) {
+				$branches = implode(',', $_POST['dept']);
+			} else if(isset($_POST['dept'])) {
+				$branches = $_POST['dept'];
+			}
+			
+			// Handle multiple sessions/semesters
+			$sessions = '';
+			if(isset($_POST['session']) && is_array($_POST['session'])) {
+				$sessions = implode(',', $_POST['session']);
+			} else if(isset($_POST['session'])) {
+				$sessions = $_POST['session'];
+			}
+			
+			$name = $_POST['name'];
+			$id = $_POST['id'];
+			
+			$data = array(
+				'name' => $name,
+				'dep_id' => $branches,
+				'session_id' => $sessions
 			);
+			
 			print_r($data);
 			$this->db->where('id',$id);
 			$res = $this->db->update('S_section',$data);
@@ -3880,6 +3914,140 @@ public function add_session(){
 		}
 	}
 
+	public function add_semester(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('student/add_semester');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+	public function get_semester_by_id(){
+		if(!empty($this->session->userdata('id'))){
+			$id = $this->input->post('id');
+			$semester = $this->web->getSemesterById($id);
+			echo json_encode($semester[0]);
+		}
+	}
+	
+	public function update_semester(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata = $this->input->post();
+			$id = $postdata['semester_id'];
+			
+			// Update data in database
+			$data = array(
+				'session_id' => $postdata['session_id'],
+				'semester_name' => $postdata['semester_name']
+			);
+			
+			$this->db->where('id', $id);
+			$result = $this->db->update('S_Semester', $data);
+			
+			if($result){
+				$this->session->set_flashdata('msg', 'Semester Updated Successfully!');
+			}
+			redirect('add_semester');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+	public function add_newsemester(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata = $this->input->post();
+			
+			$branches = '';
+			if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+				$branches = implode(',', $postdata['dept']); 
+			}
+			// Create array with semester data
+			$data = array(
+				'semestar_name' => $postdata['semestar_name'],
+				'bid' => $this->session->userdata('login_id'),
+				'status' => 1,
+				'year' => $postdata['year'],
+				'dep_id' => $branches
+			);
+		
+			// Insert into database
+			$result = $this->db->insert('s_semester', $data);
+			
+			if($result){
+				$this->session->set_flashdata('msg', 'New Semester Added!');
+				redirect('add_semester');
+			}
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+	public function update_newsemester(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata = $this->input->post();
+			
+			$branches = '';
+			if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+				$branches = implode(',', $postdata['dept']); 
+			}
+
+			// Create array with updated semester data
+			$data = array(
+				'semestar_name' => $postdata['semestar_name'],
+				'year' => $postdata['year'],
+				'dep_id' => $branches
+			);
+
+			// Update database
+			$this->db->where('id', $postdata['id']);
+			$result = $this->db->update('s_semester', $data);
+			
+			if($result){
+				$this->session->set_flashdata('msg', 'Semester Updated Successfully!');
+				redirect('add_semester');
+			}
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	public function delete_semester(){
+		if(!empty($this->session->userdata('id'))){
+			$id = $this->input->post('id');
+			
+			// Get current status
+			$semester = $this->web->getSemesterById($id);
+			$current_status = $semester[0]->status;
+			
+			// Toggle status between 0 and 1
+			$new_status = ($current_status == 1) ? 0 : 1;
+			
+			$res = $this->web->delete_semester($id, $new_status);
+			
+			if($res){
+				echo $id;
+				return($id);
+			}
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+	public function get_batches_by_dept(){
+		if(!empty($this->session->userdata('id'))){
+			$dept_id = $this->input->post('dept_id');
+			$bid = $this->session->userdata('login_id');
+			
+			$batches = $this->web->getBatchesByDeptId($dept_id, $bid);
+			
+			echo json_encode($batches);
+		}
+	}
+
 	public function get_batch_by_id(){
 		if(!empty($this->session->userdata('id'))){
 			$id = $this->input->post('id');
@@ -3922,7 +4090,6 @@ public function add_session(){
 		if(!empty($this->session->userdata('id'))){
 			$postdata=$this->input->post();
 			
-			print_r($postdata['dept']); // Print dept array
 			
 			// Handle multiple branches
 			$branches = '';
@@ -3939,11 +4106,12 @@ public function add_session(){
 				'date_time'=>time()
 			);
 			
+			
 			// Insert into database
 			$data=$this->db->insert('S_Session',$postdata);
 			if($data > 0){
 				$this->session->set_flashdata('msg','New Session Added!');
-				redirect('add_session');
+				redirect('add_batch');
 			}
 		}
 		else{

@@ -1335,6 +1335,23 @@ public function getsubjectnamebyid($id){
         return $val;
     }
     
+    public function getSemesterById($id){
+        return $this->db->query("SELECT * FROM S_Semester WHERE id = '$id' ")->result();
+    }
+    
+    public function delete_semester($id, $status = 0){
+        $val = $this->db->query("UPDATE S_Semester SET status = '$status' WHERE id = '$id'");
+        return $val;
+    }
+    
+    public function getallSemesters($bid){
+        return $this->db->query("SELECT * FROM S_Semester WHERE bid='$bid' and status=1 order by id DESC ")->result();
+    }
+    
+    public function getBatchesByDeptId($id,$bid){
+        return $this->db->query("SELECT * FROM S_Session WHERE FIND_IN_SET('$id', dep_id) and bid=$bid and status=1")->result();
+    }
+    
     public function getSectionBySessionId($id){
 		return $this->db->query("SELECT * FROM S_section WHERE session_id='$id' and status=1")->result();
 	}
