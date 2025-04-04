@@ -66,8 +66,8 @@ $buid=$this->web->session->userdata('login_id');
                         $data = $this->web->getBusinessDepByBusinessId($buid);
                     ?>
 
-                    <select class="select2" id="departs" style="width: 100%;" name="dept">
-                      <option value="" disabled selected>Select Branch</option>
+                    <select class="select2" id="departs" style="width: 100%;" name="dept[]" multiple="multiple" data-placeholder="Select Branches">
+                      <option value="" disabled>Select Branch(es)</option>
 
                         <?php foreach($data as $key => $val){
                           
@@ -76,11 +76,11 @@ $buid=$this->web->session->userdata('login_id');
                     </select>
                   </div>
                   
-                  <div class="col-12 mb-3">
-                    <select class="select2" id="sdeparts" data-placeholder="Select a Session" style="width: 100%;" name="session">
-                      <option value="" disabled selected>Select Batch</option>
+                  <!-- <div class="col-12 mb-3">
+                    <select class="select2" id="sdeparts" data-placeholder="Select a Session" style="width: 100%;" name="session[]" multiple="multiple">
+                      <option value="" disabled>Select Batch(es)</option>
                     </select>
-                  </div>
+                  </div> -->
                   
                   <div class="col-12 mb-3">
                     <input type="text" class="form-control" name="name" placeholder="Enter a name" id="depart" required>
@@ -288,7 +288,7 @@ $(function () {
  
 
  $('#departs').on('change', function() {
-  var id = this.value;
+  var id = $(this).val();
   var datatypes_session = "sessionlist";
   $.ajax({
     type: "post",
