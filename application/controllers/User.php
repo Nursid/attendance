@@ -3607,45 +3607,51 @@ public function add_sdepartment(){
 	
 	
 	
-	
-		public function add_newsection(){
-		if(!empty($this->session->userdata('id'))){
-			$postdata=$this->input->post();
-			
-			// Handle multiple branches
-			$branches = '';
-			if(isset($postdata['dept']) && is_array($postdata['dept'])) {
-				$branches = implode(',', $postdata['dept']);
-			} else if(isset($postdata['dept'])) {
-				$branches = $postdata['dept'];
-			}
-			
-			// Handle multiple sessions/semesters
-			$sessions = '';
-			if(isset($postdata['session']) && is_array($postdata['session'])) {
-				$sessions = implode(',', $postdata['session']);
-			} else if(isset($postdata['session'])) {
-				$sessions = $postdata['session'];
-			}
-			
-			$postdata=array(
-				'dep_id' => $branches,
-				'session_id' => $sessions,
-				'name' => $postdata['name'],
-				'bid' => $postdata['bid'],
-				'date_time' => time()
-			);
-			
-			$data=$this->db->insert('S_section',$postdata);
-			if($data > 0){
-				$this->session->set_flashdata('msg','New Section Added!');
-				redirect('add_s_section');
-			}
-		}
-		else{
-			redirect('user-login');
-		}
-	}
+	public function add_newsection() {
+    if (!empty($this->session->userdata('id'))) {
+        $postdata = $this->input->post();
+
+        // Decode the structured branch-semester data
+        $structuredData = [];
+        if (isset($postdata['structured_data']) && !empty($postdata['structured_data'])) {
+            $structuredData = json_decode($postdata['structured_data'], true);
+        }
+
+        // Store section details (name, bid, etc.)
+        $data = array(
+            'name' => $postdata['name'],
+            'bid' => $postdata['bid'],
+            'date_time' => time()
+        );
+
+        // Insert into S_section
+        $result = $this->db->insert('S_section', $data);
+
+        if ($result) {
+            $section_id = $this->db->insert_id(); // Get newly created section ID
+
+            // Insert branch-semester combinations
+            foreach ($structuredData as $branchId => $semesters) {
+                foreach ($semesters as $semesterId) {
+                    $this->db->insert('section_semesters', [
+                        'section_id' => $section_id,
+                        'branch_id' => $branchId,
+                        'semester_id' => $semesterId
+                    ]);
+                }
+            }
+
+            $this->session->set_flashdata('msg', 'New Section Added!');
+            redirect('add_s_section');
+        } else {
+            $this->session->set_flashdata('msg', 'Something went wrong.');
+            redirect('add_s_section');
+        }
+    } else {
+        redirect('user-login');
+    }
+}
+
 
 
 public function delete_S_Section(){
@@ -3666,41 +3672,38 @@ public function delete_S_Section(){
 
 	public function edit_S_Section(){
 		if(!empty($this->session->userdata('id'))){
-			$check=$_REQUEST;
-			print_r($check);
+			$id = $this->input->post('id');
+			$name = $this->input->post('name');
+			$structuredData = json_decode($this->input->post('structured_data'), true);
 			
-			// Handle multiple branches
-			$branches = '';
-			if(isset($_POST['dept']) && is_array($_POST['dept'])) {
-				$branches = implode(',', $_POST['dept']);
-			} else if(isset($_POST['dept'])) {
-				$branches = $_POST['dept'];
-			}
-			
-			// Handle multiple sessions/semesters
-			$sessions = '';
-			if(isset($_POST['session']) && is_array($_POST['session'])) {
-				$sessions = implode(',', $_POST['session']);
-			} else if(isset($_POST['session'])) {
-				$sessions = $_POST['session'];
-			}
-			
-			$name = $_POST['name'];
-			$id = $_POST['id'];
-			
+			// Update section name
 			$data = array(
-				'name' => $name,
-				'dep_id' => $branches,
-				'session_id' => $sessions
+				'name' => $name
 			);
 			
-			print_r($data);
-			$this->db->where('id',$id);
-			$res = $this->db->update('S_section',$data);
+			$this->db->where('id', $id);
+			$res = $this->db->update('S_section', $data);
+			
+			if($res) {
+				// Delete existing branch-semester relationships
+				$this->db->where('section_id', $id);
+				$this->db->delete('section_semesters');
+				
+				// Insert new branch-semester combinations
+				foreach($structuredData as $branchId => $semesters) {
+					foreach($semesters as $semesterId) {
+						$this->db->insert('section_semesters', [
+							'section_id' => $id,
+							'branch_id' => $branchId,
+							'semester_id' => $semesterId
+						]);
+					}
+				}
+			}
+			
 			echo $res;
 			return($res);
-		}
-		else{
+		} else {
 			redirect('user-login');
 		}
 	}

@@ -1370,6 +1370,26 @@ public function getbatchById($id){
 }
 
 	
+// In your model
+public function getSectionBranchSemesters($section_id) {
+    // return $this->db->where('section_id', $section_id)
+    //                 ->get('section_semesters')
+    //                 ->result();
+					return $this->db->query("SELECT * FROM section_semesters WHERE section_id='$section_id' ")->result();
+}
+
+public function getBranchNameById($branch_id) {
+    $row = $this->db->select('name')
+                    ->where('id', $branch_id)
+                    ->get('branches') // replace with your actual branch table name
+                    ->row();
+    return $row ? $row->name : '';
+}
+
+public function getSemesterNameById($semester_id) {
+    $row = $this->db->query("SELECT semestar_name FROM S_Semester WHERE id = '$semester_id'")->row();
+    return $row ? $row->semestar_name : '';
+}
 
 
 

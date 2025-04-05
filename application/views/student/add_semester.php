@@ -121,9 +121,9 @@ $buid=$this->web->session->userdata('login_id');
                   <thead>
                   <tr>
                     <th>S.No</th>
+                    <th>Semester Name</th>
                     <th>Branch Name</th>
                     <th>Year</th>
-                    <th>Semester Name</th>
                     <th>Actions</th>
                   </tr>
                   </thead>
@@ -136,7 +136,7 @@ $buid=$this->web->session->userdata('login_id');
                       ?>
                       <tr>
                         <td><?php echo $count++?></td>
-                       
+                        <td><?php echo $res->semestar_name?></td>
                         <td><?php 
                             $dep_ids = explode(',', $res->dep_id);
                             $branch_names = array();
@@ -151,7 +151,7 @@ $buid=$this->web->session->userdata('login_id');
                             echo implode(', ', $branch_names);
                         ?></td>
                         <td><?php echo $res->year?> Year</td>
-                        <td><?php echo $res->semestar_name?></td>
+                       
                          <td id="delete<?php echo $res->id; ?>">
                           <button class="btn btn-primary btn-sm edit-btn" data-id="<?php echo $res->id; ?>">
                             <i class="fa fa-edit" style="color:white"></i>

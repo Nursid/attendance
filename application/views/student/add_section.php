@@ -58,35 +58,95 @@ $buid=$this->web->session->userdata('login_id');
                 <h3 class="card-title">Add Section</h3><br>
                 <span style="color: red"><?php echo $this->session->flashdata('msg');?></span>
               </div>
-              <form action="<?php echo base_url('User/add_newsection')?>" method="post">
+              <form action="<?php echo base_url('User/add_newsection')?>" method="post" id="section_form">
               <div class="card-body">
                 <div class="row">
                   <div class="col-12 mb-3">
-                    <?php
-                        $data = $this->web->getBusinessDepByBusinessId($buid);
-                    ?>
-
-                    <select class="select2" id="departs" style="width: 100%;" name="dept[]" multiple="multiple" data-placeholder="Select Branches">
-                      <option value="" disabled>Select Branch(es)</option>
-
-                        <?php foreach($data as $key => $val){
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <!-- <label class="mb-0">Branches and Semesters</label> -->
+                      <div class="d-flex">
+                        <div class="form-check mr-3">
+                          <input class="form-check-input" type="checkbox" id="select-all-branches">
+                          <label class="form-check-label" for="select-all-branches">
+                            <strong>All Branches</strong>
+                          </label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" id="select-all-semesters">
+                          <label class="form-check-label" for="select-all-semesters">
+                            <strong>All Semesters</strong>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    <div id="branches_semesters_container" class="border p-3 rounded">
+                      <?php
+                        // Get all branches
+                        $branches = $this->web->getBusinessDepByBusinessId($buid);
+                        // Get all semesters
+                        $allSemesters = $this->web->getallSemesters($buid);
+                        
+                        if(!empty($branches)) {
+                          // First create an array to store semesters by branch
+                          $semestersByBranch = array();
                           
-                            echo "<option value=" . $val->id . ">" .$val->name."</option>";                          
-                        } ?>
-                    </select>
+                          // Organize semesters by branch
+                          foreach($branches as $branch) {
+                            $semestersByBranch[$branch->id] = array(
+                              'name' => $branch->name,
+                              'semesters' => array()
+                            );
+                          }
+                          
+                          // Categorize semesters by branch
+                          foreach($allSemesters as $semester) {
+                            $semesterDeps = explode(',', $semester->dep_id);
+                            foreach($semesterDeps as $depId) {
+                              if(isset($semestersByBranch[$depId])) {
+                                $semestersByBranch[$depId]['semesters'][] = $semester;
+                              }
+                            }
+                          }
+                          
+                          // Display branches and their semesters
+                          foreach($semestersByBranch as $branchId => $branchData) {
+                            if(empty($branchData['semesters'])) {
+                              continue; // Skip branches with no semesters
+                            }
+                            
+                            echo '<div class="branch-section mb-4">';
+                            echo '<div class="branch-header d-flex align-items-center bg-primary text-white p-2 rounded">';
+                            echo '<div class="form-check mb-0 mr-2">';
+                            echo '<input class="form-check-input branch-checkbox" type="checkbox" value="' . $branchId . '" id="branch_' . $branchId . '" data-branch-name="' . $branchData['name'] . '">';
+                            echo '</div>';
+                            echo '<h5 class="mb-0 branch-title">' . $branchData['name'] . '</h5>';
+                            echo '</div>';
+                            
+                            echo '<div class="semester-list pl-4" id="semesters_' . $branchId . '" style="display:none;">';
+                            foreach($branchData['semesters'] as $semester) {
+                              echo '<div class="form-check">';
+                              echo '<input class="form-check-input semester-checkbox" data-branch="' . $branchId . '" type="checkbox" value="' . $semester->id . '" id="semester_' . $branchId . '_' . $semester->id . '" data-semester-name="' . $semester->semestar_name . '" disabled>';
+                              echo '<label class="form-check-label" for="semester_' . $branchId . '_' . $semester->id . '">' . $semester->semestar_name . ' (' . $semester->year . ' Year)</label>';
+                              echo '</div>';
+                            }
+                            echo '</div>'; // End semester-list
+                            echo '</div>'; // End branch-section
+                          }
+                        } else {
+                          echo '<div class="alert alert-info">No branches found</div>';
+                        }
+                      ?>
+                    </div>
                   </div>
                   
-                  <!-- <div class="col-12 mb-3">
-                    <select class="select2" id="sdeparts" data-placeholder="Select a Session" style="width: 100%;" name="session[]" multiple="multiple">
-                      <option value="" disabled>Select Batch(es)</option>
-                    </select>
-                  </div> -->
-                  
                   <div class="col-12 mb-3">
-                    <input type="text" class="form-control" name="name" placeholder="Enter a name" id="depart" required>
+                    <input type="text" class="form-control" name="name" placeholder="Enter section title" id="depart" required>
                   </div>
 
                   <input type="hidden" class="form-control" name="bid" value="<?php echo $buid ; ?>">
+                  
+                  <!-- Hidden input to store structured branch/semester data -->
+                  <input type="hidden" name="structured_data" id="structured_data" value="">
                   
                   <div class="col-12">
                     <button type="submit" class="btn btn-danger btn-block">Add Now</button>
@@ -106,50 +166,61 @@ $buid=$this->web->session->userdata('login_id');
                 <h3 class="card-title">Section List</h3>
               </div>
               <div class="card-body">
-              <table id="example1" class="table table-bordered table-striped">
-                  <thead>
-                  <tr>
-                    <th>S.No</th>
-                    <th>Branch</th>
-                    <th>Batch </th>
-                    <th>Section</th>
-                    <th>Actions</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                      <?php
-                      $res=$this->web->getall_S_sectionbyid($buid);
-                      $count=1;
-                      foreach($res as $res){
-                      ?>
-                      <tr>
-                        <td><?php echo $count++?></td>
+    <table id="example1" class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>S.No</th>
+                <th>Title</th>
+                <th>Branch > Semester</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php
+            $res = $this->web->getall_S_sectionbyid($buid);
+         
+            $count = 1;
+            foreach($res as $res) {
+            ?>
+            <tr>
+                <td><?php echo $count++?></td>
+                <td><?php echo $res->name ?></td>
+                <td>
+                    <?php 
+                    // Get branch-semester combinations for this section
+                    $branchSemesters = $this->web->getSectionBranchSemesters($res->id);
+                    
+                    $branchSemesterList = array();
+                    foreach($branchSemesters as $bs) {
+                        $branchName = $this->web->getBusinessDepByUserId($bs->branch_id);
                        
-                        <td><?php $dname=$this->web->getBusinessDepByUserId($res->dep_id); 
-                                  echo $dname[0]->name;
-                                // echo $res->dep_id;
-                        ?>
-                        </td>
-                         <td><?php $sname=$this->web->getSessionById($res->session_id); 
-                                  echo $sname[0]->session_name;
-                                  ?></td>
-
-                         <td><?php echo $res->name."(Code:- ".$res->id.")"; ?></td>
-                          <td id="delete<?php echo $res->id; ?>">
-                          <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#myModal" onclick="mclick('<?php echo $res->id; ?>')">
-                            <i class="fas fa-edit" style="color:white"></i>
-                          </button>
-                          <button class="btn btn-danger btn-sm" onclick="delete_classname('<?php echo $res->id; ?>')" >
-                          <i class="fa fa-times" style="color:white"></i>
-                          </button>
-                        </td>
-                      </tr>
-                      <?php 
-                      }
-                      ?>
-                  </tfoot>
-                </table>
-              </div>
+                        $semesterName = $this->web->getSemesterNameById($bs->semester_id);
+                        
+                        if($branchName && $semesterName) {
+                            $branchSemesterList[] = $branchName[0]->name . ' > ' . $semesterName;
+                        }
+                    }
+                    
+                    echo implode('<br>', $branchSemesterList);
+                    ?>
+                </td>
+                <td><span class="badge badge-success">Active</span></td>
+                <td id="delete<?php echo $res->id; ?>">
+                    <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#myModal" onclick="mclick('<?php echo $res->id; ?>')">
+                        <i class="fas fa-edit" style="color:white"></i>
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="delete_classname('<?php echo $res->id; ?>')">
+                        <i class="fa fa-times" style="color:white"></i>
+                    </button>
+                </td>
+            </tr>
+            <?php 
+            }
+            ?>
+        </tbody>
+    </table>
+</div>
               <!-- /.card-body -->
             </div>
             <!-- /.card -->
@@ -277,28 +348,146 @@ $(function () {
 <script>
 $(function () {
     //Initialize Select2 Elements
-    $('.select2').select2()
+    $('.select2').select2();
 
     //Initialize Select2 Elements
     $('.select2bs4').select2({
       theme: 'bootstrap4'
-    })
-  });
- 
- 
-
- $('#departs').on('change', function() {
-  var id = $(this).val();
-  var datatypes_session = "sessionlist";
-  $.ajax({
-    type: "post",
-    url: "User/getajaxRequest",
-    data: {id,datatypes_session},
-    success: function(data){
-      $('#sdeparts').html(data);
+    });
+    
+    // Branch checkbox functionality
+    $('.branch-checkbox').on('change', function() {
+      var branchId = $(this).val();
+      var isChecked = $(this).is(':checked');
+      
+      // Show/hide semester list for this branch
+      $('#semesters_' + branchId).toggle(isChecked);
+      
+      // Enable/disable semester checkboxes for this branch
+      $('.semester-checkbox[data-branch="' + branchId + '"]').prop('disabled', !isChecked);
+      
+      // If branch is unchecked, uncheck all its semesters
+      if (!isChecked) {
+        $('.semester-checkbox[data-branch="' + branchId + '"]').prop('checked', false);
+      }
+      
+      // If branch is checked and "select all semesters" is checked, check all its semesters
+      if (isChecked && $('#select-all-semesters').is(':checked')) {
+        $('.semester-checkbox[data-branch="' + branchId + '"]').prop('checked', true);
+      }
+      
+      // Update "Select All Branches" checkbox
+      updateSelectAllBranches();
+    });
+    
+    // "Select All Branches" checkbox functionality
+    $('#select-all-branches').on('change', function() {
+      var isChecked = $(this).is(':checked');
+      $('.branch-checkbox').prop('checked', isChecked);
+      
+      // Show/hide all semester lists
+      if (isChecked) {
+        $('.semester-list').show();
+      } else {
+        $('.semester-list').hide();
+      }
+      
+      // Enable/disable all semester checkboxes
+      $('.semester-checkbox').prop('disabled', !isChecked);
+      
+      // If unchecking all branches, uncheck all semesters
+      if (!isChecked) {
+        $('.semester-checkbox').prop('checked', false);
+      }
+      
+      // If checking all branches and "select all semesters" is checked, check all semesters
+      if (isChecked && $('#select-all-semesters').is(':checked')) {
+        $('.semester-checkbox').prop('checked', true);
+      }
+    });
+    
+    // "Select All Semesters" checkbox functionality
+    $('#select-all-semesters').on('change', function() {
+      var isChecked = $(this).is(':checked');
+      
+      // Only check semesters for selected branches
+      $('.branch-checkbox:checked').each(function() {
+        var branchId = $(this).val();
+        $('.semester-checkbox[data-branch="' + branchId + '"]').prop('checked', isChecked);
+      });
+      
+      // Update "All Semesters" checkbox status
+      updateSelectAllSemesters();
+    });
+    
+    // When any individual semester checkbox changes
+    $('.semester-checkbox').on('change', function() {
+      updateSelectAllSemesters();
+    });
+    
+    // Helper function to update "Select All Branches" checkbox
+    function updateSelectAllBranches() {
+      var allBranches = $('.branch-checkbox').length;
+      var selectedBranches = $('.branch-checkbox:checked').length;
+      $('#select-all-branches').prop('checked', allBranches === selectedBranches && allBranches > 0);
     }
+    
+    // Helper function to update "Select All Semesters" checkbox
+    function updateSelectAllSemesters() {
+      var enabledSemesters = $('.semester-checkbox:not(:disabled)').length;
+      var selectedSemesters = $('.semester-checkbox:checked').length;
+      $('#select-all-semesters').prop('checked', enabledSemesters === selectedSemesters && enabledSemesters > 0);
+    }
+
+    // Handle form submission
+    $('#section_form').on('submit', function(e) {
+      // Create a structured data object
+      var structuredData = {};
+      var deptArray = [];
+      var sessionArray = [];
+      
+      // Loop through all checked branches
+      $('.branch-checkbox:checked').each(function() {
+        var branchId = $(this).val();
+        deptArray.push(branchId);
+        
+        // Find all checked semesters for this branch
+        var branchSemesters = [];
+        $('.semester-checkbox[data-branch="' + branchId + '"]:checked').each(function() {
+          var semesterId = $(this).val();
+          sessionArray.push(semesterId);
+          branchSemesters.push(semesterId);
+        });
+        
+        // Add branch and its semesters to the structured data
+        structuredData[branchId] = branchSemesters;
+      });
+      
+      // Store structured data in hidden input
+      $('#structured_data').val(JSON.stringify(structuredData));
+      
+      // Add traditional form fields for backward compatibility
+      if (deptArray.length > 0) {
+        deptArray.forEach(function(dept) {
+          $('<input>').attr({
+            type: 'hidden',
+            name: 'dept[]',
+            value: dept
+          }).appendTo('#section_form');
+        });
+      }
+      
+      if (sessionArray.length > 0) {
+        sessionArray.forEach(function(session) {
+          $('<input>').attr({
+            type: 'hidden',
+            name: 'session[]',
+            value: session
+          }).appendTo('#section_form');
+        });
+      }
+    });
   });
-});
 </script>
 
 
