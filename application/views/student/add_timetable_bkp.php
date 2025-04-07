@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -35,7 +36,7 @@
           <div class="col-sm-12">
             <ol class="breadcrumb float-sm-right">
               <li class="breadcrumb-item"><a href="#">Home</a></li>
-              <li class="breadcrumb-item active">Add Time Table</li>
+              <li class="breadcrumb-item active">Add Section</li>
             </ol>
           </div>
         </div>
@@ -55,10 +56,10 @@ $buid=$this->web->session->userdata('login_id');
           <div class="col-md-12">
             <div class="card card-info">
               <div class="card-header">
-                <h3 class="card-title">Add Time Table</h3><br>
+                <h3 class="card-title">Add Section</h3><br>
                 <span style="color: red"><?php echo $this->session->flashdata('msg');?></span>
               </div>
-              <form action="<?php echo base_url('User/add_newtimetable')?>" method="post">
+              <form action="<?php echo base_url('User/add_newsection')?>" method="post">
               <div class="card-body">
                        <div class="row">
                  <!-- <div class="from-group col-md-3">
@@ -84,53 +85,9 @@ $buid=$this->web->session->userdata('login_id');
                   
                   
            
-                  <div class="from-group col-md-2">
-                    <label for="depart">Time Table Name</label>
+                  <div class="from-group col-md-3">
+                    <label for="depart">Section Name</label>
                     <input type="text" class="form-control" name="name" placeholder="Enter a name" id="depart" required>
-                  </div>
-				  <div class="from-group col-md-2">
-                    <label for="depart">Start Date</label>
-                    <input type="date" class="form-control" name="start" placeholder="Enter a name" id="depart" required>
-                  </div>
-				  <div class="from-group col-md-2">
-                    <label for="depart">End Date</label>
-                    <input type="date" class="form-control" name="end" placeholder="Enter a name" id="depart" required>
-                  </div>
-
-                  <div class="from-group col-md-2">
-                    <label for="branch">Branch</label>
-                    <select name="branch_id" class="form-control" id="branch" required>
-                      <option value="">Select Branch</option>
-                      <?php
-                        $branches = $this->web->getBusinessDepByBusinessId($buid);
-                        if(!empty($branches)){
-                          foreach($branches as $branch):
-                            echo "<option value=".$branch->id.">".$branch->name."</option>";
-                          endforeach;
-                        }
-                      ?>
-                    </select>
-                  </div>
-
-                  <div class="from-group col-md-2">
-                    <label for="batch">Batch</label>
-                    <select name="batch_id" class="form-control" id="batch" required>
-                      <option value="">Select Batch</option>
-                    </select>
-                  </div>
-
-                  <div class="from-group col-md-2">
-                    <label for="semester">Semester</label>
-                    <select name="semester_id" class="form-control" id="semester" required>
-                      <option value="">Select Semester</option>
-                    </select>
-                  </div>
-
-                  <div class="from-group col-md-2">
-                    <label for="section">Section</label>
-                    <select name="section_id" class="form-control" id="section" required>
-                      <option value="">Select Section</option>
-                    </select>
                   </div>
 
                  <input type="hidden" class="form-control" name="bid" value="<?php echo $buid ; ?>">
@@ -153,73 +110,34 @@ $buid=$this->web->session->userdata('login_id');
           <div class="col-md-12">
             <div class="card card-primary">
               <div class="card-header">
-                <h3 class="card-title">Time Table  List</h3>
+                <h3 class="card-title">Section  List</h3>
               </div>
               <div class="card-body">
               <table id="example1" class="table table-bordered table-striped">
                   <thead>
                   <tr>
                     <th>S. No</th>
-                    <th>Name</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th>Branch</th>
-                    <th>Batch</th>
-                    <th>Semester</th>
-                    <th>Section</th>
-                    <th>Periods</th>
-                    <th>Edit</th>
+                    <th>Class</th>
+                     <th>Section Name</th>
+                 <th>Edit</th>
                     <th>Delete</th>
                   </tr>
                   </thead>
                   <tbody>
                       <?php
-                      $res = $this->web->getall_timetable($buid);
+                      $res = $this->web->getall_S_sectionbyid($buid);
                       $count=1;
                       foreach($res as $res){
                       ?>
                       <tr>
                         <td><?php echo $count++; ?></td>
-                        <td><?php echo $res->name ; ?></td>
-                        <td><?php echo date("d-M-y",$res->start_date) ; ?></td>
-                        <td><?php echo date("d-M-y",$res->end_date) ; ?></td>
-                        <td><?php 
-                            if(isset($res->dept)) {
-                                $branch = $this->web->getBusinessDepByUserId($res->dept);
-                                echo !empty($branch) ? $branch[0]->name : 'N/A';
-                            } else {
-                                echo 'N/A';
-                            }
-                        ?></td>
-                        <td><?php 
-                            if(isset($res->session)) {
-                                $batch = $this->web->getSessionById($res->session);
-                                echo !empty($batch) ? $batch[0]->session_name : 'N/A';
-                            } else {
-                                echo 'N/A';
-                            }
-                        ?></td>
-                        <td><?php 
-                            if(isset($res->semester_id)) {
-                                $semester = $this->web->getSemesterById($res->semester_id);
-                                echo !empty($semester) ? $semester[0]->semestar_name : 'N/A';
-                            } else {
-                                echo 'N/A';
-                            }
-                        ?></td>
-                        <td><?php 
-                            if(isset($res->section)) {
-                                $section = $this->web->getsectionById($res->section);
-                                echo !empty($section) ? $section[0]->name : 'N/A';
-                            } else {
-                                echo 'N/A';
-                            }
-                        ?></td>
-                        <td>
-                          <a href="<?php echo base_url('User/period_timetable/'.$res->id); ?>" class="btn btn-success btn-sm">
-                            <i class="fas fa-calendar-alt"></i> Manage Periods
-                          </a>
-                        </td>
+                         <td><?php
+                         
+						       $classname = $this->web->getclassnamebyid($res->class_id);
+                         
+                          echo $classname[0]->name;?></td>
+                        <td><?php echo $res->name."( Code:-".$res->id.")"; ?></td>
+                       
                         <td>
                           <button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#myModal" onclick="mclick('<?php echo $res->id; ?>')">
                             <i class="fas fa-edit"></i>
@@ -359,83 +277,6 @@ $(function () {
 	
     })
   }
-</script>
-<script>
-  $(document).ready(function() {
-    // When branch changes
-    $('#branch').change(function() {
-      var branchId = $(this).val();
-      if(branchId != '') {
-        // Clear and disable dependent dropdowns
-        $('#batch').empty().append('<option value="">Loading batches...</option>');
-        $('#semester').empty().append('<option value="">Select Semester</option>');
-        $('#section').empty().append('<option value="">Select Section</option>');
-        
-        // Get batches for selected branch
-        $.ajax({
-          type: "POST",
-          url: "<?php echo base_url('User/get_batches_by_dept'); ?>",
-          data: {dept_id: branchId},
-          success: function(response) {
-            var batches = JSON.parse(response);
-            $('#batch').empty().append('<option value="">Select Batch</option>');
-            $.each(batches, function(index, batch) {
-              $('#batch').append('<option value="' + batch.id + '">' + batch.session_name + '</option>');
-            });
-          }
-        });
-      }
-    });
-
-    // When batch changes
-    $('#batch').change(function() {
-      var batchId = $(this).val();
-      var branchId = $('#branch').val();
-      if(batchId != '' && branchId != '') {
-        // Clear and disable dependent dropdowns
-        $('#semester').empty().append('<option value="">Loading semesters...</option>');
-        $('#section').empty().append('<option value="">Select Section</option>');
-        
-        // Get semesters for selected branch
-        $.ajax({
-          type: "POST",
-          url: "<?php echo base_url('User/get_semester_by_branch'); ?>",
-          data: {branch_id: branchId},
-          success: function(response) {
-            var semesters = JSON.parse(response);
-            $('#semester').empty().append('<option value="">Select Semester</option>');
-            $.each(semesters, function(index, semester) {
-              $('#semester').append('<option value="' + semester.id + '">' + semester.semestar_name + '</option>');
-            });
-          }
-        });
-      }
-    });
-
-    // When semester changes
-    $('#semester').change(function() {
-      var semesterId = $(this).val();
-      var batchId = $('#batch').val();
-      if(semesterId != '' && batchId != '') {
-        // Clear and disable section dropdown
-        $('#section').empty().append('<option value="">Loading sections...</option>');
-        
-        // Get sections for selected batch and semester
-        $.ajax({
-          type: "POST",
-          url: "<?php echo base_url('User/get_sections_by_batch_semester'); ?>",
-          data: {batch_id: batchId, semester_id: semesterId},
-          success: function(response) {
-            var sections = JSON.parse(response);
-            $('#section').empty().append('<option value="">Select Section</option>');
-            $.each(sections, function(index, section) {
-              $('#section').append('<option value="' + section.id + '">' + section.name + '</option>');
-            });
-          }
-        });
-      }
-    });
-  });
 </script>
 </body>
 </html>

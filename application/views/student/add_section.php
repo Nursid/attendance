@@ -79,9 +79,13 @@ $buid=$this->web->session->userdata('login_id');
                         </div>
                       </div>
                     </div>
+                   
                     <div id="branches_semesters_container" class="border p-3 rounded">
+                    <div class="col-12 mb-3">
+                    <input type="text" class="form-control" name="name" placeholder="Enter section title" id="depart" required>
+                  </div>
                       <?php
-                        // Get all branches
+                        // Get all branchess
                         $branches = $this->web->getBusinessDepByBusinessId($buid);
                         // Get all semesters
                         $allSemesters = $this->web->getallSemesters($buid);
@@ -139,9 +143,7 @@ $buid=$this->web->session->userdata('login_id');
                     </div>
                   </div>
                   
-                  <div class="col-12 mb-3">
-                    <input type="text" class="form-control" name="name" placeholder="Enter section title" id="depart" required>
-                  </div>
+               
 
                   <input type="hidden" class="form-control" name="bid" value="<?php echo $buid ; ?>">
                   

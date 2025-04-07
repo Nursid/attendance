@@ -4175,14 +4175,158 @@ public function delete_S_session(){
 }
 
 
+public function add_newtimetable(){
+	if(!empty($this->session->userdata('id'))){
+		$postdata=$this->input->post();
 
+		$postdata=array(
+			'name'=>$postdata['name'],
+			'start_date'=>strtotime($postdata['start']),
+			'end_date'=>strtotime($postdata['end']),
+			'dept'=>$postdata['branch_id'],
+			'session'=>$postdata['batch_id'],
+			'semester_id'=>$postdata['semester_id'],
+			'section'=>$postdata['section_id'],
+			'bid'=>$postdata['bid']
+		);
+		$data=$this->db->insert('time_table_name',$postdata);
+		if($data > 0){
+			$this->session->set_flashdata('msg','New Time Table Added!');
+			redirect('time_table');
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
 
+public function get_semester_by_branch() {
+    if(!empty($this->session->userdata('id'))) {
+        $branch_id = $this->input->post('branch_id');
+        $bid = $this->session->userdata('login_id');
+        
+        $semesters = $this->web->getallSemesters($bid);
+        $filtered_semesters = array();
+        
+        foreach($semesters as $semester) {
+            $dep_ids = explode(',', $semester->dep_id);
+            if(in_array($branch_id, $dep_ids)) {
+                $filtered_semesters[] = $semester;
+            }
+        }
+        
+        echo json_encode($filtered_semesters);
+    }
+}
 
+public function get_sections_by_batch_semester() {
+    if(!empty($this->session->userdata('id'))) {
+        $batch_id = $this->input->post('batch_id');
+        $semester_id = $this->input->post('semester_id');
+        $bid = $this->session->userdata('login_id');
+        
+        $sections = $this->web->getall_S_sectionbyid($bid);
+        $filtered_sections = array();
+        
+        foreach($sections as $section) {
+            if($section->session_id == $batch_id) {
+                $filtered_sections[] = $section;
+            }
+        }
+        
+        echo json_encode($filtered_sections);
+    }
+}
 
+public function time_table(){
+	if(!empty($this->session->userdata('id'))){
+		$this->load->view('student/add_timetable');
+	}
+	else{
+		redirect('user-login');
+	}
+}
 
+public function get_sections_by_session(){
+	if(!empty($this->session->userdata('id'))){
+		$session_id = $this->input->post('id');
+		$result = $this->web->getSectionBySessionId($session_id);
+		
+		echo '<option value="" disabled selected>Select Section</option>';
+		if(!empty($result)){
+			foreach($result as $section):
+				echo "<option value=".$section->id.">".$section->name."</option>";
+			endforeach;
+		} else {
+			echo '<option value="" disabled>No sections found</option>';
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
 
+public function period_timetable($timetable_id = null) {
 
 	
+	if(!empty($this->session->userdata('id'))){
+		if($timetable_id) {
+			$data['timetable'] = $this->web->get_timetable_by_id($timetable_id);
+			
+			$data['timetable_entries'] = $this->web->get_timetable_entries($timetable_id);
+			
+			$data['teachers'] = $this->web->get_all_teachers($this->session->userdata('login_id'));
+
+			
+			$data['subjects'] = $this->web->get_all_subjects($this->session->userdata('login_id'));
+			
+			$this->load->view('student/period_timetable', $data);
+		} else {
+			redirect('time_table');
+		}
+	} else {
+		redirect('user-login');
+	}
+}
+
+public function save_timetable_entry() {
+	if(!empty($this->session->userdata('id'))){
+		$postdata = $this->input->post();
+	
+		// Check if entry already exists
+		$existing = null;
+		if(!empty($postdata['entry_id'])) {
+			$existing = $this->db->where('id', $postdata['entry_id'])->get('time_table')->row();
+		}
+
+		$entry = array(
+			'bid' => $this->session->userdata('login_id'),
+			'timetable_id' => $postdata['timetable_id'],
+			'days' => $postdata['days'],
+			'period' => $postdata['period'],
+			'subject' => $postdata['subject'],
+			'class_room' => $postdata['class_room'],
+			'teacher' => $postdata['teacher']
+		);
+		
+		if($existing) {
+			// Update existing entry
+			$this->db->where('id', $existing->id);
+			$result = $this->db->update('time_table', $entry);
+		} else {
+			// Insert new entry
+			$result = $this->db->insert('time_table', $entry);
+		}
+		
+		if($result) {
+			echo json_encode(['status' => 'success']);
+		} else {
+			echo json_encode(['status' => 'error']);
+		}
+	} else {
+		redirect('user-login');
+	}
+}	
 	
 }
 

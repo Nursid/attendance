@@ -119,7 +119,7 @@ class Web_Model extends CI_Model
 		return $this->db->get('user_request')->result();
 	}
 	public function getNameByUserId($id){
-		return $this->db->query("SELECT * FROM login WHERE id = '$id' ")->result();
+		return $this->db->query("SELECT name FROM login WHERE id = '$id' ")->row()->name;
 	}
 
 
@@ -1304,7 +1304,7 @@ public function getsectionById($id){
 	return $this->db->query("SELECT * FROM S_section WHERE id='$id' ")->result();
 }
 public function getsubjectnamebyid($id){
-        return $this->db->query("SELECT * FROM subject WHERE id = '$id' ")->result();
+        return $this->db->query("SELECT * FROM subject WHERE id = '$id' ")->row();
 		// return $this->db->query("SELECT * FROM login WHERE id = '$id'")->row_array();
     }
     
@@ -1391,8 +1391,29 @@ public function getSemesterNameById($semester_id) {
     return $row ? $row->semestar_name : '';
 }
 
+public function getall_timetable($bid){
+	return $this->db->query("SELECT * FROM time_table_name WHERE bid='$bid' and deleted=0 order by id DESC ")->result();
+}
 
+public function get_timetable_by_id($id){
+	return $this->db->query("SELECT * FROM time_table_name WHERE id='$id' AND deleted=0")->row();
+}
 
-	
+public function get_timetable_entries($timetable_id){
+	return $this->db->query("SELECT * FROM time_table WHERE timetable_id='$timetable_id' ORDER BY days, period")->result();
+}
+
+public function get_timetable_entry($entry_id){
+	return $this->db->query("SELECT * FROM time_table WHERE id='$entry_id'")->row();
+}
+
+public function get_all_teachers($bid){
+	return $this->db->query("SELECT id, name FROM login WHERE company='$bid'  AND deleted=1 ORDER BY name")->result();
+}
+
+public function get_all_subjects($bid){
+	return $this->db->query("SELECT id, name FROM subject WHERE bid='$bid' AND status=0 ORDER BY name")->result();
+}
+
 }
 ?>

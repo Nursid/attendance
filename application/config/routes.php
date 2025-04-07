@@ -178,3 +178,8 @@ $route['add_subject'] = 'User/add_subject';
 $route['student_device'] = 'User/student_device';
 $route['stu_device_access'] = 'User/stu_device_access';
 $route['student_pass'] = 'User/studentsPass';
+
+
+$route['time_table'] = 'User/time_table';
+$route['period_timetable/(:num)'] = 'User/period_timetable/$1';
+$route['save_timetable_entry'] = 'User/save_timetable_entry';
