@@ -2006,9 +2006,12 @@ public function students_monthly_report(){
 				$dept=0;
 				$session=0;
 				$section=0;
+				$semester=0; // Adding semester parameter
+				$subject=0; // Adding subject parameter
 				$true = 0;
 				$days_array = array();
 				$new_array = array();
+				$subject_wise_data = array(); // Added for subject-wise attendance
 			if ($this->session->userdata()['type'] == 'P') {
 				$loginId = $this->session->userdata('empCompany');
 				$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
@@ -2025,14 +2028,21 @@ public function students_monthly_report(){
 					$dept = $postdata['dept'];
 				$session = $postdata['session'];
 				$section = $postdata['section'];
+				$semester = isset($postdata['semester']) ? $postdata['semester'] : 0; // Get semester if available
+				$subject = isset($postdata['subject']) ? $postdata['subject'] : 0; // Get subject if available
 				
 				$true= 1;
 				
-				//$totalMispunch = 0;
 			//	$users_data = $this->web->getSchoolStudentList($loginId);
 					$users_data = $this->web->getSchoolStudentListbysection($loginId,$dept,$session,$section);
+					
 			$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
 			$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($end_date)));
+				// Get subject-wise attendance data
+				$subject_data = $this->web->getSubjectWiseAttendance($start_time, $end_time, $dept, $session, $section, $subject);
+				
+				// Get the list of all subjects for this department/section
+				$all_subjects = $this->web->getallsubjectbyid($loginId);
 
 				if(!empty($users_data)){
 					//$seconds = 0;
@@ -2056,12 +2066,20 @@ public function students_monthly_report(){
 		//  $monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($mid->checkon->datefrom))." +".$num_month." days");
 							   $monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
 								$monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$num_month." days");
+								
 							//	$monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$loginId,1);
 									$monthUserAt= $this->web->getStudentAttendanceReportByDate($monthStartTime,$monthEndTime,$user->id,$loginId);
+									
+									// If subject filter is applied, filter attendance records by subject
+									if($subject > 0 && !empty($monthUserAt)) {
+										$monthUserAt = array_filter($monthUserAt, function($val) use($subject) {
+											return (isset($val->subject_id) && $val->subject_id == $subject);
+										});
+									}
 										
 					   // $monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$check['id'],1);
 		  for($d=0; $d<$num_month;$d++){
-		   $new_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date))." +".$d." days");
+		   $new_start_time = strtotime(date("d-m-Y 10:00:00",strtotime($start_date))." +".$d." days");
 			$new_end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$d." days");
 			$days_array[]= date("d",$new_start_time);
 			$data = array();
@@ -2080,8 +2098,22 @@ public function students_monthly_report(){
 					  $data[] = array(
 					//	'mode'=>$at->mode,
 						'time'=>$at->time,
+						'subject_id' => isset($at->subject_id) ? $at->subject_id : 0,
+						'student_status' => isset($at->student_status) ? $at->student_status : ''
 					//	'comment'=>$at->comment
 					  );
+					  
+					  // Track subject attendance for this day if available
+					  if(isset($at->subject_id) && $at->subject_id > 0) {
+					      $day_key = date("Y-m-d", $new_start_time);
+					      if(!isset($subject_wise_data[$day_key])) {
+					          $subject_wise_data[$day_key] = array();
+					      }
+					      if(!isset($subject_wise_data[$day_key][$at->subject_id])) {
+					          $subject_wise_data[$day_key][$at->subject_id] = 0;
+					      }
+					      $subject_wise_data[$day_key][$at->subject_id]++;
+					  }
 				//	}
 				  }
 				}else{
@@ -2117,20 +2149,46 @@ public function students_monthly_report(){
 				}}
 				}
 				
-		$data=array(
-					'start_date'=>$start_date,
-					'end_date'=>$end_date,
-						'dept'=>$dept,
-							'session'=>$session,
-								'section'=>$section,
-					'load'=>$true,
-					'report'=>$new_array,
-					'days'=>$days_array,
-					
-					'cmp_name'=>$cmpName['name']
-				);	
+				// Get branch, batch, and semester information
+				$branch_info = $this->web->getBusinessDepByUserId($dept);
+				$branch_name = !empty($branch_info) ? $branch_info[0]->name : '';
 				
-		
+				$batch_info = $this->web->getbatchById($session);
+				$batch_name = !empty($batch_info) ? $batch_info[0]->session_name : '';
+				
+				$semester_info = $this->web->getSemesterById($postdata['semester'] ?? 0);
+				$semester_name = !empty($semester_info) ? $semester_info[0]->semestar_name : '';
+				
+				$section_info = $this->web->getsectionById($section);
+				$section_name = !empty($section_info) ? $section_info[0]->name : '';
+				
+				// Get subject information if subject is selected
+				$subject_name = '';
+				if($subject > 0) {
+					$subject_info = $this->web->getsubjectnamebyid($subject);
+					$subject_name = !empty($subject_info) ? $subject_info->name : '';
+				}
+				
+		$data = array(
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'dept' => $dept,
+			'session' => $session,
+			'section' => $section,
+			'semester' => $semester,
+			'subject' => $subject,
+			'load' => $true,
+			'report' => $new_array,
+			'days' => $days_array,
+			'subject_wise_data' => $subject_wise_data,
+			'all_subjects' => $all_subjects,
+			'branch_name' => $branch_name,
+			'batch_name' => $batch_name,
+			'semester_name' => $semester_name,
+			'section_name' => $section_name,
+			'subject_name' => $subject_name,
+			'cmp_name' => $cmpName['name']
+		);
 			
 			$this->load->view('student/students_monthly_report',$data);
 		}
@@ -2562,7 +2620,8 @@ public function students_monthly_report(){
 
 
 
-public function student_device(){
+
+	public function student_device(){
 	if(!empty($this->session->userdata('id'))){
 		$this->load->view('student/device_list');
 	}
@@ -2570,6 +2629,12 @@ public function student_device(){
 		redirect('user-login');
 	}
 }
+
+
+	
+
+
+
 
 public function stu_device_access(){
 	if(!empty($this->session->userdata('id'))){
@@ -3607,50 +3672,7 @@ public function add_sdepartment(){
 	
 	
 	
-	public function add_newsection() {
-    if (!empty($this->session->userdata('id'))) {
-        $postdata = $this->input->post();
 
-        // Decode the structured branch-semester data
-        $structuredData = [];
-        if (isset($postdata['structured_data']) && !empty($postdata['structured_data'])) {
-            $structuredData = json_decode($postdata['structured_data'], true);
-        }
-
-        // Store section details (name, bid, etc.)
-        $data = array(
-            'name' => $postdata['name'],
-            'bid' => $postdata['bid'],
-            'date_time' => time()
-        );
-
-        // Insert into S_section
-        $result = $this->db->insert('S_section', $data);
-
-        if ($result) {
-            $section_id = $this->db->insert_id(); // Get newly created section ID
-
-            // Insert branch-semester combinations
-            foreach ($structuredData as $branchId => $semesters) {
-                foreach ($semesters as $semesterId) {
-                    $this->db->insert('section_semesters', [
-                        'section_id' => $section_id,
-                        'branch_id' => $branchId,
-                        'semester_id' => $semesterId
-                    ]);
-                }
-            }
-
-            $this->session->set_flashdata('msg', 'New Section Added!');
-            redirect('add_s_section');
-        } else {
-            $this->session->set_flashdata('msg', 'Something went wrong.');
-            redirect('add_s_section');
-        }
-    } else {
-        redirect('user-login');
-    }
-}
 
 
 
@@ -3670,43 +3692,6 @@ public function delete_S_Section(){
 	}
 
 
-	public function edit_S_Section(){
-		if(!empty($this->session->userdata('id'))){
-			$id = $this->input->post('id');
-			$name = $this->input->post('name');
-			$structuredData = json_decode($this->input->post('structured_data'), true);
-			
-			// Update section name
-			$data = array(
-				'name' => $name
-			);
-			
-			$this->db->where('id', $id);
-			$res = $this->db->update('S_section', $data);
-			
-			if($res) {
-				// Delete existing branch-semester relationships
-				$this->db->where('section_id', $id);
-				$this->db->delete('section_semesters');
-				
-				// Insert new branch-semester combinations
-				foreach($structuredData as $branchId => $semesters) {
-					foreach($semesters as $semesterId) {
-						$this->db->insert('section_semesters', [
-							'section_id' => $id,
-							'branch_id' => $branchId,
-							'semester_id' => $semesterId
-						]);
-					}
-				}
-			}
-			
-			echo $res;
-			return($res);
-		} else {
-			redirect('user-login');
-		}
-	}
 	
 	
 	
@@ -3917,263 +3902,211 @@ public function add_session(){
 		}
 	}
 
-	public function add_semester(){
-		if(!empty($this->session->userdata('id'))){
-			$this->load->view('student/add_semester');
-		}
-		else{
-			redirect('user-login');
-		}
-	}
-	
-	public function get_semester_by_id(){
-		if(!empty($this->session->userdata('id'))){
-			$id = $this->input->post('id');
-			$semester = $this->web->getSemesterById($id);
-			echo json_encode($semester[0]);
-		}
-	}
-	
-	public function update_semester(){
-		if(!empty($this->session->userdata('id'))){
-			$postdata = $this->input->post();
-			$id = $postdata['semester_id'];
-			
-			// Update data in database
-			$data = array(
-				'session_id' => $postdata['session_id'],
-				'semester_name' => $postdata['semester_name']
-			);
-			
-			$this->db->where('id', $id);
-			$result = $this->db->update('S_Semester', $data);
-			
-			if($result){
-				$this->session->set_flashdata('msg', 'Semester Updated Successfully!');
-			}
-			redirect('add_semester');
-		}
-		else{
-			redirect('user-login');
-		}
-	}
-	
-	public function add_newsemester(){
-		if(!empty($this->session->userdata('id'))){
-			$postdata = $this->input->post();
-			
-			$branches = '';
-			if(isset($postdata['dept']) && is_array($postdata['dept'])) {
-				$branches = implode(',', $postdata['dept']); 
-			}
-			// Create array with semester data
-			$data = array(
-				'semestar_name' => $postdata['semestar_name'],
-				'bid' => $this->session->userdata('login_id'),
-				'status' => 1,
-				'year' => $postdata['year'],
-				'dep_id' => $branches
-			);
+
+
+
+	// New Controller by Nursid 
+
+public function students_monthly_report_new(){
+	if(!empty($this->session->userdata('id'))){
 		
-			// Insert into database
-			$result = $this->db->insert('s_semester', $data);
-			
-			if($result){
-				$this->session->set_flashdata('msg', 'New Semester Added!');
-				redirect('add_semester');
-			}
-		}
-		else{
-			redirect('user-login');
-		}
-	}
-
-	public function update_newsemester(){
-		if(!empty($this->session->userdata('id'))){
-			$postdata = $this->input->post();
-			
-			$branches = '';
-			if(isset($postdata['dept']) && is_array($postdata['dept'])) {
-				$branches = implode(',', $postdata['dept']); 
-			}
-
-			// Create array with updated semester data
-			$data = array(
-				'semestar_name' => $postdata['semestar_name'],
-				'year' => $postdata['year'],
-				'dep_id' => $branches
-			);
-
-			// Update database
-			$this->db->where('id', $postdata['id']);
-			$result = $this->db->update('s_semester', $data);
-			
-			if($result){
-				$this->session->set_flashdata('msg', 'Semester Updated Successfully!');
-				redirect('add_semester');
-			}
-		}
-		else{
-			redirect('user-login');
-		}
-	}
-	public function delete_semester(){
-		if(!empty($this->session->userdata('id'))){
-			$id = $this->input->post('id');
-			
-			// Get current status
-			$semester = $this->web->getSemesterById($id);
-			$current_status = $semester[0]->status;
-			
-			// Toggle status between 0 and 1
-			$new_status = ($current_status == 1) ? 0 : 1;
-			
-			$res = $this->web->delete_semester($id, $new_status);
-			
-			if($res){
-				echo $id;
-				return($id);
-			}
-		}
-		else{
-			redirect('user-login');
-		}
-	}
-
-	public function get_batches_by_dept(){
-		if(!empty($this->session->userdata('id'))){
-			$dept_id = $this->input->post('dept_id');
-			$bid = $this->session->userdata('login_id');
-			
-			$batches = $this->web->getBatchesByDeptId($dept_id, $bid);
-			
-			echo json_encode($batches);
-		}
-	}
-
-	public function get_batch_by_id(){
-		if(!empty($this->session->userdata('id'))){
-			$id = $this->input->post('id');
-			$batch = $this->web->getSessionById($id);
-			echo json_encode($batch[0]);
-		}
-	}
-
-	public function update_batch(){
-		if(!empty($this->session->userdata('id'))){
-			$postdata = $this->input->post();
-			$id = $postdata['batch_id'];
-			
-			// Handle multiple branches
-			$branches = '';
-			if(isset($postdata['dept']) && is_array($postdata['dept'])) {
-				$branches = implode(',', $postdata['dept']); 
+		$postdata=$this->input->post();
+			$start_date = date("Y-m-d");
+			$end_date = date("Y-m-d");
+			$dept=0;
+			$session=0;
+			$section=0;
+			$semester=0; // Adding semester parameter
+			$subject=0; // Adding subject parameter
+			$true = 0;
+			$days_array = array();
+			$new_array = array();
+			$subject_wise_data = array(); // Added for subject-wise attendance
+		if ($this->session->userdata()['type'] == 'P') {
+			$loginId = $this->session->userdata('empCompany');
+			$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+			} else {
+			$loginId = $this->web->session->userdata('login_id');
 			}
 			
-			// Update data in database
-			$data = array(
-				'dep_id' => $branches,
-				'session_name' => $postdata['session']
-			);
+			$cmpName = $this->web->getBusinessById($loginId);
+			//$action="active";
+			if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+		$start_date = $postdata['start_date'];
+		$end_date = $postdata['end_date'];
+			//$action = $postdata['action'];
+				$dept = $postdata['dept'];
+			$session = $postdata['session'];
+			$section = $postdata['section'];
+			$semester = isset($postdata['semester']) ? $postdata['semester'] : 0; // Get semester if available
+			$subject = isset($postdata['subject']) ? $postdata['subject'] : 0; // Get subject if available
 			
-			$this->db->where('id', $id);
-			$result = $this->db->update('S_Session', $data);
+			$true= 1;
 			
-			if($result){
-				$this->session->set_flashdata('msg', 'Batch Updated Successfully!');
-			}
-			redirect('add_batch');
-		}
-		else{
-			redirect('user-login');
-		}
-	}
 
-	public function add_newsession(){
-		if(!empty($this->session->userdata('id'))){
-			$postdata=$this->input->post();
 			
+			$data2 = array();
+			// get all student by branches -> batch -> semester - > section 
+			$users_data = $this->web->getSchoolStudentListbysection($loginId,$dept,$session,$semester);
 			
-			// Handle multiple branches
-			$branches = '';
-			if(isset($postdata['dept']) && is_array($postdata['dept'])) {
-				$branches = implode(',', $postdata['dept']); 
-			}
-			
-			
-			// Create array with session data
-			$postdata=array(
-			    'dep_id'=>$branches,
-				'session_name'=>$postdata['session'], 
-				'bid'=>$postdata['bid'],
-				'date_time'=>time()
-			);
-			
-			
-			// Insert into database
-			$data=$this->db->insert('S_Session',$postdata);
-			if($data > 0){
-				$this->session->set_flashdata('msg','New Session Added!');
-				redirect('add_batch');
-			}
-		}
-		else{
-			redirect('user-login');
-		}
-	}
+			if(!empty($users_data)){
+				//$seconds = 0;
+				foreach($users_data as $user){
+				//	if($user->hostel=="1"){
+					
+				$date1=date_create(date("Y-m-d",strtotime($start_date)));
+							$date2=date_create(date("Y-m-d",strtotime($end_date)));
+							$diff=date_diff($date1,$date2);
+							$num_month = $diff->format("%a");
 
-public function editsession(){
-		if(!empty($this->session->userdata('id'))){
-			$check=$_REQUEST;
-			print_r($check);
-			
-			$name = $_POST['name'];
-			$id = $_POST['id'];
-			$branches = '';
-			
-			if(isset($_POST['dept']) && is_array($_POST['dept'])) {
-				$branches = implode(',', $_POST['dept']);
-			}
-			
-			$data = array(
-				'session_name' => $name,
-				'dep_id' => $branches
-			);
-			
-			print_r($data);
-			$this->db->where('id',$id);
-			$res = $this->db->update('S_Session',$data);
-			echo $res;
-			return($res);
-		}
-		else{
-			redirect('user-login');
-		}
-	}
+							$num_month++;
+							if($num_month>31){
+								$num_month=31;
+							}	
+					
+					$months_array = array();
+					$days_array = array();
+				//	
+	 // $monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($mid->checkon->datefrom)));
+	//  $monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($mid->checkon->datefrom))." +".$num_month." days");
+						   $monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+							$monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$num_month." days");
+							
+						//	$monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$loginId,1);
+								$monthUserAt= $this->web->getStudentAttendanceReportByDate($monthStartTime,$monthEndTime,$user->id,$loginId);
+								
+								// If subject filter is applied, filter attendance records by subject
+								if($subject > 0 && !empty($monthUserAt)) {
+									$monthUserAt = array_filter($monthUserAt, function($val) use($subject) {
+										return (isset($val->subject_id) && $val->subject_id == $subject);
+									});
+								}
+									
+				   // $monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$check['id'],1);
+	  for($d=0; $d<$num_month;$d++){
 
-
-public function delete_S_session(){
-		if (!empty($this->session->userdata('id'))) {
-			$id = $this->input->post('id');
+	   $new_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date))." +".$d." days");
+		$new_end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$d." days");
+		$days_array[]= date("d",$new_start_time);
+		$day_number = date('w', $new_start_time); // Get day number (0 for Sunday, 1 for Monday, etc.)
+		
+		
+		// get time period by suject and date
+		$getperiodTime = $this->web->getperiodTime($subject, $day_number);
+		
+		
+		if(!empty($getperiodTime)) {
+			$start_time_period = $getperiodTime->start_time;
+			$end_time_period = $getperiodTime->end_time;
 			
-			// Get current status
-			$session = $this->web->getSessionById($id);
-			$current_status = $session[0]->status;
+			$start_time_stamp = strtotime(date("Y-m-d", strtotime($start_date)) . " " . $start_time_period . " +".$d." days");
+			$end_time_stamp = strtotime(date("Y-m-d", strtotime($start_date)) . " " . $end_time_period . " +".$d." days");
 			
-			// Toggle status between 0 and 1
-			$new_status = ($current_status == 1) ? 0 : 1;
+			$data = array();
 			
-			$res = $this->web->delete_S_session($id, $new_status);
+			$monthUserAt = $this->web->getStudentAttendanceReportByDate($start_time_stamp,$end_time_stamp,$user->id,$loginId);
 			
-			if ($res) {
-				echo $id;
-				return($id);
+			if(!empty($monthUserAt)) {
+				$data = array(
+					'status' => 'P',
+					'time' => date('H:i', $monthUserAt[0]->time)
+				);
+			} else {
+				$data = array(
+					'status' => 'A',
+					'time' => ''
+				);
 			}
 		} else {
-			redirect('user-login');
+			$data = array(
+				'status' => 'N/A',
+				'time' => ''
+			);
 		}
-}
-
+		
+	//	if(($user->doj!="" || strtotime($start_date)>=$user->doj) && ($user->left_date=="" || strtotime($start_date)<$user->left_date)){
+			// $user_at = array_filter($monthUserAt, function($val) use($new_start_time, $new_end_time){
+			// 	return ($val->time>=$new_start_time and $val->time<=$new_end_time);
+			// });
+			// $user_at = array_reverse($user_at);
+									
+									
+			
+		
+		$months_array[] = array(
+			  'date'=>date("j",$new_start_time),
+			  'day'=>date("l",$new_start_time),
+			  'data'=>$data
+			);
+	//	}
+	  }
+	  
+	  
+	  
+	  if(count($months_array)>0){
+			$new_array[] =array(
+			'user_id'=>$user->id,
+		//	'mid'=>$user->mid,
+		//	'emp_code'=>$user->emp_code,
+			'name'=>$user->name,
+		//	'image'=>$user->image,
+		////	'user_status'=>$user->user_status,
+			'data'=> $months_array
+		  );
+	  }
+		
+	  
+			
+		// close users and post		
+		//	}
+			}}
+			}
+			
+			// Get branch, batch, and semester information
+			$branch_info = $this->web->getBusinessDepByUserId($dept);
+			$branch_name = !empty($branch_info) ? $branch_info[0]->name : '';
+			
+			$batch_info = $this->web->getbatchById($session);
+			$batch_name = !empty($batch_info) ? $batch_info[0]->session_name : '';
+			
+			$semester_info = $this->web->getSemesterById($postdata['semester'] ?? 0);
+			$semester_name = !empty($semester_info) ? $semester_info[0]->semestar_name : '';
+			
+			$section_info = $this->web->getsectionById($section);
+			$section_name = !empty($section_info) ? $section_info[0]->name : '';
+			
+			// Get subject information if subject is selected
+			$subject_name = '';
+			if($subject > 0) {
+				$subject_info = $this->web->getsubjectnamebyid($subject);
+				$subject_name = !empty($subject_info) ? $subject_info->name : '';
+			}
+			
+		$data = array(
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'dept' => $dept,
+			'session' => $session,
+			'section' => $section,
+			'semester' => $semester,
+			'subject' => $subject,
+			'load' => $true,
+			'report' => $new_array,
+			'days' => $days_array,
+			'branch_name' => $branch_name,
+			'batch_name' => $batch_name,
+			'semester_name' => $semester_name,
+			'section_name' => $section_name,
+			'subject_name' => $subject_name,
+			'cmp_name' => $cmpName['name']
+		);
+		
+		$this->load->view('student/students_monthly_report',$data);
+	}
+	else{
+		redirect('user-login');
+	}
+}	
 
 public function add_newtimetable(){
 	if(!empty($this->session->userdata('id'))){
@@ -4326,8 +4259,367 @@ public function save_timetable_entry() {
 	} else {
 		redirect('user-login');
 	}
-}	
-	
 }
 
-?>
+public function getallsubjectbyid() {
+    if(!empty($this->session->userdata('id'))) {
+        if ($this->input->is_ajax_request()) {
+            $bid = $this->input->post('bid');
+            $subjects = $this->web->getallsubjectbybranchid($bid);
+            echo json_encode($subjects);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid request']);
+        }
+    } else {
+        redirect('user-login');
+    }
+}
+
+public function get_batch_by_id(){
+	if(!empty($this->session->userdata('id'))){
+		$id = $this->input->post('id');
+		$batch = $this->web->getSessionById($id);
+		echo json_encode($batch[0]);
+	}
+}
+
+
+public function update_batch(){
+	if(!empty($this->session->userdata('id'))){
+		$postdata = $this->input->post();
+		$id = $postdata['batch_id'];
+		
+		// Handle multiple branches
+		$branches = '';
+		if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+			$branches = implode(',', $postdata['dept']); 
+		}
+		
+		// Update data in database
+		$data = array(
+			'dep_id' => $branches,
+			'session_name' => $postdata['session']
+		);
+		
+		$this->db->where('id', $id);
+		$result = $this->db->update('S_Session', $data);
+		
+		if($result){
+			$this->session->set_flashdata('msg', 'Batch Updated Successfully!');
+		}
+		redirect('add_batch');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function add_newsession(){
+	if(!empty($this->session->userdata('id'))){
+		$postdata=$this->input->post();
+		
+		
+		// Handle multiple branches
+		$branches = '';
+		if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+			$branches = implode(',', $postdata['dept']); 
+		}
+		
+		
+		// Create array with session data
+		$postdata=array(
+			'dep_id'=>$branches,
+			'session_name'=>$postdata['session'], 
+			'bid'=>$postdata['bid'],
+			'date_time'=>time()
+		);
+		
+		
+		// Insert into database
+		$data=$this->db->insert('S_Session',$postdata);
+		if($data > 0){
+			$this->session->set_flashdata('msg','New Session Added!');
+			redirect('add_batch');
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+
+public function editsession(){
+	if(!empty($this->session->userdata('id'))){
+		$check=$_REQUEST;
+		print_r($check);
+		
+		$name = $_POST['name'];
+		$id = $_POST['id'];
+		$branches = '';
+		
+		if(isset($_POST['dept']) && is_array($_POST['dept'])) {
+			$branches = implode(',', $_POST['dept']);
+		}
+		
+		$data = array(
+			'session_name' => $name,
+			'dep_id' => $branches
+		);
+		
+		print_r($data);
+		$this->db->where('id',$id);
+		$res = $this->db->update('S_Session',$data);
+		echo $res;
+		return($res);
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+
+public function delete_S_session(){
+	if (!empty($this->session->userdata('id'))) {
+		$id = $this->input->post('id');
+		
+		// Get current status
+		$session = $this->web->getSessionById($id);
+		$current_status = $session[0]->status;
+		
+		// Toggle status between 0 and 1
+		$new_status = ($current_status == 1) ? 0 : 1;
+		
+		$res = $this->web->delete_S_session($id, $new_status);
+		
+		if ($res) {
+			echo $id;
+			return($id);
+		}
+	} else {
+		redirect('user-login');
+	}
+}
+
+public function add_newsection() {
+    if (!empty($this->session->userdata('id'))) {
+        $postdata = $this->input->post();
+
+        // Decode the structured branch-semester data
+        $structuredData = [];
+        if (isset($postdata['structured_data']) && !empty($postdata['structured_data'])) {
+            $structuredData = json_decode($postdata['structured_data'], true);
+        }
+
+        // Store section details (name, bid, etc.)
+        $data = array(
+            'name' => $postdata['name'],
+            'bid' => $postdata['bid'],
+            'date_time' => time()
+        );
+
+        // Insert into S_section
+        $result = $this->db->insert('S_section', $data);
+
+        if ($result) {
+            $section_id = $this->db->insert_id(); // Get newly created section ID
+
+            // Insert branch-semester combinations
+            foreach ($structuredData as $branchId => $semesters) {
+                foreach ($semesters as $semesterId) {
+                    $this->db->insert('section_semesters', [
+                        'section_id' => $section_id,
+                        'branch_id' => $branchId,
+                        'semester_id' => $semesterId
+                    ]);
+                }
+            }
+
+            $this->session->set_flashdata('msg', 'New Section Added!');
+            redirect('add_s_section');
+        } else {
+            $this->session->set_flashdata('msg', 'Something went wrong.');
+            redirect('add_s_section');
+        }
+    } else {
+        redirect('user-login');
+    }
+}
+
+	
+
+public function edit_S_Section(){
+	if(!empty($this->session->userdata('id'))){
+		$id = $this->input->post('id');
+		$name = $this->input->post('name');
+		$structuredData = json_decode($this->input->post('structured_data'), true);
+		
+		// Update section name
+		$data = array(
+			'name' => $name
+		);
+		
+		$this->db->where('id', $id);
+		$res = $this->db->update('S_section', $data);
+		
+		if($res) {
+			// Delete existing branch-semester relationships
+			$this->db->where('section_id', $id);
+			$this->db->delete('section_semesters');
+			
+			// Insert new branch-semester combinations
+			foreach($structuredData as $branchId => $semesters) {
+				foreach($semesters as $semesterId) {
+					$this->db->insert('section_semesters', [
+						'section_id' => $id,
+						'branch_id' => $branchId,
+						'semester_id' => $semesterId
+					]);
+				}
+			}
+		}
+		
+		echo $res;
+		return($res);
+	} else {
+		redirect('user-login');
+	}
+}
+
+public function add_semester(){
+	if(!empty($this->session->userdata('id'))){
+		$this->load->view('student/add_semester');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function get_semester_by_id(){
+	if(!empty($this->session->userdata('id'))){
+		$id = $this->input->post('id');
+		$semester = $this->web->getSemesterById($id);
+		echo json_encode($semester[0]);
+	}
+}
+
+public function update_semester(){
+	if(!empty($this->session->userdata('id'))){
+		$postdata = $this->input->post();
+		$id = $postdata['semester_id'];
+		
+		// Update data in database
+		$data = array(
+			'session_id' => $postdata['session_id'],
+			'semester_name' => $postdata['semester_name']
+		);
+		
+		$this->db->where('id', $id);
+		$result = $this->db->update('S_Semester', $data);
+		
+		if($result){
+			$this->session->set_flashdata('msg', 'Semester Updated Successfully!');
+		}
+		redirect('add_semester');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function add_newsemester(){
+	if(!empty($this->session->userdata('id'))){
+		$postdata = $this->input->post();
+		
+		$branches = '';
+		if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+			$branches = implode(',', $postdata['dept']); 
+		}
+		// Create array with semester data
+		$data = array(
+			'semestar_name' => $postdata['semestar_name'],
+			'bid' => $this->session->userdata('login_id'),
+			'status' => 1,
+			'year' => $postdata['year'],
+			'dep_id' => $branches
+		);
+	
+		// Insert into database
+		$result = $this->db->insert('s_semester', $data);
+		
+		if($result){
+			$this->session->set_flashdata('msg', 'New Semester Added!');
+			redirect('add_semester');
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function update_newsemester(){
+	if(!empty($this->session->userdata('id'))){
+		$postdata = $this->input->post();
+		
+		$branches = '';
+		if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+			$branches = implode(',', $postdata['dept']); 
+		}
+
+		// Create array with updated semester data
+		$data = array(
+			'semestar_name' => $postdata['semestar_name'],
+			'year' => $postdata['year'],
+			'dep_id' => $branches
+		);
+
+		// Update database
+		$this->db->where('id', $postdata['id']);
+		$result = $this->db->update('s_semester', $data);
+		
+		if($result){
+			$this->session->set_flashdata('msg', 'Semester Updated Successfully!');
+			redirect('add_semester');
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
+public function delete_semester(){
+	if(!empty($this->session->userdata('id'))){
+		$id = $this->input->post('id');
+		
+		// Get current status
+		$semester = $this->web->getSemesterById($id);
+		$current_status = $semester[0]->status;
+		
+		// Toggle status between 0 and 1
+		$new_status = ($current_status == 1) ? 0 : 1;
+		
+		$res = $this->web->delete_semester($id, $new_status);
+		
+		if($res){
+			echo $id;
+			return($id);
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function get_batches_by_dept(){
+	if(!empty($this->session->userdata('id'))){
+		$dept_id = $this->input->post('dept_id');
+		$bid = $this->session->userdata('login_id');
+		
+		$batches = $this->web->getBatchesByDeptId($dept_id, $bid);
+		
+		echo json_encode($batches);
+	}
+}
+
+
+
+
+}?>

@@ -2,6 +2,9 @@
 
 date_default_timezone_set('Asia/Kolkata');
 ?>
+
+
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -74,7 +77,7 @@ date_default_timezone_set('Asia/Kolkata');
               <div class="row">
     <div class="col-lg-12 float-left">
     
-      <form action="<?php echo base_url('User/students_monthly_report')?>" method="POST" id="hostelmonthlyReport">
+      <form action="<?php echo base_url('User/students_monthly_report_new')?>" method="POST" id="hostelmonthlyReport">
                           <div class="row">
                               
                               
@@ -84,32 +87,90 @@ date_default_timezone_set('Asia/Kolkata');
                         $data = $this->web->getBusinessDepByBusinessId($bid);
                     ?>
 
-                    <select class="select2"  id="departs" style="width: 100%;" name="dept">
-                      <option value="" disabled selected>Select Branch</option>
-
-                        <?php foreach($data as $key => $val){
-                          
-                            echo "<option value=" . $val->id . ">" .$val->name."</option>";                          
-                        } ?>
-
-
-                    </select>
+                    <div class="form-group">
+                        <select class="form-control select2" id="departs" name="dept">
+                            <option value="" disabled selected>Select Branch</option>
+                            <?php foreach($data as $key => $val){
+                                $selected = ($dept == $val->id) ? 'selected' : '';
+                                echo "<option value='" . $val->id . "' " . $selected . ">" .$val->name."</option>";                          
+                            } ?>
+                        </select>
+                    </div>
                        
                   </div>  
                               
                       <div class="col-md-2">
                 <div class="form-group">
-                 
-                    <select class="select2"  id="sdeparts" data-placeholder="Select Batch" style="width: 100%;" name="session">
+                    <select class="form-control" id="semester" name="semester">
+                        <option value="" disabled selected>Select Semester</option>
+                        <?php 
+                        if(isset($dept) && $dept > 0) {
+                            $semesters = $this->web->getallSemesters($bid);
+                            if(!empty($semesters)) {
+                                foreach($semesters as $sem) {
+                                    $selected = ($semester == $sem->id) ? 'selected' : '';
+                                    echo "<option value='" . $sem->id . "' " . $selected . ">" . $sem->semestar_name . "</option>";
+                                }
+                            }
+                        }
+                        ?>
                     </select>
                 </div>
                 <!-- /.form-group -->
               </div>
               
-               <div class="col-md-2">
+              <div class="col-md-2">
                 <div class="form-group">
-                 
-                    <select class="select2"  id="section" data-placeholder="Select Section" style="width: 100%;" name="section">
+                    <select class="form-control" id="sdeparts" name="session">
+                        <option value="" disabled selected>Select Batch</option>
+                        <?php 
+                        if(isset($dept) && $dept > 0) {
+                            $batches = $this->web->getSessionByDeptId($dept, $bid);
+                            if(!empty($batches)) {
+                                foreach($batches as $batch) {
+                                    $selected = ($session == $batch->id) ? 'selected' : '';
+                                    echo "<option value='" . $batch->id . "' " . $selected . ">" . $batch->session_name . "</option>";
+                                }
+                            }
+                        }
+                        ?>
+                    </select>
+                </div>
+                <!-- /.form-group -->
+              </div>
+              
+              <div class="col-md-2">
+                <div class="form-group">
+                    <select class="form-control" id="section" name="section">
+                        <option value="" disabled selected>Select Section</option>
+                        <?php 
+                        if(isset($session) && $session > 0) {
+                            $sections = $this->web->getSectionBySessionId($session);
+                            if(!empty($sections)) {
+                                foreach($sections as $sec) {
+                                    $selected = ($section == $sec->id) ? 'selected' : '';
+                                    echo "<option value='" . $sec->id . "' " . $selected . ">" . $sec->name . "</option>";
+                                }
+                            }
+                        }
+                        ?>
+                    </select>
+                </div>
+                <!-- /.form-group -->
+              </div>
+              
+              <div class="col-md-2">
+                <div class="form-group">
+                    <select class="form-control" id="subject" name="subject">
+                        <option value="0">All Subjects</option>
+                        <?php 
+                        if(!empty($all_subjects)) {
+                            foreach($all_subjects as $subj) {
+                                $selected = ($subject == $subj->id) ? 'selected' : '';
+                                echo "<option value='" . $subj->id . "' " . $selected . ">" . $subj->name . "</option>";
+                            }
+                        }
+                        ?>
                     </select>
                 </div>
                 <!-- /.form-group -->
@@ -168,101 +229,73 @@ date_default_timezone_set('Asia/Kolkata');
                       $sect=$sec[0]->name;  
                     }
                         
-                        
                         ?>
                        
-                        <h5>Attendance for Date:-<?php echo date("d-M-Y ",$stdate)?> to Date:- <?php echo date("d-M-Y ",$endate)." And  Department:- ".$department. "  And Session:- ".$ses. "  And Section:- ". $sect ?> </h5>
+                        <h5>Attendance for Date:-<?php echo date("d-M-Y ",$stdate)?> to Date:- <?php echo date("d-M-Y ",$endate)?></h5>
+                        <h5>Branch: <?php echo $branch_name ?? 'N/A'; ?> | Batch: <?php echo $batch_name ?? 'N/A'; ?> | Semester: <?php echo $semester_name ?? 'N/A'; ?> | Section: <?php echo $section_name ?? 'N/A'; ?>
+                        <?php if(!empty($subject_name)): ?> | Subject: <?php echo $subject_name; ?><?php endif; ?>
+                        </h5>
                         
-                      <!--  <div align="right">
-                          <input type="button" onClick="export_datas()" value="Export To Excel" />
-                          <input type="button"  id="btnExport" value="Export To Pdf" onclick="exportPDF()" />
-                          <br>
-                        </div>-->
-                        <table id="example1" class="table table-bordered table-responsive">
-                          <thead>
+                    
+                  
+                        <table id="attendanceReport" class="table table-bordered table-striped">
+                        <thead>
                             <tr>
-                              <th>SNo.</th>
-                             <th>Class</th>
-                               <th>Semester</th>
-                             <th>Roll No</th>
-                            <th>Name</th>
-                            
-                             
-                              <?php
-                              
-                                foreach($days as $day){
-                                  echo "<th>$day</th>";
-                                }
-                              
-                              ?>
-                              
+                                <th>#</th>
+                                <th>Student ID</th>
+                                <th>Student Name</th>
+                                <?php foreach ($days as $dayIndex => $day): ?>
+                                    <th class="text-center">
+                                        <?php echo $day; ?><br>
+                                        <small><?php echo $report[0]['data'][$dayIndex]['day']; ?></small>
+                                    </th>
+                                <?php endforeach; ?>
+                                <th>Present</th>
+                                <th>Absent</th>
+                                <th>Total Lecture</th>
                             </tr>
-                          </thead>
-                          <tbody>
-                            <?php
-                            $count=1;
-                            foreach($report as $user){
-                                
-                                 $val=$this->web->getstudentnamebyid($user['user_id']);
-                                  
-                                   if(!empty($val[0]->roll_no)){
-                                      $sid=$val[0]->roll_no;  
-                                   }else{
-                                     $sid=$val[0]->student_code;   
-                                   }
-                                     
-                                     
-                                     if(($val[0]->class_id) !="0"){
-                                    $classname = $this->web->getclassnamebyid($val['0']->class_id);
-                                      $classn=$classname[0]->name;  
-                                   }else{
-                                     $classn="";    
-                                   }
-                                
-                                
-                                
-                                
-                                
-                              ?>
-                              <tr>
-                                <td><?php echo $count++;?></td>
-                               <td><?php echo $classn;?></td>
-                              <td><?php echo $val[0]->semester;?></td>
-                                <td><?php echo $sid;?></td>
-                               
-                               
-                               
-                                <td><?php echo $user['name'];?></td>
-                                
-                                <?php
-                                
-                                  foreach($user['data'] as $day){
-                                    if(!empty($day['data'])){
-                                      echo "<td>";
-                                     
-                                        foreach($day['data'] as $day_data){
-                                         //echo  $day_data['time']; 
-										// echo  $day_data['mode']; 
-                                         echo strtoupper($day_data['mode'])."&nbsp;".date('h:i:A',$day_data['time'])."</br>";
-                                        }
-										echo "</td>";
-									}
-
-                                  else{
-                                      echo "<td></td>";
-                                    }   
-								  }
-                                
+                        </thead>
+                        <tbody>
+                            <?php foreach ($report as $index => $student): ?>
+                                <?php 
+                                $presentCount = 0;
+                                $absentCount = 0;
+                                $lectureCount = 0;
                                 ?>
-                                
-                                
-                                
-                              </tr>
-                            <?php }?>
-                          </tbody>
-                          <tfoot>
-                          </tfoot>
-                        </table>
+                                <tr>
+                                    <td><?php echo $index + 1; ?></td>
+                                    <td><?php echo $student['user_id']; ?></td>
+                                    <td><?php echo $student['name']; ?></td>
+                                    
+                                    <?php foreach ($student['data'] as $attendance): ?>
+                                        <td class="text-center">
+                                            <?php 
+                                            if ($attendance['data']['status'] == 'P') {
+                                                echo '<span class="badge bg-success">P</span>';
+                                                $presentCount++;
+                                                $lectureCount++;
+                                            } elseif ($attendance['data']['status'] == 'A') {
+                                                echo '<span class="badge bg-danger">A</span>';
+                                                $absentCount++;
+                                                $lectureCount++;
+                                            } else {
+                                                echo '<span class="badge bg-secondary">N/A</span>';
+                                            }
+                                            ?>
+                                        </td>
+                                    <?php endforeach; ?>
+                                    
+                                    <td class="text-center"><?php echo $presentCount; ?></td>
+                                    <td class="text-center"><?php echo $absentCount; ?></td>
+                                    <td class="text-center"><?php echo $lectureCount; ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+
+                    <div class="mb-3">
+                      <button id="exportToCsv" class="btn btn-primary">Export to CSV</button>
+                  </div>
                       </div>
                     <?php }
                     ?>
@@ -273,12 +306,6 @@ date_default_timezone_set('Asia/Kolkata');
               </div>
               <!-- /.row -->
             </div><!-- /.container-fluid -->
-
-
-
-  
-
-
 
   <?php 
         }
@@ -379,42 +406,176 @@ date_default_timezone_set('Asia/Kolkata');
    
     </script>
     <script>
-$(function () {
-    //Initialize Select2 Elements
-    $('.select2').select2()
+$(document).ready(function () {
+  // Use event delegation to handle change events
+  $(document).on('change', '#departs', function() {
+    var branchId = this.value;
+    $('#sdeparts').html('<option value="" disabled selected>Select Batch</option>');
+    $('#semester').html('<option value="" disabled selected>Select Semester</option>');
+    $('#section').html('<option value="" disabled selected>Select Section</option>');
+    $('#subject').html('<option value="0">All Subjects</option>');
 
-    //Initialize Select2 Elements
-    $('.select2bs4').select2({
-      theme: 'bootstrap4'
-    })
-  });
- 
- 
+    var datatypes_session = "sessionlist";
+    $.ajax({
+      type: "post",
+      url: "<?php echo base_url('User/getajaxRequest'); ?>",
+      data: {id: branchId, datatypes_session: datatypes_session},
+      success: function(data){
+        $('#sdeparts').html(data);
+      }
+    });
 
- $('#departs').on('change', function() {
-  var id = this.value;
-  var datatypes_session = "sessionlist";
-  $.ajax({
-    type: "post",
-    url: "User/getajaxRequest",
-    data: {id,datatypes_session},
-    success: function(data){
-      $('#sdeparts').html(data);
-    }
+    $.ajax({
+      type: "post",
+      url: "<?php echo base_url('User/get_semester_by_branch'); ?>",
+      data: {branch_id: branchId},
+      success: function(data){
+        var semesters = JSON.parse(data);
+        var options = '<option value="" disabled selected>Select Semester</option>';
+        semesters.forEach(function(semester) {
+          options += '<option value="' + semester.id + '">' + semester.semestar_name + '</option>';
+        });
+        $('#semester').html(options);
+      }
+    });
+    
+    // Load subjects for the selected branch/department
+    $.ajax({
+      type: "post",
+      url: "<?php echo base_url('User/getallsubjectbyid'); ?>",
+      data: {bid: branchId},
+      success: function(data){
+        var subjects = JSON.parse(data);
+        var options = '<option value="0">All Subjects</option>';
+        subjects.forEach(function(subject) {
+          options += '<option value="' + subject.id + '">' + subject.name + '</option>';
+        });
+        $('#subject').html(options);
+      },
+      error: function() {
+        console.log("Error loading subjects");
+      }
+    });
   });
+
+  $(document).on('change', '#sdeparts', function() {
+    var sessionId = this.value;
+    $('#section').html('<option value="" disabled selected>Select Section</option>');
+
+    var datatypes_section = "sectionlist";
+    $.ajax({
+      type: "post",
+      url: "<?php echo base_url('User/getajaxRequest'); ?>",
+      data: {id: sessionId, datatypes_section: datatypes_section},
+      success: function(data){
+        $('#section').html(data);
+      }
+    });
+  });
+  
+  // Initialize values based on current params if they exist
+  <?php if(isset($dept) && $dept > 0): ?>
+  $('#departs').trigger('change');
+  <?php endif; ?>
+  
+  <?php if(isset($session) && $session > 0): ?>
+  setTimeout(function() {
+    $('#sdeparts').val('<?= $session ?>').trigger('change');
+  }, 500);
+  <?php endif; ?>
+  
+  <?php if(isset($section) && $section > 0): ?>
+  setTimeout(function() {
+    $('#section').val('<?= $section ?>');
+  }, 1000);
+  <?php endif; ?>
+  
+  <?php if(isset($semester) && $semester > 0): ?>
+  setTimeout(function() {
+    $('#semester').val('<?= $semester ?>');
+  }, 1000);
+  <?php endif; ?>
+  
+  <?php if(isset($subject) && $subject > 0): ?>
+  setTimeout(function() {
+    $('#subject').val('<?= $subject ?>');
+  }, 1500);
+  <?php endif; ?>
 });
+</script>
 
-$('#sdeparts').on('change', function() {
-  var id = this.value;
-  var datatypes_section = "sectionlist";
-  $.ajax({
-    type: "post",
-    url: "User/getajaxRequest",
-    data: {id,datatypes_section},
-    success: function(data){
-      $('#section').html(data);
-    }
-  });
+<script>
+$(document).ready(function() {
+    $('#exportToCsv').click(function() {
+        // Get the header information from your HTML
+        var dateRange = $('h5:contains("Attendance for Date")').text().trim();
+        var details = $('h5:contains("Branch:")').text().trim();
+        
+        // Get the table data
+        var table = document.getElementById('attendanceReport');
+        var rows = table.querySelectorAll('tr');
+        
+        // Prepare CSV content
+        var csv = [];
+        
+        // Add header information as merged rows
+        // First row (date range) - merge all columns
+        var columnCount = table.querySelectorAll('thead th').length;
+        var headerRow1 = ['"' + dateRange + '"'];
+        for (var i = 1; i < columnCount; i++) {
+            headerRow1.push('""');
+        }
+        csv.push(headerRow1.join(','));
+        
+        // Second row (details) - merge all columns
+        var headerRow2 = ['"' + details + '"'];
+        for (var i = 1; i < columnCount; i++) {
+            headerRow2.push('""');
+        }
+        csv.push(headerRow2.join(','));
+        
+        // Add empty row as separator
+        csv.push('');
+        
+        // Add table headers with merged cells
+        var headerRow = [];
+        var headers = table.querySelectorAll('thead th');
+        headers.forEach(function(header) {
+            // Remove the <br> and <small> content from day headers
+            var headerText = header.innerText.replace(/\n/g, ' ').trim();
+            headerRow.push('"' + headerText + '"');
+        });
+        csv.push(headerRow.join(','));
+        
+        // Add data rows
+        var dataRows = table.querySelectorAll('tbody tr');
+        dataRows.forEach(function(row) {
+            var rowData = [];
+            var cols = row.querySelectorAll('td');
+            cols.forEach(function(col) {
+                // For attendance cells, get the status (P/A/N/A)
+                if (col.querySelector('.badge')) {
+                    var status = col.querySelector('.badge').innerText;
+                    rowData.push('"' + status + '"');
+                } else {
+                    rowData.push('"' + col.innerText + '"');
+                }
+            });
+            csv.push(rowData.join(','));
+        });
+        
+        // Create CSV file and download
+        var csvContent = csv.join('\n');
+        var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'attendance_report.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
 });
 </script>
 

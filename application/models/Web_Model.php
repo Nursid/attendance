@@ -118,9 +118,7 @@ class Web_Model extends CI_Model
 	public function getemployees(){
 		return $this->db->get('user_request')->result();
 	}
-	public function getNameByUserId($id){
-		return $this->db->query("SELECT name FROM login WHERE id = '$id' ")->row()->name;
-	}
+	
 
 
 	public function getEmployeesList($id){
@@ -1291,6 +1289,9 @@ public function delete_period($id){
 public function getallsubjectbyid($bid){
 	return $this->db->query("SELECT * FROM subject WHERE bid='$bid' and status=1 order by id DESC ")->result();
 }
+public function getallsubjectbybranchid($branch_id){
+	return $this->db->query("SELECT * FROM subject WHERE dep_id='$branch_id' and status=1 order by id DESC ")->result();
+}
 public function delete_subject($id){
         $val = $this->db->query("UPDATE subject SET status = 0 WHERE id = '$id'");
         return $val;
@@ -1303,10 +1304,7 @@ public function delete_subject($id){
 public function getsectionById($id){
 	return $this->db->query("SELECT * FROM S_section WHERE id='$id' ")->result();
 }
-public function getsubjectnamebyid($id){
-        return $this->db->query("SELECT * FROM subject WHERE id = '$id' ")->row();
-		// return $this->db->query("SELECT * FROM login WHERE id = '$id'")->row_array();
-    }
+
     
  public function getallperiodbyclassid($bid,$class){
 	return $this->db->query("SELECT * FROM S_period WHERE bid='$bid' and class_id='$class' and status=1 order by id DESC ")->result();
@@ -1330,35 +1328,17 @@ public function getsubjectnamebyid($id){
         return $this->db->query("SELECT * FROM S_Session WHERE id = '$id' ")->result();
 		// return $this->db->query("SELECT * FROM login WHERE id = '$id'")->row_array();
     }
-    public function delete_S_session($id, $status = 0){
-        $val = $this->db->query("UPDATE S_Session SET status = '$status' WHERE id = '$id'");
-        return $val;
-    }
+   
     
-    public function getSemesterById($id){
-        return $this->db->query("SELECT * FROM S_Semester WHERE id = '$id' ")->result();
-    }
-    
-    public function delete_semester($id, $status = 0){
-        $val = $this->db->query("UPDATE S_Semester SET status = '$status' WHERE id = '$id'");
-        return $val;
-    }
-    
-    public function getallSemesters($bid){
-        return $this->db->query("SELECT * FROM S_Semester WHERE bid='$bid' and status=1 order by id DESC ")->result();
-    }
-    
-    public function getBatchesByDeptId($id,$bid){
-        return $this->db->query("SELECT * FROM S_Session WHERE FIND_IN_SET('$id', dep_id) and bid=$bid and status=1")->result();
-    }
+  
     
     public function getSectionBySessionId($id){
 		return $this->db->query("SELECT * FROM S_section WHERE session_id='$id' and status=1")->result();
 	}
 	
     
-  public function getSchoolStudentListbysection($id,$dept,$session,$section){
-	return $this->db->query("SELECT * FROM student WHERE bid = '$id' and department= '$dept' and batch= '$session' and section= '$section' and left_date ='' and status='1' order by roll_no")->result();
+  public function getSchoolStudentListbysection($id,$dept,$session,$semester){
+	return $this->db->query("SELECT * FROM student WHERE bid = '$id' and department= '$dept' and batch= '$session' and semester= '$semester' and left_date ='' and status='1' order by roll_no")->result();
 }  
 
 public function getallperiodbysectionid($bid,$section){
@@ -1371,6 +1351,43 @@ public function getbatchById($id){
 
 	
 // In your model
+
+
+
+//new functions for get period by subject 
+public function getperiodTime($subject, $day) {
+    $this->db->select('p.id, p.bid, p.name, tt.subject, p.start_time, p.end_time, p.status, p.date_time');
+    $this->db->from('s_period p');
+    $this->db->join('time_table tt', 'tt.period = p.id', 'left');
+    $this->db->where('tt.subject', $subject);
+    $this->db->where('tt.days', $day);
+    return $this->db->get()->row();
+}
+
+/// new model by Nursid 
+
+public function delete_S_session($id, $status = 0){
+	$val = $this->db->query("UPDATE S_Session SET status = '$status' WHERE id = '$id'");
+	return $val;
+}
+
+public function getSemesterById($id){
+	return $this->db->query("SELECT * FROM S_Semester WHERE id = '$id' ")->result();
+}
+
+public function delete_semester($id, $status = 0){
+	$val = $this->db->query("UPDATE S_Semester SET status = '$status' WHERE id = '$id'");
+	return $val;
+}
+
+public function getallSemesters($bid){
+	return $this->db->query("SELECT * FROM S_Semester WHERE bid='$bid' and status=1 order by id DESC ")->result();
+}
+
+public function getBatchesByDeptId($id,$bid){
+	return $this->db->query("SELECT * FROM S_Session WHERE FIND_IN_SET('$id', dep_id) and bid=$bid and status=1")->result();
+}
+
 public function getSectionBranchSemesters($section_id) {
     // return $this->db->where('section_id', $section_id)
     //                 ->get('section_semesters')
@@ -1390,6 +1407,18 @@ public function getSemesterNameById($semester_id) {
     $row = $this->db->query("SELECT semestar_name FROM S_Semester WHERE id = '$semester_id'")->row();
     return $row ? $row->semestar_name : '';
 }
+
+
+public function getNameByUserId($id){
+	return $this->db->query("SELECT name FROM login WHERE id = '$id' ")->row()->name;
+}
+
+public function getsubjectnamebyid($id){
+	return $this->db->query("SELECT * FROM subject WHERE id = '$id' ")->row();
+	// return $this->db->query("SELECT * FROM login WHERE id = '$id'")->row_array();
+}
+
+
 
 public function getall_timetable($bid){
 	return $this->db->query("SELECT * FROM time_table_name WHERE bid='$bid' and deleted=0 order by id DESC ")->result();
