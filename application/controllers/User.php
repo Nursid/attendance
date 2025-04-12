@@ -1655,11 +1655,18 @@ public function activatecstudent(){
 	
 	
 	public function dashboard_school(){
-		if(!empty($this->session->userdata('id'))){
-			//$data['bookappoinment']=$this->web->GetBookCount();
-			//$data['counter']=$this->web->GetCountersCount();
-			$data['count']=$this->web->GetUsersCount();
-			$this->load->view('student/school_dashboard',$data);
+		$bid = $this->session->userdata('login_id');
+		if(!empty($bid)){
+			$data['total_branches'] = $this->web->getTotalBranches($bid);
+			
+			$data['total_students'] = $this->web->getTotalStudents($bid);
+
+			
+			$data['total_staff'] = $this->web->getTotalStaff($bid);
+
+			
+			$data['total_subjects'] = $this->web->getTotalSubjects($bid);
+			$this->load->view('student/school_dashboard', $data);
 		}
 		else{
 			redirect('user-login');

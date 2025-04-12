@@ -1444,5 +1444,30 @@ public function get_all_subjects($bid){
 	return $this->db->query("SELECT id, name FROM subject WHERE bid='$bid' AND status=0 ORDER BY name")->result();
 }
 
+
+// 13-04-2025 
+
+public function getTotalBranches($id) {
+	$this->db->where('bid', $id);
+	$this->db->where('status', 1);
+	return $this->db->count_all_results('department_section');
+}
+public function getTotalStudents($bid) {
+    $this->db->where('bid', $bid);
+    $this->db->where('status', 1);
+    return $this->db->count_all_results('student');
+}
+public function getTotalStaff($bid) {
+    $this->db->where('company', $bid);
+    $this->db->where('deleted', 1);
+    return $this->db->count_all_results('login');
+}
+
+public function getTotalSubjects($bid) {
+    $this->db->where('bid', $bid);
+    $this->db->where('status', 1);
+    return $this->db->count_all_results('subject');
+}
+
 }
 ?>

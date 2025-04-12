@@ -115,81 +115,55 @@ $inact="SELECT count(id) as inactemp FROM user_request WHERE business_id='$id'an
       <div class="container-fluid">
         <!-- Info boxes -->
         <div class="row">
-
-
- <div class="col-lg-3 col-xs-6">
-              <!-- small box -->
-              <div class="small-box bg-green">
-                <div class="inner">
-                  <h3><?php echo  $active ;?></h3>
-                  <p>Active Students</p>
-                </div>
-                <div class="icon">
-                 <i class="fa fa-users"></i>
-
-                </div>
-                <a href="<?php echo base_url('Students_list')?>" class="small-box-footer">Student Detail <i class="fa fa-arrow-circle-right"></i></a>
-              </div>
-            </div><!-- ./col -->
-          
-
-
-<div class="col-lg-3 col-xs-6">
-              <!-- small box -->
-              <div class="small-box bg-danger">
-                <div class="inner">
-                 <h3><?php echo  $present_daily ;?></h3>
-                  <p>Total Present</p>
-                </div>
-                <div class="icon">
-                 <i class="fa fa-users"></i>
-
-                </div>
-                <a href="<?php echo base_url('students_daily_report')?>" class="small-box-footer"> Daily Report <i class="fa fa-arrow-circle-right"></i></a>
-              </div>
-            </div><!-- ./col -->
-            
-            
-            
-            
-            
-            <div class="col-lg-3 col-xs-6">
-              <!-- small box -->
-              <div class="small-box bg-lime">
-                <div class="inner">
-                 <h3><?php  echo  $absent_daily ;?></h3>
-                  <p>Total Absent</p>
-                </div>
-                <div class="icon">
-                 <i class="fa fa-users"></i>
-
-                </div>
-                <a href="<?php echo base_url('school_students_report')?>" class="small-box-footer">Absent Detail <i class="fa fa-arrow-circle-right"></i></a>
-              </div>
-            </div><!-- ./col -->
-            
-            
-            
-            
-            <div class="col-lg-3 col-xs-6">
-              <!-- small box -->
-              <div class="small-box bg-yellow">
-                <div class="inner">
-                  <h3><?php echo  $classcount ;?></h3>
-                  <p>Total Class</p>
-                </div>
-                <div class="icon">
-                 <i class="fa fa-users"></i>
-
-                </div>
-                <a href="" class="small-box-footer">Class Detail<i class="fa fa-arrow-circle-right"></i></a>
-              </div>
-            </div><!-- ./col -->
-            
-
-  </div>
-        <!-- /.row -->
-
+    <div class="col-lg-3 col-xs-6">
+        <div class="small-box bg-info">
+            <div class="inner">
+                <h3><?php echo $total_branches; ?></h3>
+                <p>Total Branches</p>
+            </div>
+            <div class="icon">
+                <i class="fa fa-building"></i>
+            </div>
+            <a href="#" class="small-box-footer">More info <i class="fa fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
+    <div class="col-lg-3 col-xs-6">
+        <div class="small-box bg-success">
+            <div class="inner">
+                <h3><?php echo $total_students; ?></h3>
+                <p>Total Students</p>
+            </div>
+            <div class="icon">
+                <i class="fa fa-user-graduate"></i>
+            </div>
+            <a href="#" class="small-box-footer">More info <i class="fa fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
+    <div class="col-lg-3 col-xs-6">
+        <div class="small-box bg-warning">
+            <div class="inner">
+                <h3><?php echo $total_staff; ?></h3>
+                <p>Total Staff</p>
+            </div>
+            <div class="icon">
+                <i class="fa fa-chalkboard-teacher"></i>
+            </div>
+            <a href="#" class="small-box-footer">More info <i class="fa fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
+    <div class="col-lg-3 col-xs-6">
+        <div class="small-box bg-danger">
+            <div class="inner">
+                <h3><?php echo $total_subjects; ?></h3>
+                <p>Total Subjects</p>
+            </div>
+            <div class="icon">
+                <i class="fa fa-book"></i>
+            </div>
+            <a href="#" class="small-box-footer">More info <i class="fa fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
+</div>
       
 
       
@@ -206,12 +180,8 @@ $inact="SELECT count(id) as inactemp FROM user_request WHERE business_id='$id'an
          
         </div><!-- /.row -->
       </div><!-- /.container-fluid -->
-      </div>-->
-    <!-- /.content-header
-    removed section
+      </div>
     
-    -->
-
  
 
 
