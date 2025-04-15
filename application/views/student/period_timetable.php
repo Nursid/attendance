@@ -91,7 +91,7 @@
                           <thead>
                             <tr>
                               <th width="15%">Period</th>
-                              <th width="25%">Subject</th>
+                              <th width="25%">Course</th>
                               <th width="25%">Teacher</th>
                               <th width="25%">Classroom</th>
                               <th width="10%">Actions</th>
@@ -100,6 +100,7 @@
                           <tbody id="<?php echo $day; ?>-periods">
                             <?php
 
+                    
                              // Display teacher and subject from the first entry
                             if(!empty($timetable_entries)) {
                               foreach($timetable_entries as $entry) {
@@ -230,6 +231,7 @@
               <select class="form-control" id="subject" name="subject" required>
                 <option value="">Select Subject</option>
                 <?php
+                $subjects = $this->web->getAllSubjectsById_new($timetable->bid, $timetable->dept);
                 if(!empty($subjects)) {
                   foreach($subjects as $subject) {
                     echo '<option value="'.$subject->id.'">'.$subject->name.'</option>';

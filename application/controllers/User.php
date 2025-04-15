@@ -1880,10 +1880,13 @@ public function update_S_student(){
 		if(!empty($this->session->userdata('id'))){
 			
 			$postdata=$this->input->post();
+		
+
+			
 				$start_date = date("Y-m-d");
 			//	$class=0;
 				$true = 0;
-					$totalActive = 0;
+				$totalActive = 0;
 				$totalPresent = 0;
 				$totalAbsent = 0;
 				$days_array = array();
@@ -1900,14 +1903,23 @@ public function update_S_student(){
 				if(isset($postdata['start_date']) && isset($postdata['dept']) ){
 				$start_date = $postdata['start_date'];
 				$dept = $postdata['dept'];
-				$session = $postdata['session'];
+				$semester = $postdata['semester'];
 				$section = $postdata['section'];
 				$true= 1;
 				$action = $postdata['action'];
 			
 				}
 				//$totalMispunch = 0;
-				$users_data = $this->web->getSchoolStudentListbysection($loginId,$dept,$session,$section);
+
+				// echo "loginId: $loginId, dept: $dept, semester: $semester, section: $section";
+				// die();
+				$users_data = $this->web->getSchoolStudentListbysection_new($loginId,$dept,$semester,$section);
+				
+				
+				// echo '<pre>';
+				// print_r($users_data);
+				// echo '</pre>';
+				// die();
 				$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
 				$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date)));
 				if(!empty($users_data)){
@@ -1919,11 +1931,12 @@ public function update_S_student(){
 				$day_hrs = "00:00 Hr";
 				
 			if(($user->doj!="" || $start_time>=$user->doj) && ($user->left_date=="" || $start_time<$user->left_date)){
+
+				
 										$totalActive++;
-								$user_at = $this->web->getStudentAttendanceReportByDate($start_time,$end_time,$user->id,$loginId);
-				
-				
-				
+								$user_at = $this->web->getStudentAttendanceReportByDate($start_time, $end_time, $user->id, $loginId);
+					
+						
 				if(!empty($user_at)){
 											$totalPresent++;
 									
@@ -1973,11 +1986,13 @@ public function update_S_student(){
 				}
 				}
 				
-		$data=array(
+				
+		
+				$data=array(
 					'start_date'=>$start_date,
 					//'end_date'=>$end_date,
 						'dept'=>$dept,
-							'session'=>$session,
+							'semester'=>$semester,
 								'section'=>$section,
 					'load'=>$true,
 					'report'=>$new_array,
@@ -1987,9 +2002,8 @@ public function update_S_student(){
 					'totalAbsent'=>$totalAbsent,
 					'totalPresent'=>$totalPresent,
 					'cmp_name'=>$cmpName['name']
-				);		
+				);	
 				
-			
 			
 			$this->load->view('student/students_dailyreport',$data);
 		}
@@ -3954,7 +3968,7 @@ public function students_monthly_report_new(){
 			
 			$data2 = array();
 			// get all student by branches -> batch -> semester - > section 
-			$users_data = $this->web->getSchoolStudentListbysection($loginId,$dept,$session,$semester);
+			$users_data = $this->web->getSchoolStudentListbysection($loginId,$dept,$semester,$section);
 			
 			if(!empty($users_data)){
 				//$seconds = 0;
@@ -4627,6 +4641,28 @@ public function get_batches_by_dept(){
 }
 
 
+// 13-04-2025 by nursid
+
+public function get_section_by_branch_semester() {
+    $branchId = $this->input->post('branch_id');
+    $semesterId = $this->input->post('semester_id');
+
+    // Fetch sections based on branch and semester
+    $sections = $this->web->getSectionsByBranchAndSemester($branchId, $semesterId);
+
+    // Return the sections as a JSON response
+    echo json_encode($sections);
+}
+
+public function get_batch_by_branch() {
+    $branchId = $this->input->post('branch_id');
+
+    // Fetch batches based on branch
+    $batches = $this->web->getBatchesByDeptId($branchId, $this->session->userdata('login_id'));
+
+    // Return the batches as a JSON response
+    echo json_encode($batches);
+}
 
 
 }?>

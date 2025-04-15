@@ -1469,5 +1469,48 @@ public function getTotalSubjects($bid) {
     return $this->db->count_all_results('subject');
 }
 
+
+// 13-04-2025 by nursid  new
+
+
+	public function getSectionsByBranchAndSemester($branchId, $semesterId) {
+		$this->db->select('s_section.id, s_section.name');
+		$this->db->from('s_section');
+		$this->db->join('section_semesters', 's_section.id = section_semesters.section_id');
+		$this->db->where('section_semesters.branch_id', $branchId);
+		$this->db->where('section_semesters.semester_id', $semesterId);
+		$this->db->where('s_section.status', 1); // Assuming you only want active sections
+		$query = $this->db->get();
+
+		return $query->result();
+	}
+
+	public function getAllSubjectsById_new($bid, $dept){
+		$this->db->select('*');
+		$this->db->from('subject');
+		$this->db->where('bid', $bid);
+		$this->db->where('dep_id', $dept);
+		$this->db->where('status', 1);
+		$this->db->order_by('id', 'DESC');
+		$query = $this->db->get();
+		return $query->result();
+	}
+
+	public function getSchoolStudentListbysection_new($id,$dept,$semester,$section){
+		return $this->db->query("SELECT * FROM student WHERE bid = '$id' and department= '$dept' and semester= '$semester' and section= '$section' and left_date ='' and status='1' order by roll_no")->result();
+	}  
+	public function getSubjectByPeriodAndDay($period, $days) {
+		$this->db->select('time_table.id, time_table.bid, time_table.days, time_table.period, time_table.subject, time_table.class_room, time_table.teacher, time_table.timetable_id, subject.name, subject.dep_id, subject.Subject_code, subject.status, subject.date_time');
+		$this->db->from('time_table');
+		$this->db->join('subject', 'subject.id = time_table.subject');
+		$this->db->where('time_table.days', $days);
+		$this->db->where('time_table.period', $period);
+		$query = $this->db->get();
+		return $query->row();
+	}
+
+
+
+
 }
 ?>

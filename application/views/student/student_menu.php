@@ -248,7 +248,7 @@
               <li class="nav-item">
                 <a href="<?php echo base_url('add_subject')?>" class="nav-link">
                   <i class="far fa-user nav-icon"></i>
-                  <p>Subjects  </p>
+                  <p>Course  </p>
                 </a>
               </li> 
               
@@ -288,7 +288,7 @@
             <li class="nav-item">
                 <a href="<?php echo base_url('assign_subject')?>" class="nav-link">
                   <i class="far fa-user nav-icon"></i>
-                  <p>Assign Subject </p>
+                  <p>Assign Course </p>
                 </a>
               </li> 
             

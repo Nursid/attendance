@@ -415,7 +415,8 @@ $(function () {
     // When semester changes
     $('#semester').change(function() {
       var semesterId = $(this).val();
-      var batchId = $('#batch').val();
+      console.log("semesterId---",semesterId)
+      var batchId = $('#branch').val();
       if(semesterId != '' && batchId != '') {
         // Clear and disable section dropdown
         $('#section').empty().append('<option value="">Loading sections...</option>');
@@ -423,8 +424,8 @@ $(function () {
         // Get sections for selected batch and semester
         $.ajax({
           type: "POST",
-          url: "<?php echo base_url('User/get_sections_by_batch_semester'); ?>",
-          data: {batch_id: batchId, semester_id: semesterId},
+          url: "<?php echo base_url('User/get_section_by_branch_semester'); ?>",
+          data: {branch_id: batchId, semester_id: semesterId},
           success: function(response) {
             var sections = JSON.parse(response);
             $('#section').empty().append('<option value="">Select Section</option>');

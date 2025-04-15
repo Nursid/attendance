@@ -99,7 +99,29 @@ date_default_timezone_set('Asia/Kolkata');
                        
                   </div>  
                               
-                      <div class="col-md-2">
+                     
+              
+              <div class="col-md-2">
+                <div class="form-group">
+                    <select class="form-control" id="sdeparts" name="session">
+                        <option value="" disabled selected>Select Batch</option>
+                        <?php 
+                        if(isset($dept) && $dept > 0) {
+                            $batches = $this->web->getSessionByDeptId($dept, $bid);
+                            if(!empty($batches)) {
+                                foreach($batches as $batch) {
+                                    $selected = ($session == $batch->id) ? 'selected' : '';
+                                    echo "<option value='" . $batch->id . "' " . $selected . ">" . $batch->session_name . "</option>";
+                                }
+                            }
+                        }
+                        ?>
+                    </select>
+                </div>
+                <!-- /.form-group -->
+              </div>
+
+              <div class="col-md-2">
                 <div class="form-group">
                     <select class="form-control" id="semester" name="semester">
                         <option value="" disabled selected>Select Semester</option>
@@ -121,40 +143,20 @@ date_default_timezone_set('Asia/Kolkata');
               
               <div class="col-md-2">
                 <div class="form-group">
-                    <select class="form-control" id="sdeparts" name="session">
-                        <option value="" disabled selected>Select Batch</option>
-                        <?php 
-                        if(isset($dept) && $dept > 0) {
-                            $batches = $this->web->getSessionByDeptId($dept, $bid);
-                            if(!empty($batches)) {
-                                foreach($batches as $batch) {
-                                    $selected = ($session == $batch->id) ? 'selected' : '';
-                                    echo "<option value='" . $batch->id . "' " . $selected . ">" . $batch->session_name . "</option>";
-                                }
+                <select class="form-control" id="section" name="section">
+                    <option value="" disabled selected>Select Section</option>
+                    <?php 
+                    if(isset($session) && $session > 0) {
+                        $sections = $this->web->getSectionsByBranchAndSemester($dept, $semester);
+                        if(!empty($sections)) {
+                            foreach($sections as $sec) {
+                                $selected = ($section == $sec->id) ? 'selected' : '';
+                                echo "<option value='" . $sec->id . "' " . $selected . ">" . $sec->name . "</option>";
                             }
                         }
-                        ?>
-                    </select>
-                </div>
-                <!-- /.form-group -->
-              </div>
-              
-              <div class="col-md-2">
-                <div class="form-group">
-                    <select class="form-control" id="section" name="section">
-                        <option value="" disabled selected>Select Section</option>
-                        <?php 
-                        if(isset($session) && $session > 0) {
-                            $sections = $this->web->getSectionBySessionId($session);
-                            if(!empty($sections)) {
-                                foreach($sections as $sec) {
-                                    $selected = ($section == $sec->id) ? 'selected' : '';
-                                    echo "<option value='" . $sec->id . "' " . $selected . ">" . $sec->name . "</option>";
-                                }
-                            }
-                        }
-                        ?>
-                    </select>
+                    }
+                    ?>
+                </select>
                 </div>
                 <!-- /.form-group -->
               </div>
@@ -162,7 +164,7 @@ date_default_timezone_set('Asia/Kolkata');
               <div class="col-md-2">
                 <div class="form-group">
                     <select class="form-control" id="subject" name="subject">
-                        <option value="0">All Subjects</option>
+                        <option value="0">All Courses</option>
                         <?php 
                         if(!empty($all_subjects)) {
                             foreach($all_subjects as $subj) {
@@ -228,7 +230,7 @@ date_default_timezone_set('Asia/Kolkata');
                     if(!empty($sec)){
                       $sect=$sec[0]->name;  
                     }
-                        
+                   
                         ?>
                        
                         <h5>Attendance for Date:-<?php echo date("d-M-Y ",$stdate)?> to Date:- <?php echo date("d-M-Y ",$endate)?></h5>
@@ -357,7 +359,7 @@ date_default_timezone_set('Asia/Kolkata');
 
  <script>
     $(document).ready(function () {
-        var table = $('#example1').DataTable( {
+        var table = $('#attendanceReport').DataTable( {
             scrollY:        "500px",
             scrollX:        true,
             scrollCollapse: true,
@@ -415,13 +417,20 @@ $(document).ready(function () {
     $('#section').html('<option value="" disabled selected>Select Section</option>');
     $('#subject').html('<option value="0">All Subjects</option>');
 
-    var datatypes_session = "sessionlist";
     $.ajax({
       type: "post",
-      url: "<?php echo base_url('User/getajaxRequest'); ?>",
-      data: {id: branchId, datatypes_session: datatypes_session},
+      url: "<?php echo base_url('User/get_batch_by_branch'); ?>",
+      data: {branch_id: branchId},
       success: function(data){
-        $('#sdeparts').html(data);
+        var batches = JSON.parse(data);
+        var options = '<option value="" disabled selected>Select Batch</option>';
+        batches.forEach(function(batch) {
+          options += '<option value="' + batch.id + '">' + batch.session_name + '</option>';
+        });
+        $('#sdeparts').html(options);
+      },
+      error: function() {
+        console.log("Error loading batches");
       }
     });
 
@@ -458,20 +467,29 @@ $(document).ready(function () {
     });
   });
 
-  $(document).on('change', '#sdeparts', function() {
-    var sessionId = this.value;
+  $(document).on('change', '#semester', function() {
+    var branchId = $('#departs').val();
+    var semesterId = this.value;
     $('#section').html('<option value="" disabled selected>Select Section</option>');
 
-    var datatypes_section = "sectionlist";
     $.ajax({
-      type: "post",
-      url: "<?php echo base_url('User/getajaxRequest'); ?>",
-      data: {id: sessionId, datatypes_section: datatypes_section},
-      success: function(data){
-        $('#section').html(data);
-      }
+        type: "post",
+        url: "<?php echo base_url('User/get_section_by_branch_semester'); ?>",
+        data: {branch_id: branchId, semester_id: semesterId},
+        success: function(data){
+            var sections = JSON.parse(data);
+            var options = '<option value="" disabled selected>Select Section</option>';
+            sections.forEach(function(section) {
+                var selected = (section.id == <?= $section ?>) ? 'selected' : '';
+                options += '<option value="' + section.id + '" ' + selected + '>' + section.name + '</option>';
+            });
+            $('#section').html(options);
+        },
+        error: function() {
+            console.log("Error loading sections");
+        }
     });
-  });
+});
   
   // Initialize values based on current params if they exist
   <?php if(isset($dept) && $dept > 0): ?>
@@ -484,7 +502,9 @@ $(document).ready(function () {
   }, 500);
   <?php endif; ?>
   
-  <?php if(isset($section) && $section > 0): ?>
+  <?php 
+  if(isset($section) && $section > 0):
+   ?>
   setTimeout(function() {
     $('#section').val('<?= $section ?>');
   }, 1000);

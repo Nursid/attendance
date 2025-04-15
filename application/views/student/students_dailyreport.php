@@ -129,7 +129,7 @@ date_default_timezone_set('Asia/Kolkata');
                           <div class="row">
                               
                             <div class="from-group col-sm-2">
-                 
+                          
                     <?php
                         $data = $this->web->getBusinessDepByBusinessId($bid);
                     ?>
@@ -156,7 +156,7 @@ date_default_timezone_set('Asia/Kolkata');
                  
                  
                  
-                    <select class="select2"  id="sdeparts" data-placeholder="Select Batch" style="width: 100%;" name="session">
+                    <select class="select2"  id="semester" data-placeholder="Select Semester" style="width: 100%;" name="semester">
                          <?php if($load) {?>  <option value="" ><?php echo $ses; ?></option>
                      <?php } ?>
                     </select>
@@ -233,6 +233,7 @@ date_default_timezone_set('Asia/Kolkata');
                     </div>
                     <br>
                     <?php
+
                     if($load) {
                       $stdate=strtotime($start_date);
                     
@@ -248,138 +249,99 @@ date_default_timezone_set('Asia/Kolkata');
                     if(!empty($sec)){
                       $sect=$sec[0]->name;  
                     }
+
+
                     
                       ?>
                      <!-- <h5>Attendance for Date:-<?php echo date("d-M-Y ",$stdate)  ;?>  and department <?php echo $department ;?>  </h5>-->
                     <div align="right">
-                        <input type="button" onClick="exportExcel()" value="Export To Excel" />
+                        <!-- <input type="button" onClick="exportExcel()" value="Export To Excel" /> -->
+                        <button onclick="exportTableToExcel('example1', 'Daily_Report.xlsx')">Export to Excel</button>
                          <!-- <input type="button"  id="btnExport" value="Export To Pdf" onclick="exportPDF()" /> -->
                         <br>
                      </div>
                      <br>
-                      <table id="example1" class="table table-bordered table-striped table-responsive">
-                        <thead>
-                          <?php
-                          echo "<tr> <td colspan='12'> Attendance For Date:-".$start_date." And  Department:- ".$department. "  And Session:- ".$ses. "  And Section:- ". $sect." </td></tr>";
-                          // echo " <tr> <td colspan='12'> Total Present : ".$present." , ";
-                          // echo "Total Absent: ".$absent." , ";
-                         // echo "Total Active : ".$active ."</td></tr>" ;
-                          ?>
-                          <tr>
-                            <th>S.No</th>
-                             <th>Class</th>
-                              <th>Semester</th>
-                             <th>Roll No</th>
-                            <th>Name</th>
-                           <th>Time Log</th>
-                           <?php
-                            $res=$this->web->getallperiodbysectionid($bid,$section);
-							 foreach($res as $res){
-							//echo $res->name;
-                            ?>
-                            <th> <?php echo $res->name."<br> (".$res->start_time."-".$res->end_time.")";?> </th>
-                            
-                            <?php } ?>
-                            
-                           
-                          
-                        </thead>
-                        <tbody>
-                          <?php
-                          $count=1;
-                          foreach($report as $user){
-                                   $val=$this->web->getstudentnamebyid($user['user_id']);
-                                  
-                                   if(!empty($val[0]->roll_no)){
-                                      $sid=$val[0]->roll_no;  
-                                   }else{
-                                     $sid=$val[0]->student_code;   
-                                   }
-                                     
-                                     
-                                     if(($val[0]->class_id) !="0"){
-                                    $classname = $this->web->getclassnamebyid($val['0']->class_id);
-                                      $classn=$classname[0]->name;  
-                                   }else{
-                                     $classn="";    
-                                   }
-                                     
-                            ?>
-                            <tr>
-                              <td><?php echo $count++;?></td>
-                              <td><?php echo $classn;?></td>
-                              <td><?php echo $val[0]->semester;?></td>
-                                <td><?php echo $sid;?></td>
-                                <td><?php echo $user['name'];?></td>
-                              
-                              <td>
-                                <?php
-                                foreach($user['data'] as $day_data){
-                                 // if($day_data['mode']=="1"){
-                                    
-                                    echo "<span class='".$spanClass."'>".date('h:i:A', $day_data['time'])."</span></br>";
-                                 // }
-                                }
-                                ?>
-                                </td>
-                                
-                                 <?php
-                                 $res2=$this->web->getallperiodbyclassid($bid,$class);
-					foreach($res2 as $res2){ 
-					  $start_times=strtotime ($res2->start_time);
-					  $end_times=strtotime ($res2->end_time);
-                             ?>  
-                               <td>
-                             <?php
-							 $anytime=0;
-				// $user_at = $this->web->gethostelAttendanceReportByDate($new_start_time,$new_end_time,$user['user_id'],$bid,1);
-							
-         foreach($user['data'] as $day_data){ 
-								if((strtotime(date("h:i A" ,$day_data['time']))>=$start_times) && (strtotime (date("h:i A" ,$day_data['time']))<=$end_times) ){
-								 $anytime=date("h:i A" ,$day_data['time'])."<br>" ;
-								} 
-								}
-								if($anytime!=0){ echo "P" ;
-								
-								}else {
-								echo "A";}
-                              ?>  
-                               
-                               </td>
-                              <?php }
-                             // $time++;
-                              ?> 
-                                
-                                
-                                
-                                
-                                
-                                
-                                
-                              <!--  <td>
-                                    
-                                  <?php
-                                 
-                                   
-                                    
-                                   //   echo $day_data['Att_status'];
-                                    echo $user['Att_status'];
-                                    
-                                  
-                                  ?>
-                                  </td>-->
-                                  
-                                
-                                  
-                                  
-                                </tr>
-                                <?php
-                              }
-                              ?>
-                            </tbody>
-                            <tfoot>
-                            </tfoot>
-                          </table>
+                     <div style="overflow-x: auto;">
+  <table id="example1" class="table table-bordered table-striped">
+    <thead>
+      <?php
+      echo "<tr> <td colspan='12'> Attendance For Date:-".$start_date." And  Department:- ".$department. "  And Session:- ".$ses. "  And Section:- ". $sect." </td></tr>";
+      ?>
+      <tr>
+        <th>S.No</th>
+        <th>Class</th>
+        <th>Semester</th>
+        <th>Roll No</th>
+        <th>Name</th>
+        <th>Time Log</th>
+        <?php
+        $res = $this->web->getallperiodbyid($bid);
+        $dayOfWeek = date('w', strtotime($start_date));
+        foreach($res as $period){
+            $subject = $this->web->getSubjectByPeriodAndDay($period->id, $dayOfWeek);
+            ?>
+            <th> <?php echo $period->name . "<br> (" . $period->start_time . "-" . $period->end_time . ")<br>Subject: " . $subject->name; ?> </th>
+        <?php } ?>
+      </tr>
+    </thead>
+    <tbody>
+      <?php
+      $count=1;
+      foreach($report as $user){
+        $val=$this->web->getstudentnamebyid($user['user_id']);
+        if(!empty($val[0]->roll_no)){
+          $sid=$val[0]->roll_no;  
+        }else{
+          $sid=$val[0]->student_code;   
+        }
+        if(($val[0]->class_id) !="0"){
+          $classname = $this->web->getclassnamebyid($val['0']->class_id);
+          $classn=$classname[0]->name;  
+        }else{
+          $classn="";    
+        }
+        ?>
+        <tr>
+          <td><?php echo $count++;?></td>
+          <td><?php echo $classn;?></td>
+          <td><?php echo $val[0]->semester;?></td>
+          <td><?php echo $sid;?></td>
+          <td><?php echo $user['name'];?></td>
+          <td>
+            <?php
+            foreach($user['data'] as $day_data){
+              echo "<span class='".$spanClass."'>".date('h:i:A', $day_data['time'])."</span></br>";
+            }
+            ?>
+          </td>
+          <?php
+          $res2=$this->web->getallperiodbyid($bid);
+          foreach($res2 as $res2){ 
+            $start_times=strtotime ($res2->start_time);
+            $end_times=strtotime ($res2->end_time);
+            ?>  
+            <td>
+              <?php
+              $anytime=0;
+              foreach($user['data'] as $day_data){ 
+                if((strtotime(date("h:i A" ,$day_data['time']))>=$start_times) && (strtotime (date("h:i A" ,$day_data['time']))<=$end_times) ){
+                  $anytime=date("h:i A" ,$day_data['time'])."<br>" ;
+                } 
+              }
+              if($anytime!=0){ echo "P" ;
+              }else {
+                echo "A";
+              }
+              ?>  
+            </td>
+          <?php } ?>
+        </tr>
+      <?php } ?>
+    </tbody>
+    <tfoot>
+    </tfoot>
+  </table>
+</div>
                         </div>
                       <?php }
                       
@@ -438,8 +400,12 @@ date_default_timezone_set('Asia/Kolkata');
 
       <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
       <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
-
+      <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script> -->
       <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
       <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.22/pdfmake.min.js"></script>
       <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
       <!-- jQuery -->
@@ -463,12 +429,7 @@ date_default_timezone_set('Asia/Kolkata');
       <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
       <script>
       $(function () {
-        var table = $('#example1').DataTable({
-          "responsive": true,
-          "autoWidth": false,
-          paging: false,
-        });
-
+       
       });
       function setAction(action){
         $("#action").val(action);
@@ -530,31 +491,61 @@ $(function () {
  
  
 
- $('#departs').on('change', function() {
-  var id = this.value;
-  var datatypes_session = "sessionlist";
+$('#departs').on('change', function() {
+  var branchId = this.value;
   $.ajax({
     type: "post",
-    url: "User/getajaxRequest",
-    data: {id,datatypes_session},
+    url: "<?php echo base_url('User/get_semester_by_branch'); ?>",
+    data: {branch_id: branchId},
     success: function(data){
-      $('#sdeparts').html(data);
+      var semesters = JSON.parse(data);
+      var options = '<option value="" disabled selected>Select Semester</option>';
+      semesters.forEach(function(semester) {
+        options += '<option value="' + semester.id + '">' + semester.semestar_name + '</option>';
+      });
+      $('#semester').html(options);
     }
   });
 });
 
-$('#sdeparts').on('change', function() {
+$('#semester').on('change', function() {
   var id = this.value;
-  var datatypes_section = "sectionlist";
+  var branchId = $('#departs').val();
+
+  $('#section').html('<option value="" disabled selected>Select Section</option>');
+
   $.ajax({
     type: "post",
-    url: "User/getajaxRequest",
-    data: {id,datatypes_section},
+    url: "<?php echo base_url('User/get_section_by_branch_semester'); ?>",
+    data: {branch_id: branchId, semester_id: id},
     success: function(data){
-      $('#section').html(data);
+      var sections = JSON.parse(data);
+      console.log(sections)
+      var options = '<option value="" disabled selected>Select Section</option>';
+      sections.forEach(function(section) {
+        // var selected = (typeof <?php // echo $section; ?> !== 'undefined' && section.id == <?php //echo $section; ?>) ? 'selected' : '';
+        options += '<option value="' + section.id + '" '  + '>' + section.name + '</option>';
+      });
+      console.log(options)
+      $('#section').html(options);
+    },
+    error: function() {
+      console.log("Error loading sections");
     }
   });
 });
+
+  // var datatypes_section = "sectionlist";
+  // $.ajax({
+  //   type: "post",
+  //   url: "User/getajaxRequest",
+  //   data: {id,datatypes_section},
+  //   success: function(data){
+  //     $('#section').html(data);
+  //   }
+  // });
+// });
+
 </script>
 
 
@@ -590,7 +581,7 @@ $('#sdeparts').on('change', function() {
     });
   }
 
-  function exportExcel(){
+  function exportExcel2(){
     var wb = new ExcelJS.Workbook();
       var sh = wb.addWorksheet("Report");
       sh.columns = [
@@ -663,8 +654,7 @@ $('#sdeparts').on('change', function() {
         sh.addRow({SNo:'<?php echo $count++;?>',Class:'<?php echo $classn ;?>',Roll:'<?php echo $sid;?>',Name:'<?php echo $user['name'];?>',
 <?php // $res=$this->web->getallperiodbysectionid($bid,$section);
 						//	 foreach($res as $res){ ?>
-        IN:'<?= $allIns;?>'
-						<?php//	 }	?>				     
+        IN:'<?= $allIns;?>'				     
 							 });
         
         
@@ -780,6 +770,51 @@ $('#sdeparts').on('change', function() {
     doc.table(3, 5, result, headers, { autoSize: false,fontSize:10,padding:1,margins:{left:0,top:3,bottom:3, right:0} });
     doc.save("Daily-Report.pdf");
   }
+
+function exportTableToExcel(tableID, filename = 'table_data.xlsx') {
+
+  var start_date = "<?php echo $start_date; ?>";
+  var department = "<?php echo $department; ?>";
+  var ses = "<?php echo $ses; ?>";
+  var sect = "<?php echo $sect; ?>";
+  
+  // Create a new workbook and add a worksheet
+  var workbook = new ExcelJS.Workbook();
+  var worksheet = workbook.addWorksheet('Sheet1');
+
+  // Get the table element
+  var table = document.getElementById(tableID);
+
+  // Merge the first two rows and set the text
+  worksheet.mergeCells('A1:P2');
+  var headerCell = worksheet.getCell('A1');
+  headerCell.value = "Attendance For Date: " + start_date + " And Department: " + department + " And Session: " + ses + " And Section: " + sect;
+  headerCell.alignment = { vertical: 'middle', horizontal: 'center' };
+  headerCell.font = { size: 14, bold: true };
+
+  // Add the table headers
+  var headers = [];
+  table.querySelectorAll('thead th').forEach((th, index) => {
+      headers.push(th.innerText);
+  });
+  worksheet.addRow(headers).font = { bold: true };
+
+  // Add the table data
+  table.querySelectorAll('tbody tr').forEach((row) => {
+      var rowData = [];
+      row.querySelectorAll('td').forEach((td) => {
+          rowData.push(td.innerText);
+      });
+      worksheet.addRow(rowData);
+  });
+
+  // Write the workbook to a file
+  workbook.xlsx.writeBuffer().then((data) => {
+      const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8' });
+      saveAs(blob, filename);
+  });
+}
+
 </script>
 </body>
 </html>

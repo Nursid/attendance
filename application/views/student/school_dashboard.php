@@ -155,7 +155,7 @@ $inact="SELECT count(id) as inactemp FROM user_request WHERE business_id='$id'an
         <div class="small-box bg-danger">
             <div class="inner">
                 <h3><?php echo $total_subjects; ?></h3>
-                <p>Total Subjects</p>
+                <p>Total Courses</p>
             </div>
             <div class="icon">
                 <i class="fa fa-book"></i>
