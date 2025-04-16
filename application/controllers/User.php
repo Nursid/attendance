@@ -4665,4 +4665,21 @@ public function get_batch_by_branch() {
 }
 
 
+public function update_subject() {
+    if (!empty($this->session->userdata('id'))) {
+        $postdata = $this->input->post();
+        $this->db->where('id', $postdata['id']);
+        $this->db->update('subject', [
+            'name' => $postdata['name'],
+            'Subject_code' => $postdata['subcode'],
+            'dep_id' => $postdata['dept'],
+        ]);
+        $this->session->set_flashdata('msg', 'Subject Updated!');
+        redirect('add_subject');
+    } else {
+        redirect('user-login');
+    }
+}
+
+
 }?>

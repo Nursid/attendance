@@ -149,9 +149,13 @@ $buid=$this->web->session->userdata('login_id');
                         
                        
                         <td>
-                          <button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#myModal" onclick="mclick('<?php echo $res->id; ?>')">
+                          <!-- <button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#myModal" onclick="mclick('<?php echo $res->id; ?>')">
                             <i class="fas fa-edit"></i>
-                          </button>
+                          </button> -->
+                          <button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#myModal" 
+        onclick="mclick('<?php echo $res->id; ?>', '<?php echo $res->name; ?>', '<?php echo $res->Subject_code; ?>', '<?php echo $res->dep_id; ?>')">
+    <i class="fas fa-edit"></i>
+</button>
                         </td>
                         <td id="delete<?php echo $res->id; ?>">
                           <button class="btn btn-danger" onclick="delete_subject('<?php echo $res->id; ?>')" >
@@ -194,13 +198,31 @@ $buid=$this->web->session->userdata('login_id');
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h4 class="modal-title" id="myModalLabel">Edit Subject </h4>
+        <h4 class="modal-title" id="myModalLabel">Edit Subject</h4>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
       <div class="modal-body">
-        <div id="modform">
-          
-        </div>
+        <form id="editSubjectForm" action="<?php echo base_url('User/update_subject')?>" method="post">
+          <input type="hidden" name="id" id="editSubjectId">
+          <div class="form-group">
+            <label for="editDept">Branch</label>
+            <select class="form-control select2" style="width: 100%;" name="dept" id="editDept">
+              <option value="" disabled selected>Select Branch</option>
+              <?php foreach($data as $key => $val): ?>
+                <option value="<?php echo $val->id; ?>"><?php echo $val->name; ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="editName">Name</label>
+            <input type="text" class="form-control" name="name" id="editName" required>
+          </div>
+          <div class="form-group">
+            <label for="editSubcode">Subject Code</label>
+            <input type="text" class="form-control" name="subcode" id="editSubcode" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Update</button>
+        </form>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -208,7 +230,6 @@ $buid=$this->web->session->userdata('login_id');
     </div>
   </div>
 </div>
-
 
 
 
@@ -239,16 +260,14 @@ $buid=$this->web->session->userdata('login_id');
   });
 </script>
 <script>
-function mclick(data){
-  var add_subject_data = "add_subject";
-  $.ajax({
-      type: "POST",
-      url: "User/getajaxRequest",
-      data: {data,add_subject_data},
-    success: function(response){
-      $('#modform').html(response);
-    }
-    })
+function mclick(id, name, subcode, deptId) {
+  // Populate the form fields
+  $('#editSubjectId').val(id);
+  $('#editName').val(name);
+  $('#editSubcode').val(subcode);
+  $('#editDept').val(deptId).trigger('change'); // For select2
+  // Show the modal (in case it's not already shown)
+  $('#myModal').modal('show');
 }
 </script>
 <script>$(document).ready(function () { 

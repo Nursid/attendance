@@ -771,7 +771,7 @@ $('#semester').on('change', function() {
     doc.save("Daily-Report.pdf");
   }
 
-function exportTableToExcel(tableID, filename = 'table_data.xlsx') {
+function exportTableToExcel(tableID, filename = 'student_daily_report.xlsx') {
 
   var start_date = "<?php echo $start_date; ?>";
   var department = "<?php echo $department; ?>";
