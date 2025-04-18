@@ -1684,41 +1684,41 @@ public function activatecstudent(){
 	}
 	
 	
-		public function Students_list(){
-			if(!empty($this->session->userdata('id'))){
-			 	$postdata=$this->input->post();
-		//	$start_date = date("Y-m-d");
-		//	$end_date = date("Y-m-d");
-			$sid="";
-			$true = 0;  
-			if(isset($postdata['dept'])){
-			//	$start_date = $postdata['start_date'];
-			//	$end_date = $postdata['end_date'];
-					$dept = $postdata['dept'];
-				$session = $postdata['session'];
-				$section = $postdata['section'];
-				$true= 1;
-			}
-			
-			$data=array(
-				//'start_date'=>$start_date,
-			//	'end_date'=>$end_date,
-				'dept'=>$dept,
-				'session'=>$session,
-				'section'=>$section,
-				'load'=>$true
-			);
-		//	$this->load->view('attendance/manual',$data);  
-			    
-			    
-			    
-			    
-				$this->load->view('student/students_list',$data);
-			}
-			else{
-				redirect('user-login');
-			}
+	public function Students_list(){
+		if(!empty($this->session->userdata('id'))){
+			 $postdata=$this->input->post();
+	//	$start_date = date("Y-m-d");
+	//	$end_date = date("Y-m-d");
+		$sid="";
+		$true = 0;  
+		if(isset($postdata['dept'])){
+		//	$start_date = $postdata['start_date'];
+		//	$end_date = $postdata['end_date'];
+				$dept = $postdata['dept'];
+			$semester = $postdata['semester'];
+			$section = $postdata['section'];
+			$true= 1;
 		}
+		
+		$data=array(
+			//'start_date'=>$start_date,
+		//	'end_date'=>$end_date,
+			'dept'=>$dept,
+			'semester'=>$semester,
+			'section'=>$section,
+			'load'=>$true
+		);
+	//	$this->load->view('attendance/manual',$data);  
+			
+			
+			
+			
+			$this->load->view('student/students_list',$data);
+		}
+		else{
+			redirect('user-login');
+		}
+	}
 
 
 public function addnew_S_student(){

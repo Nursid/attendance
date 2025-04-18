@@ -278,15 +278,65 @@
                                       <label for="email">Batch</label>
                  
                     <select class="select2"  id="sdeparts" data-placeholder="Select Session" style="width: 100%;" name="batch">
+                    <option value="" disabled selected>Select Batch</option>
+                        <?php 
+                        if(isset($dept) && $dept > 0) {
+                            $batches = $this->web->getSessionByDeptId($dept, $bid);
+                            if(!empty($batches)) {
+                                foreach($batches as $batch) {
+                                    $selected = ($session == $batch->id) ? 'selected' : '';
+                                    echo "<option value='" . $batch->session_name . "' " . $selected . ">" . $batch->session_name . "</option>";
+                                }
+                            }
+                        }
+                        ?> 
+                        
+                        
+                        
+                    </select>
+                </div>
+                
+                
+                                 <div class="from-group col-md-5">
+                                      <label for="semester">Semester</label>
+                 
+                   <select class="form-control" id="semester" name="semester">
+                        <option value="" disabled selected>Select Semester</option>
+                        <?php 
+                        if(isset($dept) && $dept > 0) {
+                            $semesters = $this->web->getallSemesters($bid);
+                            if(!empty($semesters)) {
+                                foreach($semesters as $sem) {
+                                    $selected = ($semester == $sem->id) ? 'selected' : '';
+                                    echo "<option value='" . $sem->id . "' " . $selected . ">" . $sem->semestar_name . "</option>";
+                                }
+                            }
+                        }
+                        ?>
                     </select>
                 </div>
                 <!-- /.form-group -->
+                
+                
+                
              
               
               <div class="from-group col-md-5">
                      <label for="block">Section</label>
-                    <select class="select2"  id="section" data-placeholder="Select Section" style="width: 100%;" name="section">
-                    </select>
+                   <select class="form-control" id="section" name="section">
+                    <option value="" disabled selected>Select Section</option>
+                    <?php 
+                    if(isset($session) && $session > 0) {
+                        $sections = $this->web->getSectionsByBranchAndSemester($dept, $semester);
+                        if(!empty($sections)) {
+                            foreach($sections as $sec) {
+                                $selected = ($section == $sec->id) ? 'selected' : '';
+                                echo "<option value='" . $sec->id . "' " . $selected . ">" . $sec->name . "</option>";
+                            }
+                        }
+                    }
+                    ?>
+                </select>
                 </div>
                 <!-- /.form-group -->
 
@@ -294,25 +344,7 @@
                               
                               
                            
-                              
-                               <div class="from-group col-md-5">
-                 <label for="block">Class Room</label>
-                            <select name="class" class="form-control"  id="block" >
-                              <option value="">Select CLass</option>    
-                                 
-                   <?php
-				  
-				   $classes = $this->web->getallclassbyid($buid);
-                    if(!empty($classes)){
-                      foreach($classes as $clas):
-                        echo "<option value=".$clas->id .">".$clas->name."</option>";
-                      endforeach;
-                   }
-				   
-                   ?></select>
-                               
-                  </div>
-                 
+                          
                   
                   
                              
@@ -324,10 +356,7 @@
                               </div>
                               
                               
-                            <div class="from-group col-md-5">
-                                <label for="email">Semester</label>
-                                <input type="text" class="form-control" name="semester" >
-                              </div>  
+                           
                               
                               
                               
@@ -541,33 +570,73 @@ $(function () {
     })
   });
  
- 
+$(document).ready(function () {
+  // Use event delegation to handle change events
+  $(document).on('change', '#departs', function() {
+    var branchId = this.value;
+    $('#sdeparts').html('<option value="" disabled selected>Select Batch</option>');
+    $('#semester').html('<option value="" disabled selected>Select Semester</option>');
+    $('#section').html('<option value="" disabled selected>Select Section</option>');
 
- $('#departs').on('change', function() {
-  var id = this.value;
-  var datatypes_session = "sessionlist";
-  $.ajax({
-    type: "post",
-    url: "User/getajaxRequest",
-    data: {id,datatypes_session},
-    success: function(data){
-      $('#sdeparts').html(data);
-    }
-  });
-});
+    $.ajax({
+      type: "post",
+      url: "<?php echo base_url('User/get_batch_by_branch'); ?>",
+      data: {branch_id: branchId},
+      success: function(data){
+        var batches = JSON.parse(data);
+        var options = '<option value="" disabled selected>Select Batch</option>';
+        batches.forEach(function(batch) {
+          options += '<option value="' + batch.id + '">' + batch.session_name + '</option>';
+        });
+        $('#sdeparts').html(options);
+      },
+      error: function() {
+        console.log("Error loading batches");
+      }
+    });
 
-$('#sdeparts').on('change', function() {
-  var id = this.value;
-  var datatypes_section = "sectionlist";
-  $.ajax({
-    type: "post",
-    url: "User/getajaxRequest",
-    data: {id,datatypes_section},
-    success: function(data){
-      $('#section').html(data);
-    }
+    $.ajax({
+      type: "post",
+      url: "<?php echo base_url('User/get_semester_by_branch'); ?>",
+      data: {branch_id: branchId},
+      success: function(data){
+        var semesters = JSON.parse(data);
+        var options = '<option value="" disabled selected>Select Semester</option>';
+        semesters.forEach(function(semester) {
+          options += '<option value="' + semester.id + '">' + semester.semestar_name + '</option>';
+        });
+        $('#semester').html(options);
+      }
+    });
   });
+
+  $(document).on('change', '#semester', function() {
+    var branchId = $('#departs').val();
+    var semesterId = this.value;
+    $('#section').html('<option value="" disabled selected>Select Section</option>');
+
+$.ajax({
+    type: "post",
+    url:"<?php echo base_url('User/get_section_by_branch_semester'); ?>",
+    data: {branch_id: branchId, semester_id: semesterId},
+    success: function(data){
+        var sections = JSON.parse(data);
+        var options = '<option value="" disabled selected>Select Section</option>';
+        sections.forEach(function(section) {
+            var selected = ''; // or add your comparison logic here
+            options += '<option value="' + section.id + '" ' + selected + '>' + section.name + '</option>';
+        });
+        $('#section').html(options);
+    },
+    error: function() {
+        console.log("Error loading sections");
+    }
 });
+});
+  
+}); 
+
+
 </script>
     </body>
     </html>

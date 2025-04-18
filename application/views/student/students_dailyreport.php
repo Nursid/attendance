@@ -156,10 +156,13 @@ date_default_timezone_set('Asia/Kolkata');
                  
                  
                  
-                    <select class="select2"  id="semester" data-placeholder="Select Semester" style="width: 100%;" name="semester">
-                         <?php if($load) {?>  <option value="" ><?php echo $ses; ?></option>
-                     <?php } ?>
-                    </select>
+                <select class="select2" id="semester" data-placeholder="Select Semester" style="width: 100%;" name="semester">
+            <?php if($load) { ?>  
+                <option value="<?php echo $session; ?>" selected><?php echo $ses; ?></option>
+            <?php } else { ?>
+                <option value="" disabled selected>Select Semester</option>
+            <?php } ?>
+        </select>
                 </div>
                 <!-- /.form-group -->
               </div>
@@ -169,8 +172,11 @@ date_default_timezone_set('Asia/Kolkata');
                       <?php //if($load) {?>
                       <!--<option value="" ><?php echo $sect; ?></option>-->
                      <?php // } ?>
-                    <select class="select2"  id="section" data-placeholder="Select Section" style="width: 100%;" name="section">
-                    </select>
+                     <select class="select2" id="section" data-placeholder="Select Section" style="width: 100%;" name="section">
+            <?php if($load) { ?>
+                <option value="<?php echo $section; ?>" selected><?php echo $sect; ?></option>
+            <?php } ?>
+        </select>
                 </div>
                 <!-- /.form-group -->
               </div>
@@ -508,43 +514,57 @@ $('#departs').on('change', function() {
   });
 });
 
-$('#semester').on('change', function() {
-  var id = this.value;
-  var branchId = $('#departs').val();
+// $('#semester').on('change', function() {
+//   var id = this.value;
+//   var branchId = $('#departs').val();
 
-  $('#section').html('<option value="" disabled selected>Select Section</option>');
+//   $('#section').html('<option value="" disabled selected>Select Section</option>');
 
-  $.ajax({
-    type: "post",
-    url: "<?php echo base_url('User/get_section_by_branch_semester'); ?>",
-    data: {branch_id: branchId, semester_id: id},
-    success: function(data){
-      var sections = JSON.parse(data);
-      console.log(sections)
-      var options = '<option value="" disabled selected>Select Section</option>';
-      sections.forEach(function(section) {
-        // var selected = (typeof <?php // echo $section; ?> !== 'undefined' && section.id == <?php //echo $section; ?>) ? 'selected' : '';
-        options += '<option value="' + section.id + '" '  + '>' + section.name + '</option>';
-      });
-      console.log(options)
-      $('#section').html(options);
-    },
-    error: function() {
-      console.log("Error loading sections");
-    }
-  });
-});
-
-  // var datatypes_section = "sectionlist";
-  // $.ajax({
-  //   type: "post",
-  //   url: "User/getajaxRequest",
-  //   data: {id,datatypes_section},
-  //   success: function(data){
-  //     $('#section').html(data);
-  //   }
-  // });
+//   $.ajax({
+//     type: "post",
+//     url: "<?php // echo base_url('User/get_section_by_branch_semester'); ?>",
+//     data: {branch_id: branchId, semester_id: id},
+//     success: function(data){
+//       var sections = JSON.parse(data);
+//       console.log(sections)
+//       var options = '<option value="" disabled selected>Select Section</option>';
+//       sections.forEach(function(section) {
+//         // var selected = (typeof <?php // echo $section; ?> !== 'undefined' && section.id == <?php //echo $section; ?>) ? 'selected' : '';
+//         options += '<option value="' + section.id + '" '  + '>' + section.name + '</option>';
+//       });
+//       console.log(options)
+//       $('#section').html(options);
+//     },
+//     error: function() {
+//       console.log("Error loading sections");
+//     }
+//   });
 // });
+
+$('#semester').on('change', function() {
+    var id = this.value;
+    var branchId = $('#departs').val();
+
+    $('#section').html('<option value="" disabled selected>Select Section</option>');
+
+    $.ajax({
+        type: "post",
+        url: "<?php echo base_url('User/get_section_by_branch_semester'); ?>",
+        data: {branch_id: branchId, semester_id: id},
+        success: function(data){
+            var sections = JSON.parse(data);
+            var options = '<option value="" disabled selected>Select Section</option>';
+            sections.forEach(function(section) {
+                var selected = (section.id == '<?php echo isset($section) ? $section : ""; ?>') ? 'selected' : '';
+                options += '<option value="' + section.id + '" ' + selected + '>' + section.name + '</option>';
+            });
+            $('#section').html(options);
+        },
+        error: function() {
+            console.log("Error loading sections");
+        }
+    });
+});
 
 </script>
 

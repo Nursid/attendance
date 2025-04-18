@@ -119,55 +119,67 @@
                       <div class="col-lg-12 float-left">
                         <form action="<?php echo base_url('User/Students_list') ?>" method="POST">
                           <div class="row">
-                           <!-- <div class="col-sm-2">
-                              <select name="class_id" class="form-control"  id="emp" required>
-                                <option value="">Select Class</option>
-                              <?php 
-                            $res = $this->web->getallclassbyid($id);
-                                    foreach ($res as $res) :
-                             // $uname = $this->web->getNameByUserId($res->user_id); ?>
-                                <option value="<?php echo $res->id  ?>" <?php if($res->id==$id){ echo "selected";}?>><?php echo $res->name; ?></option>
-                              <?php endforeach; ?>
-                              </select>
-                            </div>-->
-                            
-                              <div class="from-group col-sm-2">
+                          
+                             <div class="from-group col-sm-2">
                  
                     <?php
                         $data = $this->web->getBusinessDepByBusinessId($bid);
                     ?>
 
-                    <select class="select2"  id="departs" style="width: 100%;" name="dept">
-                      <option value="" disabled selected>Select Branch</option>
-
-                        <?php foreach($data as $key => $val){
-                          
-                            echo "<option value=" . $val->id . ">" .$val->name."</option>";                          
-                        } ?>
-
-
-                    </select>
+                    <div class="form-group">
+                        <select class="form-control select2" id="departs" name="dept">
+                            <option value="" disabled selected>Select Branch</option>
+                            <?php foreach($data as $key => $val){
+                                $selected = ($dept == $val->id) ? 'selected' : '';
+                                echo "<option value='" . $val->id . "' " . $selected . ">" .$val->name."</option>";                          
+                            } ?>
+                        </select>
+                    </div>
                        
                   </div>  
                               
-                      <div class="col-md-2">
+                     
+            
+
+              <div class="col-md-2">
                 <div class="form-group">
-                 
-                    <select class="select2"  id="sdeparts" data-placeholder="Select Batch" style="width: 100%;" name="session">
+                    <select class="form-control" id="semester" name="semester">
+                        <option value="" disabled selected>Select Semester</option>
+                        <?php 
+                        if(isset($dept) && $dept > 0) {
+                            $semesters = $this->web->getallSemesters($bid);
+                            if(!empty($semesters)) {
+                                foreach($semesters as $sem) {
+                                    $selected = ($semester == $sem->id) ? 'selected' : '';
+                                    echo "<option value='" . $sem->id . "' " . $selected . ">" . $sem->semestar_name . "</option>";
+                                }
+                            }
+                        }
+                        ?>
                     </select>
                 </div>
                 <!-- /.form-group -->
               </div>
               
-               <div class="col-md-2">
+              <div class="col-md-2">
                 <div class="form-group">
-                 
-                    <select class="select2"  id="section" data-placeholder="Select Section" style="width: 100%;" name="section">
-                    </select>
+                <select class="form-control" id="section" name="section">
+                    <option value="" disabled selected>Select Section</option>
+                    <?php 
+                    if(isset($session) && $session > 0) {
+                        $sections = $this->web->getSectionsByBranchAndSemester($dept, $semester);
+                        if(!empty($sections)) {
+                            foreach($sections as $sec) {
+                                $selected = ($section == $sec->id) ? 'selected' : '';
+                                echo "<option value='" . $sec->id . "' " . $selected . ">" . $sec->name . "</option>";
+                            }
+                        }
+                    }
+                    ?>
+                </select>
                 </div>
                 <!-- /.form-group -->
               </div>
-                     
                             
                             
                             
@@ -216,7 +228,7 @@
 				
 				$start_time=time();
                      // $res=$this->web->getSchoolStudentListbyclass($id,$sid);
-                      	$res = $this->web->getSchoolStudentListbysection($bid,$dept,$session,$section);
+                      	$res = $this->web->getSchoolStudentListbysection($bid,$dept,$semester,$section);
 					  $count=1;
             
                       foreach($res as $val){
@@ -371,15 +383,15 @@
 <!-- AdminLTE for demo purposes -->
 <script src="<?php echo base_url('adminassets/dist/js/demo.js')?>"></script>
 <script>
-  $(function () {
-   var table = $('#example1').DataTable({
-     "responsive": true,
-      "autoWidth": false,
-      "paging": false,
-      order: [[1, 'asc']],
-    });
+//   $(function () {
+//   var table = $('#example1').DataTable({
+//      "responsive": true,
+//       "autoWidth": false,
+//       "paging": false,
+//       order: [[1, 'asc']],
+//     });
    
-  });
+//   });
 </script>
 <script>
 function active(id){
@@ -428,44 +440,96 @@ $(function () {
         .addClass('active');
 });
 </script>
+ 
+
  <script>
-$(function () {
-    //Initialize Select2 Elements
-    $('.select2').select2()
-
-    //Initialize Select2 Elements
-    $('.select2bs4').select2({
-      theme: 'bootstrap4'
-    })
+$(document).ready(function () {
+  // Initialize Select2
+  $('.select2').select2({
+    theme: 'bootstrap4'
   });
- 
- 
 
- $('#departs').on('change', function() {
-  var id = this.value;
-  var datatypes_session = "sessionlist";
-  $.ajax({
-    type: "post",
-    url: "User/getajaxRequest",
-    data: {id,datatypes_session},
-    success: function(data){
-      $('#sdeparts').html(data);
+  // Branch change event
+  $(document).on('change', '#departs', function() {
+    var branchId = this.value;
+    $('#semester').html('<option value="" disabled selected>Select Semester</option>');
+    $('#section').html('<option value="" disabled selected>Select Section</option>');
+
+    if (branchId) {
+      $.ajax({
+        type: "POST",
+        url: "<?php echo base_url('User/get_semester_by_branch'); ?>",
+        data: {branch_id: branchId},
+        success: function(data){
+          var semesters = JSON.parse(data);
+          var options = '<option value="" disabled selected>Select Semester</option>';
+          semesters.forEach(function(semester) {
+            var selected = (semester.id == <?= isset($semester) ? $semester : 'null' ?>) ? 'selected' : '';
+            options += '<option value="' + semester.id + '" ' + selected + '>' + semester.semestar_name + '</option>';
+          });
+          $('#semester').html(options);
+          
+          // If semester was previously selected, trigger section load
+          if (<?= isset($semester) && $semester > 0 ? 'true' : 'false' ?>) {
+            $('#semester').trigger('change');
+          }
+        }
+      });
     }
   });
-});
 
-$('#sdeparts').on('change', function() {
-  var id = this.value;
-  var datatypes_section = "sectionlist";
-  $.ajax({
-    type: "post",
-    url: "User/getajaxRequest",
-    data: {id,datatypes_section},
-    success: function(data){
-      $('#section').html(data);
+  // Semester change event
+  $(document).on('change', '#semester', function() {
+    var branchId = $('#departs').val();
+    var semesterId = this.value;
+    $('#section').html('<option value="" disabled selected>Select Section</option>');
+
+    if (branchId && semesterId) {
+      $.ajax({
+        type: "POST",
+        url: "<?php echo base_url('User/get_section_by_branch_semester'); ?>",
+        data: {branch_id: branchId, semester_id: semesterId},
+        success: function(data){
+          var sections = JSON.parse(data);
+          var options = '<option value="" disabled selected>Select Section</option>';
+          sections.forEach(function(section) {
+            var selected = (section.id == <?= isset($section) ? $section : 'null' ?>) ? 'selected' : '';
+            options += '<option value="' + section.id + '" ' + selected + '>' + section.name + '</option>';
+          });
+          $('#section').html(options);
+        },
+        error: function() {
+          console.log("Error loading sections");
+        }
+      });
     }
   });
+
+ // Initialize values if they exist
+<?php if (isset($dept) && $dept > 0): ?>
+  $('#departs').val('<?= $dept ?>').trigger('change');
+<?php endif; ?>
+
+<?php if (isset($semester) && $semester > 0 && isset($dept) && $dept > 0): ?>
+  // Wait for semester dropdown to populate
+  setTimeout(function() {
+    $('#semester').val('<?= $semester ?>').trigger('change');
+  }, 500);
+<?php endif; ?>
+
+<?php if (isset($section) && $section > 0 && isset($semester) && $semester > 0): ?>
+  // Wait for section dropdown to populate
+  setTimeout(function() {
+    $('#section').val('<?= $section ?>');
+  }, 1000);
+<?php endif; ?>
+
 });
 </script>
+
+
+
+
+
 </body>
 </html>
