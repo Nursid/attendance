@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -86,7 +85,7 @@
  
                 <div class="from-group col-md-5">
                     <label for="mobile">Enroll Id</label>
-                    <input type="text" class="form-control" name="mobile" value=" <?php echo $val['0']->enroll_id; ?> " id="mobile" readonly>
+                    <input type="text" class="form-control" name="mobile" value="<?php echo $val['0']->enroll_id; ?>" id="mobile" readonly>
                   </div>
                   
                   <div class="from-group col-md-5">
@@ -97,136 +96,107 @@
                   
                   
                   <div class="from-group col-md-5">
-                 <label for="block">Class</label>
+                    <label for="department">Branch/Department</label>
+                    <select name="department" class="form-control select2" id="departs">
+                    <?php 
+                    $depname = $this->web->getBusinessDepByUserId($val[0]->department);
+                    if (!empty($depname)){ 
+                        echo "<option value='".$depname[0]->id."'>".$depname[0]->name."</option>";
+                    } 
                     
-                    <?php
-					//$hostel = $this->web->getHostelByUserId($id,$bid); 
-						    
-						       $classname = $this->web->getclassnamebyid($val['0']->class_id);
-							 
-						          ?>
-                                  <select name="class" class="form-control"   id="class" >
-                                       <?php if (!empty($classname)){ ?>
-                                    <option value="<?php echo $classname[0]->id  ?>"><?php echo $classname[0]->name; ?></option>
-                                 
-                   <?php } 
-				  
-				  $classes = $this->web->getallclassbyid($bid);
-                    if(!empty($classes)){
-                      foreach($classes as $clas):
-                        echo "<option value=".$clas->id .">".$clas->name."</option>";
-                      endforeach;
-                   }
-				   
-                   ?></select>
-                               
+                    $dep = $this->web->getBusinessDepByBusinessId($bid);
+                    if (!empty($dep)){
+                        foreach($dep as $dept):
+                            if (empty($depname) || $dept->id != $depname[0]->id) {
+                                echo "<option value='".$dept->id."'>".$dept->name."</option>";
+                            }
+                        endforeach;
+                    }
+                    ?>
+                    </select>
                   </div>
                   
                   <div class="from-group col-md-5">
-                    <label for="email">Department</label>
-                     <?php
-					
-						    
-						      $depname = $this->web->getBusinessDepByUserId($val[0]->department); 
-							 
-						          ?>
-                                  <select name="department" class="form-control"  >
-                                       <?php if (!empty($depname)){ ?>
-                                    <option value="<?php echo $depname[0]->id  ?>"><?php echo $depname[0]->name; ?></option>
-                                 
-                   <?php } 
-				  
-				   $dep = $this->web->getBusinessDepByBusinessId($bid);
-                    if(!empty($dep)){
-                      foreach($dep as $dep):
-                        echo "<option value=".$dep->id .">".$dep->name."</option>";
-                      endforeach;
-                   }
-				   
-                   ?></select>
+                    <label for="batch">Batch</label>
+                    <select name="batch" class="form-control select2" id="sdeparts">
+                    <?php 
+                    $batchname = $this->web->getbatchById($val['0']->batch);
+                    if (!empty($batchname)) {
+                        echo "<option value='".$batchname[0]->id."'>".$batchname[0]->session_name."</option>";
+                    }
+                    
+                    // Get all batches for the department
+                    if (!empty($depname)) {
+                        $batches = $this->web->getSessionByDeptId($depname[0]->id, $bid);
+                        if (!empty($batches)) {
+                            foreach($batches as $batch) {
+                                if (empty($batchname) || $batch->id != $batchname[0]->id) {
+                                    echo "<option value='".$batch->id."'>".$batch->session_name."</option>";
+                                }
+                            }
+                        }
+                    }
+                    ?>
+                    </select>
                   </div>
-                  
-                  
-                   <div class="from-group col-md-5">
-                    <label for="email">Batch</label>
-                    <input type="text" class="form-control" name="batch" value="<?php echo $val['0']->batch; ?>" placeholder="" id="email" >
-                  </div>
-                  
-                  
-                  
-                  
-                  
-                  
-                  
-                  
-                  
-                  
                   
                   <div class="from-group col-md-5">
-                 <label for="block">Section</label>
+                    <label for="semester">Semester</label>
+                    <select name="semester" class="form-control select2" id="semester">
+                    <?php 
+                    // Current semester
+                    if (!empty($val['0']->semester)) {
+                        echo "<option value='".$val['0']->semester."'>".$val['0']->semester."</option>";
+                    }
                     
-                    <?php
-					
-						    
-						       $sectionname = $this->web->getsectionById($val['0']->section);
-							 
-						          ?>
-                                  <select name="section" class="form-control"   id="class" >
-                                       <?php if (!empty($sectionname)){ ?>
-                                    <option value="<?php echo $sectionname[0]->id  ?>"><?php echo $sectionname[0]->name; ?></option>
-                                 
-                   <?php } 
-				  
-				   $classes = $this->web->getall_S_sectionbyid($bid);
-                    if(!empty($classes)){
-                      foreach($classes as $clas):
-                        echo "<option value=".$clas->id .">".$clas->name."</option>";
-                      endforeach;
-                   }
-				   
-                   ?></select>
-                               
+                    // All semesters
+                    $semesters = $this->web->getallSemesters($bid);
+                    if (!empty($semesters)) {
+                        foreach($semesters as $sem) {
+                            if (empty($val['0']->semester) || $sem->id != $val['0']->semester) {
+                                echo "<option value='".$sem->id."'>".$sem->semestar_name."</option>";
+                            }
+                        }
+                    }
+                    ?>
+                    </select>
                   </div>
                   
+                  <div class="from-group col-md-5">
+                    <label for="section">Section</label>
+                    <select name="section" class="form-control select2" id="section">
+                    <?php 
+                    $sectionname = $this->web->getsectionById($val['0']->section);
+                    if (!empty($sectionname)) {
+                        echo "<option value='".$sectionname[0]->id."'>".$sectionname[0]->name."</option>";
+                    }
+                    
+                    // Get all sections for the department and semester
+                    if (!empty($depname) && !empty($val['0']->semester)) {
+                        $sections = $this->web->getSectionsByBranchAndSemester($depname[0]->id, $val['0']->semester);
+                        if (!empty($sections)) {
+                            foreach($sections as $sec) {
+                                if (empty($sectionname) || $sec->id != $sectionname[0]->id) {
+                                    echo "<option value='".$sec->id."'>".$sec->name."</option>";
+                                }
+                            }
+                        }
+                    }
+                    ?>
+                    </select>
+                  </div>
                   
-                  
-                  
-                  
-                  
-                  
-                  
-                  
-                               
                   <div class="from-group col-md-5">
                     <label for="email">Session</label>
                     <input type="text" class="form-control" name="session" value="<?php echo $val['0']->session; ?>" placeholder="" id="email" >
                   </div>
                   
-                  
-                  
-                   
-                  <div class="from-group col-md-5">
-                    <label for="email">Semester</label>
-                    <input type="text" class="form-control" name="semester" value="<?php echo $val['0']->semester; ?>" placeholder="" id="email" >
-                  </div>
-                  
-                  
-                  
-                  
-                   
-                 
-                  
-                  
-                   
                   <div class="from-group col-md-5">
                     <label for="email">Email_id</label>
                     <input type="text" class="form-control" name="email" value="<?php echo $val['0']->email; ?>" placeholder="" id="email" >
                   </div>
                   
-                  
-                  
-                  
-                   <div class="from-group col-md-5">
+                  <div class="from-group col-md-5">
                     <label for="address">Address</label>
                     <input type="text" class="form-control" name="address"value="<?php echo $val['0']->address; ?>" placeholder="Enter Address" id="address">
                   </div>
@@ -268,7 +238,7 @@
                     <label for="parents_name">Parent Name</label>
                     
                    
-                    <input type="text"  name="parent_name" class="form-control" value=" <?php echo $val['0']->parent_name;  ?>"  placeholder="Parants Name" id="edu">
+                    <input type="text"  name="parent_name" class="form-control" value="<?php echo $val['0']->parent_name;  ?>"  placeholder="Parants Name" id="edu">
                  
                   </div>
                   
@@ -276,7 +246,7 @@
                     <label for="mobile">Parents Mobile No</label>
                     
                    
-                   <input type="text" name="parent_mobile" class="form-control" value="<?php  echo $val['0']->parent_mobile; ?>" name="parent_mobile" placeholder="Parants Mobile" id="edu">
+                   <input type="text" name="parent_mobile" class="form-control" value="<?php echo $val['0']->parent_mobile; ?>" name="parent_mobile" placeholder="Parants Mobile" id="edu">
                   
                   </div>
                   
@@ -404,6 +374,86 @@ $(function () {
         .css({'display': 'block'})
         .addClass('menu-open').prev('a')
         .addClass('active');
+});
+</script>
+
+<script>
+$(function () {
+    //Initialize Select2 Elements
+    $('.select2').select2({
+      theme: 'bootstrap4'
+    });
+});
+
+$(document).ready(function () {
+  // Branch change event
+  $(document).on('change', '#departs', function() {
+    var branchId = this.value;
+    
+    // Reset other dropdowns
+    $('#sdeparts').html('<option value="" disabled selected>Select Batch</option>');
+    $('#semester').html('<option value="" disabled selected>Select Semester</option>');
+    $('#section').html('<option value="" disabled selected>Select Section</option>');
+
+    // Load batches based on branch
+    $.ajax({
+      type: "POST",
+      url: "<?php echo base_url('User/get_batch_by_branch'); ?>",
+      data: {branch_id: branchId},
+      success: function(data){
+        var batches = JSON.parse(data);
+        var options = '<option value="" disabled selected>Select Batch</option>';
+        batches.forEach(function(batch) {
+          options += '<option value="' + batch.id + '">' + batch.session_name + '</option>';
+        });
+        $('#sdeparts').html(options);
+      },
+      error: function() {
+        console.log("Error loading batches");
+      }
+    });
+
+    // Load semesters based on branch
+    $.ajax({
+      type: "POST",
+      url: "<?php echo base_url('User/get_semester_by_branch'); ?>",
+      data: {branch_id: branchId},
+      success: function(data){
+        var semesters = JSON.parse(data);
+        var options = '<option value="" disabled selected>Select Semester</option>';
+        semesters.forEach(function(semester) {
+          options += '<option value="' + semester.id + '">' + semester.semestar_name + '</option>';
+        });
+        $('#semester').html(options);
+      }
+    });
+  });
+
+  // Semester change event
+  $(document).on('change', '#semester', function() {
+    var branchId = $('#departs').val();
+    var semesterId = this.value;
+    $('#section').html('<option value="" disabled selected>Select Section</option>');
+
+    if (branchId && semesterId) {
+      $.ajax({
+        type: "POST",
+        url: "<?php echo base_url('User/get_section_by_branch_semester'); ?>",
+        data: {branch_id: branchId, semester_id: semesterId},
+        success: function(data){
+          var sections = JSON.parse(data);
+          var options = '<option value="" disabled selected>Select Section</option>';
+          sections.forEach(function(section) {
+            options += '<option value="' + section.id + '">' + section.name + '</option>';
+          });
+          $('#section').html(options);
+        },
+        error: function() {
+          console.log("Error loading sections");
+        }
+      });
+    }
+  });
 });
 </script>
 </body>

@@ -902,7 +902,7 @@ public function getclassById($id){
 }
 
 public function getallperiodbyid($bid){
-	return $this->db->query("SELECT * FROM S_period WHERE bid='$bid' and status=1 order by id DESC ")->result();
+	return $this->db->query("SELECT * FROM S_period WHERE bid='$bid' and status=1 order by STR_TO_DATE(start_time, '%h:%i %p') ASC")->result();
 }
 
 
@@ -1342,7 +1342,7 @@ public function getsectionById($id){
 }  
 
 public function getallperiodbysectionid($bid,$section){
-	return $this->db->query("SELECT * FROM S_period WHERE bid='$bid'  and status=1 order by start_time ASC ")->result();
+	return $this->db->query("SELECT * FROM S_period WHERE bid='$bid' and status=1 order by STR_TO_DATE(start_time, '%h:%i %p') ASC")->result();
 } 
 
 public function getbatchById($id){

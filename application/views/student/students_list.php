@@ -228,7 +228,8 @@
 				
 				$start_time=time();
                      // $res=$this->web->getSchoolStudentListbyclass($id,$sid);
-                      	$res = $this->web->getSchoolStudentListbysection($bid,$dept,$semester,$section);
+                      	$res = $this->web->getSchoolStudentListbysection_new($bid,$dept,$semester,$section);
+                        print_r([$bid, $dept, $semester, $section]);
 					  $count=1;
             
                       foreach($res as $val){

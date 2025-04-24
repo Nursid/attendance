@@ -84,6 +84,9 @@
                           <button type="button" class="btn btn-primary float-right" data-toggle="modal" data-target="#addPeriodModal" data-day="<?php echo $day; ?>">
                             <i class="fas fa-plus"></i> Add Period
                           </button>
+                          <button type="button" class="btn btn-success float-right mr-2 save-all-periods" data-day="<?php echo $day; ?>" data-day-num="<?php echo $index; ?>">
+                            <i class="fas fa-save"></i> Save All Periods
+                          </button>
                         </div>
                       </div>
                       <div class="table-responsive">
@@ -128,9 +131,51 @@
                                 if($dayName === $day) {
                                   echo '<tr>
                                     <td>'.(($period = $this->web->getperiodnamebyid($entry->period)) ? $period[0]->start_time . ' - ' . $period[0]->end_time : $entry->period).'</td>
-                                    <td>'.(($subject = $this->web->getsubjectnamebyid($entry->subject)) ? $subject->name : 'N/A').'</td>
-                                    <td>'.($this->web->getNameByUserId($entry->teacher) ?: 'N/A').'</td>
-                                    <td>'.$entry->class_room.'</td>
+                                    <td>
+                                      <select class="form-control select-subject" data-entry-id="'.$entry->id.'">
+                                        <option value="">Select Subject</option>';
+                                        $subjects = $this->web->getAllSubjectsById_new($timetable->bid, $timetable->dept);
+                                        if(!empty($subjects)) {
+                                          foreach($subjects as $subject) {
+                                            $selected = ($entry->subject == $subject->id) ? 'selected' : '';
+                                            echo '<option value="'.$subject->id.'" '.$selected.'>'.$subject->name.'</option>';
+                                          }
+                                        }
+                                      echo '</select>
+                                    </td>
+                                    <td>
+                                      <select class="form-control select-teacher" data-entry-id="'.$entry->id.'">
+                                        <option value="">Select Teacher</option>';
+                                        if(!empty($teachers)) {
+                                          foreach($teachers as $teacher) {
+                                            $selected = ($entry->teacher == $teacher->id) ? 'selected' : '';
+                                            echo '<option value="'.$teacher->id.'" '.$selected.'>'.$teacher->name.'</option>';
+                                          }
+                                        }
+                                      echo '</select>
+                                    </td>
+                                    <td>
+                                      <select class="form-control select-classroom" data-entry-id="'.$entry->id.'">
+                                        <option value="">Select Classroom</option>';
+                                        // Get classrooms or create sample ones if method doesn't exist
+                                        $classrooms = method_exists($this->web, 'getAllClassrooms') ? 
+                                            $this->web->getAllClassrooms($timetable->bid) : 
+                                            [
+                                                (object)['id' => 'Room 101', 'name' => 'Room 101'],
+                                                (object)['id' => 'Room 102', 'name' => 'Room 102'],
+                                                (object)['id' => 'Room 103', 'name' => 'Room 103'],
+                                                (object)['id' => 'Lab 1', 'name' => 'Lab 1'],
+                                                (object)['id' => 'Lab 2', 'name' => 'Lab 2']
+                                            ];
+                                        
+                                        if(!empty($classrooms)) {
+                                          foreach($classrooms as $classroom) {
+                                            $selected = ($entry->class_room == $classroom->id) ? 'selected' : '';
+                                            echo '<option value="'.$classroom->id.'" '.$selected.'>'.$classroom->name.'</option>';
+                                          }
+                                        }
+                                      echo '</select>
+                                    </td>
                                     <td>
                                       <button class="btn btn-sm btn-info edit-period" data-toggle="modal" data-target="#addPeriodModal" 
                                         data-id="'.$entry->id.'" data-day="'.$day.'" data-period="'.$entry->period.'" 
@@ -255,7 +300,27 @@
             </div>
             <div class="form-group">
               <label for="class_room">Classroom</label>
-              <input type="text" class="form-control" id="class_room" name="class_room" placeholder="e.g. Room 101" required>
+              <select class="form-control" id="class_room" name="class_room" required>
+                <option value="">Select Classroom</option>
+                <?php
+                // Get classrooms or create sample ones if method doesn't exist
+                $classrooms = method_exists($this->web, 'getAllClassrooms') ? 
+                    $this->web->getAllClassrooms($timetable->bid) : 
+                    [
+                        (object)['id' => 'Room 101', 'name' => 'Room 101'],
+                        (object)['id' => 'Room 102', 'name' => 'Room 102'],
+                        (object)['id' => 'Room 103', 'name' => 'Room 103'],
+                        (object)['id' => 'Lab 1', 'name' => 'Lab 1'],
+                        (object)['id' => 'Lab 2', 'name' => 'Lab 2']
+                    ];
+                
+                if(!empty($classrooms)) {
+                  foreach($classrooms as $classroom) {
+                    echo '<option value="'.$classroom->id.'">'.$classroom->name.'</option>';
+                  }
+                }
+                ?>
+              </select>
             </div>
           </form>
         </div>
@@ -292,6 +357,83 @@ $(function () {
   $('#period, #subject, #teacher').select2({
     theme: 'bootstrap4',
     dropdownParent: $('#addPeriodModal')
+  });
+  
+  // Initialize select2 for inline selects
+  $('.select-subject, .select-teacher, .select-classroom').select2({
+    theme: 'bootstrap4',
+    width: '100%'
+  });
+  
+  // Handle the Save All Periods button
+  $('.save-all-periods').on('click', function() {
+    const day = $(this).data('day');
+    const dayNum = $(this).data('day-num');
+    const timetableId = $('input[name="timetable_id"]').val();
+    
+    // Get all rows for this day
+    const rows = $(`#${day}-periods tr`);
+    const updateData = [];
+    
+    // Collect data from each row
+    rows.each(function() {
+      const entryId = $(this).find('.select-subject').data('entry-id');
+      
+      // Skip rows without entry ID (like "No periods found" message row)
+      if (!entryId) return;
+      
+      const subject = $(this).find('.select-subject').val();
+      const teacher = $(this).find('.select-teacher').val();
+      const classroom = $(this).find('.select-classroom').val();
+      
+      updateData.push({
+        entry_id: entryId,
+        subject: subject,
+        teacher: teacher,
+        class_room: classroom
+      });
+    });
+
+    console.log(updateData);
+    
+    // Don't proceed if no entries to update
+    if (updateData.length === 0) {
+      alert('No entries to update for this day.');
+      return;
+    }
+    
+    // Show loading indicator or disable button
+    const button = $(this);
+    const originalText = button.html();
+    button.html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+    button.prop('disabled', true);
+    
+    // Send data to the controller
+    $.ajax({
+      url: '<?php echo base_url("User/update_day_timetable"); ?>',
+      type: 'POST',
+      data: {
+        entries: JSON.stringify(updateData),
+        timetable_id: timetableId,
+        day: dayNum
+      },
+      dataType: 'json',
+      success: function(response) {
+        button.html(originalText);
+        button.prop('disabled', false);
+        
+        if (response.status === 'success') {
+          alert(response.message);
+        } else {
+          alert('Failed to save changes: ' + response.message);
+        }
+      },
+      error: function() {
+        button.html(originalText);
+        button.prop('disabled', false);
+        alert('An error occurred while saving. Please try again.');
+      }
+    });
   });
   
   // Close select2 dropdown when modal closes to prevent stuck UI

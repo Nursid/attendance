@@ -282,6 +282,7 @@ date_default_timezone_set('Asia/Kolkata');
         <th>Time Log</th>
         <?php
         $res = $this->web->getallperiodbyid($bid);
+
         $dayOfWeek = date('w', strtotime($start_date));
         foreach($res as $period){
             $subject = $this->web->getSubjectByPeriodAndDay($period->id, $dayOfWeek);

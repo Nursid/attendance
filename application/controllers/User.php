@@ -1666,6 +1666,15 @@ public function activatecstudent(){
 
 			
 			$data['total_subjects'] = $this->web->getTotalSubjects($bid);
+
+			  // Get all branches for initial dropdown
+			  $data['branches'] = $this->web->getBusinessDepByBusinessId($bid);
+        
+			  $data['total_branches'] = $this->web->getTotalBranches($bid);
+			  $data['total_students'] = $this->web->getTotalStudents($bid);
+			  $data['total_staff'] = $this->web->getTotalStaff($bid);
+			  $data['total_subjects'] = $this->web->getTotalSubjects($bid);
+
 			$this->load->view('student/school_dashboard', $data);
 		}
 		else{
@@ -1686,34 +1695,32 @@ public function activatecstudent(){
 	
 	public function Students_list(){
 		if(!empty($this->session->userdata('id'))){
-			 $postdata=$this->input->post();
-	//	$start_date = date("Y-m-d");
-	//	$end_date = date("Y-m-d");
-		$sid="";
-		$true = 0;  
-		if(isset($postdata['dept'])){
-		//	$start_date = $postdata['start_date'];
-		//	$end_date = $postdata['end_date'];
+			$postdata = $this->input->post();
+			$sid = "";
+			$true = 0;  
+			$students = array();
+			
+			if(isset($postdata['dept'])){
 				$dept = $postdata['dept'];
-			$semester = $postdata['semester'];
-			$section = $postdata['section'];
-			$true= 1;
-		}
+				$semester = $postdata['semester'];
+				$section = $postdata['section'];
+				$true = 1;
+				
+				// Call the model to get the student list
+				$students = $this->web->getSchoolStudentListbysection_new($this->session->userdata('login_id'), $dept, $semester, $section);
+			}
+			
+			$data = array(
+				'dept' => $dept,
+				'semester' => $semester,
+				'section' => $section,
+				'load' => $true,
+				'students' => $students // Pass the student data to the view
+			);
+
 		
-		$data=array(
-			//'start_date'=>$start_date,
-		//	'end_date'=>$end_date,
-			'dept'=>$dept,
-			'semester'=>$semester,
-			'section'=>$section,
-			'load'=>$true
-		);
-	//	$this->load->view('attendance/manual',$data);  
 			
-			
-			
-			
-			$this->load->view('student/students_list',$data);
+			$this->load->view('student/students_list', $data);
 		}
 		else{
 			redirect('user-login');
@@ -1721,58 +1728,58 @@ public function activatecstudent(){
 	}
 
 
-public function addnew_S_student(){
-			if(!empty($this->session->userdata('id'))){
-				if($this->session->userdata()['type']=='P'){
-					$uid = $this->session->userdata('empCompany');
-				} else {
-					$uid=$this->web->session->userdata('login_id');
-				}
+// public function addnew_S_student(){
+// 			if(!empty($this->session->userdata('id'))){
+// 				if($this->session->userdata()['type']=='P'){
+// 					$uid = $this->session->userdata('empCompany');
+// 				} else {
+// 					$uid=$this->web->session->userdata('login_id');
+// 				}
 			
-				$postdata=$this->input->post();
+// 				$postdata=$this->input->post();
 				
-				$i='upload/nextpng.png';
+// 				$i='upload/nextpng.png';
 
-				$postdata=array(
-					'bid'=>$postdata['bid'],
-					'name'=>$postdata['name'],
-					'enroll_id'=>trim($postdata['mobile']),
-					'address'=>$postdata['address'],
-					'roll_no'=>$postdata['rollno'],
-					'student_code'=>$postdata['stuid'],
-					'dob'=>$postdata['dob'],
-					'bio_id'=>$postdata['devcode'],
-					'rfid'=>$postdata['rfid'],
-					'blood_group'=>$postdata['blood'],
-					'image'=>$i,
-					'gender'=>$postdata['gender'],
-					'class_id'=>$postdata['class'],
+// 				$postdata=array(
+// 					'bid'=>$postdata['bid'],
+// 					'name'=>$postdata['name'],
+// 					'enroll_id'=>trim($postdata['mobile']),
+// 					'address'=>$postdata['address'],
+// 					'roll_no'=>$postdata['rollno'],
+// 					'student_code'=>$postdata['stuid'],
+// 					'dob'=>$postdata['dob'],
+// 					'bio_id'=>$postdata['devcode'],
+// 					'rfid'=>$postdata['rfid'],
+// 					'blood_group'=>$postdata['blood'],
+// 					'image'=>$i,
+// 					'gender'=>$postdata['gender'],
+// 					'class_id'=>$postdata['class'],
 					
-						'section'=>$postdata['section'],
-							'batch'=>$postdata['batch'],
-								'semester'=>$postdata['semester'],
-									'session'=>$postdata['session'],
-										'department'=>$postdata['department'],
-											'email'=>$postdata['email'],
-				   'doj'=>strtotime($postdata['doj']),
-				  'parent_name'=>$postdata['par_name'],
-				   'parent_mobile'=>$postdata['par_mobile'],
-				   'parent_relation'=>$postdata['relation'],
-					'status'=>1,
-					'date_time'=>time()
+// 						'section'=>$postdata['section'],
+// 							'batch'=>$postdata['batch'],
+// 								'semester'=>$postdata['semester'],
+// 									'session'=>$postdata['session'],
+// 										'department'=>$postdata['department'],
+// 											'email'=>$postdata['email'],
+// 				   'doj'=>strtotime($postdata['doj']),
+// 				  'parent_name'=>$postdata['par_name'],
+// 				   'parent_mobile'=>$postdata['par_mobile'],
+// 				   'parent_relation'=>$postdata['relation'],
+// 					'status'=>1,
+// 					'date_time'=>time()
 				
-				);
-				$data=$this->db->insert('student',$postdata);
-				//$id = $this->db->insert_id();
+// 				);
+// 				$data=$this->db->insert('student',$postdata);
+// 				//$id = $this->db->insert_id();
   
-					$this->session->set_flashdata('msg','New Student Added!');
-					redirect('Students_list');
+// 					$this->session->set_flashdata('msg','New Student Added!');
+// 					redirect('Students_list');
 				
-			}
-			else{
-				redirect('user-login');
-			}
-		}
+// 			}
+// 			else{
+// 				redirect('user-login');
+// 			}
+// 		}
 
 
 
@@ -2011,7 +2018,6 @@ public function update_S_student(){
 			redirect('user-login');
 		}
 	}	
-	
 	
 	
 	
@@ -3968,7 +3974,8 @@ public function students_monthly_report_new(){
 			
 			$data2 = array();
 			// get all student by branches -> batch -> semester - > section 
-			$users_data = $this->web->getSchoolStudentListbysection($loginId,$dept,$semester,$section);
+			$users_data = $this->web->getSchoolStudentListbysection_new($loginId,$dept,$semester,$section);
+			
 			
 			if(!empty($users_data)){
 				//$seconds = 0;
@@ -4003,7 +4010,7 @@ public function students_monthly_report_new(){
 									});
 								}
 									
-				   // $monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$check['id'],1);
+			   // $monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$check['id'],1);
 	  for($d=0; $d<$num_month;$d++){
 
 	   $new_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date))." +".$d." days");
@@ -4015,7 +4022,7 @@ public function students_monthly_report_new(){
 		// get time period by suject and date
 		$getperiodTime = $this->web->getperiodTime($subject, $day_number);
 		
-		
+	
 		if(!empty($getperiodTime)) {
 			$start_time_period = $getperiodTime->start_time;
 			$end_time_period = $getperiodTime->end_time;
@@ -4026,6 +4033,7 @@ public function students_monthly_report_new(){
 			$data = array();
 			
 			$monthUserAt = $this->web->getStudentAttendanceReportByDate($start_time_stamp,$end_time_stamp,$user->id,$loginId);
+			
 			
 			if(!empty($monthUserAt)) {
 				$data = array(
@@ -4038,12 +4046,13 @@ public function students_monthly_report_new(){
 					'time' => ''
 				);
 			}
-		} else {
-			$data = array(
-				'status' => 'N/A',
-				'time' => ''
-			);
 		}
+		//  else {
+		// 	$data = array(
+		// 		'status' => 'N/A',
+		// 		'time' => ''
+		// 	);
+		// }
 		
 	//	if(($user->doj!="" || strtotime($start_date)>=$user->doj) && ($user->left_date=="" || strtotime($start_date)<$user->left_date)){
 			// $user_at = array_filter($monthUserAt, function($val) use($new_start_time, $new_end_time){
@@ -4121,6 +4130,23 @@ public function students_monthly_report_new(){
 			'subject_name' => $subject_name,
 			'cmp_name' => $cmpName['name']
 		);
+
+		$days_with_time_periods = 0;
+		foreach ($days_array as $day) {
+			$day_number = date('w', strtotime($day));
+			$getperiodTime = $this->web->getperiodTime($subject, $day_number);
+			if (!empty($getperiodTime)) {
+				$days_with_time_periods++;
+			}
+		}
+
+		// Add the count to the data array
+		$data['days_with_time_periods'] = $days_with_time_periods;
+
+		echo '<pre>';
+		print_r($data);
+		echo '</pre>';
+		die();
 		
 		$this->load->view('student/students_monthly_report',$data);
 	}
@@ -4144,7 +4170,31 @@ public function add_newtimetable(){
 			'bid'=>$postdata['bid']
 		);
 		$data=$this->db->insert('time_table_name',$postdata);
+		$timetable_id = $this->db->insert_id(); // Get the ID of the newly inserted timetable
+		
 		if($data > 0){
+			// Get all periods for this bid
+			$periods = $this->web->getallperiodbyid($postdata['bid']);
+			
+			// Add entries for all days and periods
+			if(!empty($periods)){
+				foreach($periods as $period){
+					// Add for all days (0=Sunday, 1=Monday, 2=Tuesday, etc.)
+					for($day = 0; $day <= 6; $day++){
+						$period_data = array(
+							'bid' => $postdata['bid'],
+							'days' => $day,
+							'period' => $period->id,
+							'subject' => '',
+							'class_room' => '',
+							'teacher' => '',
+							'timetable_id' => $timetable_id
+						);
+						$this->db->insert('time_table', $period_data);
+					}
+				}
+			}
+			
 			$this->session->set_flashdata('msg','New Time Table Added!');
 			redirect('time_table');
 		}
@@ -4277,6 +4327,77 @@ public function save_timetable_entry() {
 		} else {
 			echo json_encode(['status' => 'error']);
 		}
+	} else {
+		redirect('user-login');
+	}
+}
+
+public function update_day_timetable() {
+	if(!empty($this->session->userdata('id'))){
+		// Get POST data - expecting JSON array of entries
+		$entries = json_decode($this->input->post('entries'), true);
+		$timetable_id = $this->input->post('timetable_id');
+		$day = $this->input->post('day');
+		
+		// Validate input
+		if(empty($entries) || !is_array($entries) || empty($timetable_id) || !isset($day)) {
+			echo json_encode([
+				'status' => 'error', 
+				'message' => 'Invalid input data'
+			]);
+			return;
+		}
+		
+		// Process each entry
+		$success_count = 0;
+		$error_count = 0;
+		$bid = $this->session->userdata('login_id');
+		
+		foreach($entries as $entry_data) {
+			// Validate entry has required fields
+			if(empty($entry_data['entry_id'])) {
+				$error_count++;
+				continue;
+			}
+			
+			// Prepare data for update
+			$entry = array(
+				'bid' => $bid,
+				'timetable_id' => $timetable_id,
+				'days' => $day
+			);
+			
+			// Add optional fields if present
+			if(isset($entry_data['subject']) && !empty($entry_data['subject'])) {
+				$entry['subject'] = $entry_data['subject'];
+			}
+			
+			if(isset($entry_data['teacher']) && !empty($entry_data['teacher'])) {
+				$entry['teacher'] = $entry_data['teacher'];
+			}
+			
+			if(isset($entry_data['class_room']) && !empty($entry_data['class_room'])) {
+				$entry['class_room'] = $entry_data['class_room'];
+			}
+			
+			// Update entry
+			$this->db->where('id', $entry_data['entry_id']);
+			$result = $this->db->update('time_table', $entry);
+			
+			if($result) {
+				$success_count++;
+			} else {
+				$error_count++;
+			}
+		}
+		
+		// Return results
+		echo json_encode([
+			'status' => 'success',
+			'message' => "Updated $success_count entries successfully. $error_count entries failed.",
+			'success_count' => $success_count,
+			'error_count' => $error_count
+		]);
 	} else {
 		redirect('user-login');
 	}
@@ -4679,6 +4800,448 @@ public function update_subject() {
     } else {
         redirect('user-login');
     }
+}
+
+public function student_dashboard_api() {
+
+	if(!empty($this->session->userdata('id'))){
+    // Validate request
+    if (!$this->input->is_ajax_request()) {
+        echo json_encode(['status' => 'error', 'message' => 'Direct access not allowed']);
+        return;
+    }
+
+	$bid = $this->session->userdata('login_id');
+
+    $action = $this->input->post('action');
+    
+	
+    switch ($action) {
+        case 'get_dashboard_data':
+            $branch_id = $this->input->post('branch_id');
+            $semester_id = $this->input->post('semester_id');
+            $section_id = $this->input->post('section_id');
+            	
+            // Allow branch-only filtering
+            if (!$branch_id) {
+                echo json_encode(['status' => 'error', 'message' => 'Branch ID is required']);
+                return;
+            }
+            
+            // Get current date
+            $current_date = date('Y-m-d');
+            $start_time = strtotime(date('Y-m-d 00:00:00'));
+            $end_time = strtotime(date('Y-m-d 23:59:59'));
+            
+            // Build where conditions for students
+            $student_conditions = ['student.department' => $branch_id, 'student.status' => 1];
+            if ($semester_id) {
+                $student_conditions['student.semester'] = $semester_id;
+            }
+            if ($section_id) {
+                $student_conditions['student.section'] = $section_id;
+            }
+            
+            // Get all students in this section/branch
+            $this->db->select('student.*');
+            $this->db->from('student');
+            $this->db->where($student_conditions);
+            $query = $this->db->get();
+            $students = $query->result();
+            $total_students = count($students);
+            
+            // Get periods for the day
+            $dayOfWeek = date('w'); // 0 (for Sunday) through 6 (for Saturday)
+            $periods = $this->db->get_where('S_period', ['bid' => $bid, 'status' => 1])->result();
+            
+            // Get subjects for this branch and semester
+            $subject_conditions = [
+                'subject.bid' => $bid, 
+                'subject.dep_id' => $branch_id, 
+                'subject.status' => 1
+            ];
+            $this->db->select('subject.*');
+            $this->db->from('subject');
+            $this->db->where($subject_conditions);
+            $query = $this->db->get();
+            $subjects = $query->result();
+            
+            // Process student attendance
+            $student_data = [];
+            $present_count = 0;
+            $absent_count = 0;
+            
+            foreach ($students as $student) {
+                // Get attendance logs for this student today
+                $this->db->select('*');
+                $this->db->from('student_attendance');
+                $this->db->where('student_id', $student->id);
+                $this->db->where('bid', $bid);
+                $this->db->where('status', 1);
+                $this->db->where('time >=', $start_time);
+                $this->db->where('time <=', $end_time);
+                $this->db->order_by('time', 'ASC');
+                $attendance_query = $this->db->get();
+                $attendance_logs = $attendance_query->result();
+                
+                $student_attendance = [];
+                $is_present = false;
+                
+                if (!empty($attendance_logs)) {
+                    $is_present = true;
+                    $present_count++;
+                    
+                    foreach ($attendance_logs as $log) {
+                        $student_attendance[] = [
+                            'time' => $log->time,
+                            'formatted_time' => date('h:i A', $log->time),
+                            'student_status' => $log->student_status
+                        ];
+                    }
+                } else {
+                    $absent_count++;
+                }
+                
+                // Get class name
+                $class_name = "";
+                if (!empty($student->class_id)) {
+                    $class_info = $this->db->get_where('class', ['id' => $student->class_id])->row();
+                    if ($class_info) {
+                        $class_name = $class_info->name;
+                    }
+                }
+                
+                // Get semester name
+                $semester_name = $student->semester;
+                
+                // Get period attendance for this student
+                $period_attendance = [];
+                foreach ($periods as $period) {
+                    $period_start = strtotime(date('Y-m-d ') . $period->start_time);
+                    $period_end = strtotime(date('Y-m-d ') . $period->end_time);
+                    
+                    // Get subject for this period and day
+                    $subject_name = "";
+                    $subject_info = $this->web->getSubjectByPeriodAndDay($period->id, $dayOfWeek);
+                    if ($subject_info) {
+                        $subject_name = $subject_info->name;
+                    }
+                    
+                    $is_present_in_period = false;
+                    foreach ($attendance_logs as $log) {
+                        $log_time = $log->time;
+                        if ($log_time >= $period_start && $log_time <= $period_end) {
+                            $is_present_in_period = true;
+                            break;
+                        }
+                    }
+                    
+                    $period_attendance[] = [
+                        'period_id' => $period->id,
+                        'period_name' => $period->name,
+                        'start_time' => $period->start_time,
+                        'end_time' => $period->end_time,
+                        'subject' => $subject_name,
+                        'status' => $is_present_in_period ? 'P' : 'A'
+                    ];
+                }
+                
+                // Get roll number
+                $roll_no = !empty($student->roll_no) ? $student->roll_no : $student->student_code;
+                
+                $student_data[] = [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'roll_no' => $roll_no,
+                    'class' => $class_name,
+                    'semester' => $semester_name,
+                    'attendance_status' => $is_present ? 'P' : 'A',
+                    'attendance_logs' => $student_attendance,
+                    'period_attendance' => $period_attendance
+                ];
+            }
+            
+            // Get period headers for the UI
+            $period_headers = [];
+            foreach ($periods as $period) {
+                $subject_info = $this->web->getSubjectByPeriodAndDay($period->id, $dayOfWeek);
+                $subject_name = $subject_info ? $subject_info->name : "N/A";
+                
+                $period_headers[] = [
+                    'id' => $period->id,
+                    'name' => $period->name,
+                    'time' => $period->start_time . '-' . $period->end_time,
+                    'subject' => $subject_name
+                ];
+            }
+            
+            // Process subjects attendance data
+            $subject_attendance = [];
+            foreach ($subjects as $subject) {
+                $subject_present = 0;
+                $subject_absent = 0;
+                
+                // Count present students for this subject
+                foreach ($student_data as $student) {
+                    $found_in_period = false;
+                    foreach ($student['period_attendance'] as $period) {
+                        if ($period['subject'] == $subject->name && $period['status'] == 'P') {
+                            $found_in_period = true;
+                            break;
+                        }
+                    }
+                    
+                    if ($found_in_period) {
+                        $subject_present++;
+                    } else {
+                        $subject_absent++;
+                    }
+                }
+                
+                $subject_attendance[] = [
+                    'id' => $subject->id,
+                    'name' => $subject->name,
+                    'code' => $subject->subject_code ?? 'N/A',
+                    'present' => $subject_present,
+                    'absent' => $subject_absent
+                ];
+            }
+            
+            // Get class attendance data
+            $class_attendance = [];
+            $classes = $this->db->get_where('class', ['bid' => $branch_id, 'status' => 1])->result();
+            
+            foreach ($classes as $class) {
+                $class_students_count = 0;
+                $class_present_count = 0;
+                
+                foreach ($student_data as $student) {
+                    if ($student['class'] == $class->name) {
+                        $class_students_count++;
+                        if ($student['attendance_status'] == 'P') {
+                            $class_present_count++;
+                        }
+                    }
+                }
+                
+                $percentage = $class_students_count > 0 ? round(($class_present_count / $class_students_count) * 100) : 0;
+                
+                $class_attendance[] = [
+                    'id' => $class->id,
+                    'name' => $class->name,
+                    'total' => $class_students_count,
+                    'present' => $class_present_count,
+                    'absent' => $class_students_count - $class_present_count,
+                    'percentage' => $percentage
+                ];
+            }
+            
+            // Summary data
+            $summary = [
+                'total_students' => $total_students,
+                'present_students' => $present_count,
+                'absent_students' => $absent_count,
+                'attendance_date' => $current_date,
+                'total_staff' => $this->web->getTotalStaff($branch_id),
+                'total_branches' => $this->web->getTotalBranches($bid),
+                'total_subjects' => $this->web->getTotalSubjects($branch_id)
+            ];
+            
+            // Get attendance trend for last 7 days
+            $days = [];
+            $present_by_day = [];
+            $absent_by_day = [];
+            
+            for ($i = 6; $i >= 0; $i--) {
+                $day_date = date('Y-m-d', strtotime("-$i days"));
+                $day_start = strtotime("$day_date 00:00:00");
+                $day_end = strtotime("$day_date 23:59:59");
+                $days[] = date('D', strtotime($day_date));
+                
+                $day_present = 0;
+                $day_absent = 0;
+                
+                foreach ($students as $student) {
+                    $this->db->select('*');
+                    $this->db->from('student_attendance');
+                    $this->db->where('student_id', $student->id);
+                    $this->db->where('bid', $branch_id);
+                    $this->db->where('status', 1);
+                    $this->db->where('time >=', $day_start);
+                    $this->db->where('time <=', $day_end);
+                    $attendance_count = $this->db->count_all_results();
+                    
+                    if ($attendance_count > 0) {
+                        $day_present++;
+                    } else {
+                        $day_absent++;
+                    }
+                }
+                
+                $present_by_day[] = $day_present;
+                $absent_by_day[] = $day_absent;
+            }
+            
+            // Get student counts by branch for the branch chart
+            $branches_data = [];
+            $all_branches = $this->web->getBusinessDepByBusinessId($bid);
+            $total_branch_count = count($all_branches); // Count total branches
+            
+            foreach ($all_branches as $branch) {
+                $this->db->where('department', $branch->id);
+                $this->db->where('status', 1);
+                $student_count = $this->db->count_all_results('student');
+                
+                $branches_data[] = [
+                    'id' => $branch->id,
+                    'name' => $branch->name,
+                    'student_count' => $student_count
+                ];
+            }
+            
+            // Count total students across all branches
+            $this->db->where('bid', $bid);
+            $this->db->where('status', 1);
+            $total_all_students = $this->db->count_all_results('student');
+            
+            // Count total staff
+            $this->db->where('company', $bid);
+            $this->db->where('deleted', 1);
+            $total_staff_count = $this->db->count_all_results('login');
+            
+            // Count total subjects/courses
+            $this->db->where('bid', $bid);
+            $this->db->where('status', 1);
+            $total_subject_count = $this->db->count_all_results('subject');
+            
+            // Update summary with correct counts
+            $summary['total_branches'] = $total_branch_count;
+            $summary['total_staff'] = $total_staff_count;
+            $summary['total_subjects'] = $total_subject_count;
+            $summary['total_students'] = $total_all_students; // Total students across all branches
+            
+            // Prepare response data
+            $data = [
+                'summary' => $summary,
+                'students' => $student_data,
+                'period_headers' => $period_headers,
+                'days' => $days,
+                'present_by_day' => $present_by_day,
+                'absent_by_day' => $absent_by_day,
+                'class_attendance' => $class_attendance,
+                'subject_attendance' => $subject_attendance,
+                'branches_data' => $branches_data,
+                'overall' => [
+                    'present' => $present_count,
+                    'absent' => $absent_count,
+                    'total' => $total_students
+                ]
+            ];
+
+            echo json_encode(['status' => 'success', 'data' => $data]);
+            break;
+        
+        default:
+            echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
+            break;
+    }
+}
+}
+
+public function student_dashboard() {
+    if(!empty($this->session->userdata('id'))){
+        if($this->session->userdata('login_type')!='S'){
+            $data['bid'] = $this->session->userdata('login_id');
+        } else {
+            $data['bid'] = $this->session->userdata('company');
+        }
+        
+        // Get all branches for initial dropdown
+        $data['branches'] = $this->web->getBusinessDepByBusinessId($data['bid']);
+        
+        $data['total_branches'] = $this->web->getTotalBranches($data['bid']);
+        $data['total_students'] = $this->web->getTotalStudents($data['bid']);
+        $data['total_staff'] = $this->web->getTotalStaff($data['bid']);
+        $data['total_subjects'] = $this->web->getTotalSubjects($data['bid']);
+
+		$data['total_branches'] = $this->web->getTotalBranches($bid);
+			
+			$data['total_students'] = $this->web->getTotalStudents($bid);
+
+			
+			$data['total_staff'] = $this->web->getTotalStaff($bid);
+
+			
+			$data['total_subjects'] = $this->web->getTotalSubjects($bid);
+
+	
+        $this->load->view('student/student_dashboard', $data);
+    } else {
+        redirect(base_url().'user/login');
+    }
+}
+
+
+public function addnew_S_student(){
+	if(!empty($this->session->userdata('id'))){
+		if($this->session->userdata()['type']=='P'){
+			$uid = $this->session->userdata('empCompany');
+		} else {
+			$uid=$this->web->session->userdata('login_id');
+		}
+	
+		$postdata=$this->input->post();
+		
+		$i = !empty($postdata['image']) ? $postdata['image'] : 'upload/nextpng.png';
+		
+		// Format DOJ properly if it exists
+		$doj = !empty($postdata['doj']) ? strtotime($postdata['doj']) : time();
+
+		$student_data = array(
+			'bid' => isset($postdata['bid']) ? $postdata['bid'] : null,
+			'name' => isset($postdata['name']) ? $postdata['name'] : null,
+			'enroll_id' => isset($postdata['mobile']) ? trim($postdata['mobile']) : null,
+			'address' => isset($postdata['address']) ? $postdata['address'] : null,
+			'roll_no' => isset($postdata['rollno']) ? $postdata['rollno'] : null,
+			'student_code' => isset($postdata['stuid']) ? $postdata['stuid'] : null,
+			'dob' => isset($postdata['dob']) ? $postdata['dob'] : null,
+			'bio_id' => isset($postdata['devcode']) ? $postdata['devcode'] : null,
+			'rfid' => isset($postdata['rfid']) ? $postdata['rfid'] : null,
+			'blood_group' => isset($postdata['blood']) ? $postdata['blood'] : null,
+			'image' => $i,
+			'gender' => isset($postdata['gender']) ? $postdata['gender'] : null,
+			'class_id' => isset($postdata['class']) ? $postdata['class'] : null,
+			'section' => isset($postdata['section']) ? $postdata['section'] : null,
+			'batch' => isset($postdata['batch']) ? $postdata['batch'] : null,
+			'semester' => isset($postdata['semester']) ? $postdata['semester'] : null,
+			'session' => isset($postdata['session']) ? $postdata['session'] : null,
+			'department' => isset($postdata['department']) ? $postdata['department'] : null,
+			'email' => isset($postdata['email']) ? $postdata['email'] : null,
+			'doj' => $doj,
+			'parent_name' => isset($postdata['par_name']) ? $postdata['par_name'] : null,
+			'parent_mobile' => isset($postdata['par_mobile']) ? $postdata['par_mobile'] : null,
+			'parent_relation' => isset($postdata['relation']) ? $postdata['relation'] : null,
+			'status' => 1,
+			'date_time' => time()
+		);
+
+		// For debugging
+		// echo "<pre>"; print_r($student_data); exit;
+
+		$this->db->db_debug = TRUE; // Enable database error reporting
+		$data = $this->db->insert('student', $student_data);
+		
+		if($data) {
+			$this->session->set_flashdata('msg', 'New Student Added!');
+			redirect('Students_list');
+		} else {
+			$this->session->set_flashdata('error', 'Failed to add student: ' . $this->db->error()['message']);
+			redirect('Students_list');
+		}
+	}
+	else{
+		redirect('user-login');
+	}
 }
 
 

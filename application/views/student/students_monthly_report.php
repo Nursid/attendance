@@ -280,9 +280,10 @@ date_default_timezone_set('Asia/Kolkata');
                                                 echo '<span class="badge bg-danger">A</span>';
                                                 $absentCount++;
                                                 $lectureCount++;
-                                            } else {
-                                                echo '<span class="badge bg-secondary">N/A</span>';
-                                            }
+                                            } 
+                                            // else {
+                                            //     echo '<span class="badge bg-secondary">N/A</span>';
+                                            // }
                                             ?>
                                         </td>
                                     <?php endforeach; ?>
