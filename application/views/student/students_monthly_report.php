@@ -1,10 +1,6 @@
 <?php 
-
 date_default_timezone_set('Asia/Kolkata');
 ?>
-
-
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -13,7 +9,7 @@ date_default_timezone_set('Asia/Kolkata');
   <title>MID</title>
   <!-- Tell the browser to be responsive to screen width -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
+  
  <!-- Font Awesome -->
   <link rel="stylesheet" href="<?php echo base_url('adminassets/plugins/fontawesome-free/css/all.min.css')?>">
   <!-- Ionicons -->
@@ -200,14 +196,7 @@ date_default_timezone_set('Asia/Kolkata');
                             </div>
                           
                            </div>
-                                             
-                     
-                     </form>          
-                            
-                            
-                            
-                            
-                            
+                     </form>                           
     </div>
   </div>
               
@@ -246,14 +235,21 @@ date_default_timezone_set('Asia/Kolkata');
                                 <th>#</th>
                                 <th>Student ID</th>
                                 <th>Student Name</th>
-                                <?php foreach ($days as $dayIndex => $day): ?>
+                                <?php foreach ($period_days as $dayIndex => $day): ?>
                                     <th class="text-center">
-                                        <?php echo $day; ?><br>
-                                        <small><?php echo $report[0]['data'][$dayIndex]['day']; ?></small>
+                                        <?php echo $day['sequential_day']; ?><br>
+                                        <small>
+                                            <?php echo $day['day_name']; ?><br>
+                                            (<?php echo $day['calendar_day']; ?>)<br>
+                                            <?php if(!empty($day['teacher_name'])): ?>
+                                                <span class="text-primary"><?php echo $day['teacher_name']; ?></span>
+                                            <?php endif; ?>
+                                        </small>
                                     </th>
                                 <?php endforeach; ?>
                                 <th>Present</th>
                                 <th>Absent</th>
+                                <th>Holiday</th>
                                 <th>Total Lecture</th>
                             </tr>
                         </thead>
@@ -263,6 +259,7 @@ date_default_timezone_set('Asia/Kolkata');
                                 $presentCount = 0;
                                 $absentCount = 0;
                                 $lectureCount = 0;
+                                $holidayCount = 0;
                                 ?>
                                 <tr>
                                     <td><?php echo $index + 1; ?></td>
@@ -273,23 +270,27 @@ date_default_timezone_set('Asia/Kolkata');
                                         <td class="text-center">
                                             <?php 
                                             if ($attendance['data']['status'] == 'P') {
-                                                echo '<span class="badge bg-success">P</span>';
-                                                $presentCount++;
-                                                $lectureCount++;
-                                            } elseif ($attendance['data']['status'] == 'A') {
-                                                echo '<span class="badge bg-danger">A</span>';
-                                                $absentCount++;
-                                                $lectureCount++;
-                                            } 
-                                            // else {
-                                            //     echo '<span class="badge bg-secondary">N/A</span>';
-                                            // }
+                                              echo '<span class="badge bg-success">P</span>';
+                                              $presentCount++;
+                                              $lectureCount++;
+                                          } elseif (strpos($attendance['data']['status'], 'Holiday') !== false) {
+                                              // Check if the status contains 'Holiday'
+                                              echo '<span class="badge bg-info">' . $attendance['data']['status'] . '</span>';
+                                              // Optionally, you might want to count holidays separately
+                                              $holidayCount++;
+                                          } else {
+                                              echo '<span class="badge bg-danger">A</span>';
+                                              $absentCount++;
+                                              $lectureCount++;
+                                          }
+
                                             ?>
                                         </td>
                                     <?php endforeach; ?>
                                     
                                     <td class="text-center"><?php echo $presentCount; ?></td>
                                     <td class="text-center"><?php echo $absentCount; ?></td>
+                                    <td class="text-center"><?php echo $holidayCount; ?></td>
                                     <td class="text-center"><?php echo $lectureCount; ?></td>
                                 </tr>
                             <?php endforeach; ?>

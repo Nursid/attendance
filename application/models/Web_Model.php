@@ -256,8 +256,8 @@ class Web_Model extends CI_Model
 
 	public function getHolidayByBusinessId($buid,$i){
 		return $this->db->query("SELECT * FROM holiday WHERE business_id = '$buid' and date='$i' and status=1  ")->result();
-
 	}
+
 	public function getLeaveByDate($id,$i){
 		return $this->db->query("SELECT * FROM leaves WHERE uid = '$id' and '$i' BETWEEN from_date and to_date and status=1 ")->result();
 
@@ -1356,7 +1356,7 @@ public function getbatchById($id){
 
 //new functions for get period by subject 
 public function getperiodTime($subject, $day) {
-    $this->db->select('p.id, p.bid, p.name, tt.subject, p.start_time, p.end_time, p.status, p.date_time');
+    $this->db->select('p.id, p.bid, p.name, tt.subject, tt.teacher, p.start_time, p.end_time, p.status, p.date_time');
     $this->db->from('s_period p');
     $this->db->join('time_table tt', 'tt.period = p.id', 'left');
     $this->db->where('tt.subject', $subject);
@@ -1509,7 +1509,37 @@ public function getTotalSubjects($bid) {
 		return $query->row();
 	}
 
+public function getTeacherNameById($teacher_id, $bid) {
+    $this->db->select('name');
+    $this->db->from('login');
+    $this->db->where('id', $teacher_id);
+    $this->db->where('company', $bid);
+    $query = $this->db->get();
+    if ($query->num_rows() > 0) {
+        return $query->row()->name;
+    }
+    return '';
+}
 
+
+
+public function getHolidayByBusinessId_new($buid, $i) {
+    // Convert input timestamp to date string
+    $inputDate = date('Y-m-d', $i);
+    
+    // Use query builder to prevent potential SQL errors
+    $this->db->select('name');
+    $this->db->from('holiday');
+    $this->db->where('business_id', $buid);
+    $this->db->where('DATE(FROM_UNIXTIME(date))', $inputDate);
+    $this->db->where('status', 1);
+    $query = $this->db->get();
+    
+	if ($query->num_rows() > 0) {
+        return $query->row()->name;
+    }
+    return '';
+}
 
 
 }

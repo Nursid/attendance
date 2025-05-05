@@ -3929,11 +3929,7 @@ public function add_session(){
 		}
 	}
 
-
-
-
-	// New Controller by Nursid 
-
+// New Controller by Nursid 
 public function students_monthly_report_new(){
 	if(!empty($this->session->userdata('id'))){
 		
@@ -3970,126 +3966,115 @@ public function students_monthly_report_new(){
 			
 			$true= 1;
 			
-
-			
 			$data2 = array();
 			// get all student by branches -> batch -> semester - > section 
 			$users_data = $this->web->getSchoolStudentListbysection_new($loginId,$dept,$semester,$section);
 			
-			
-			if(!empty($users_data)){
-				//$seconds = 0;
-				foreach($users_data as $user){
-				//	if($user->hostel=="1"){
-					
-				$date1=date_create(date("Y-m-d",strtotime($start_date)));
-							$date2=date_create(date("Y-m-d",strtotime($end_date)));
-							$diff=date_diff($date1,$date2);
-							$num_month = $diff->format("%a");
-
-							$num_month++;
-							if($num_month>31){
-								$num_month=31;
-							}	
-					
-					$months_array = array();
-					$days_array = array();
-				//	
-	 // $monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($mid->checkon->datefrom)));
-	//  $monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($mid->checkon->datefrom))." +".$num_month." days");
-						   $monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
-							$monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$num_month." days");
-							
-						//	$monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$loginId,1);
-								$monthUserAt= $this->web->getStudentAttendanceReportByDate($monthStartTime,$monthEndTime,$user->id,$loginId);
-								
-								// If subject filter is applied, filter attendance records by subject
-								if($subject > 0 && !empty($monthUserAt)) {
-									$monthUserAt = array_filter($monthUserAt, function($val) use($subject) {
-										return (isset($val->subject_id) && $val->subject_id == $subject);
-									});
-								}
-									
-			   // $monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$check['id'],1);
-	  for($d=0; $d<$num_month;$d++){
-
-	   $new_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date))." +".$d." days");
-		$new_end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$d." days");
-		$days_array[]= date("d",$new_start_time);
-		$day_number = date('w', $new_start_time); // Get day number (0 for Sunday, 1 for Monday, etc.)
-		
-		
-		// get time period by suject and date
-		$getperiodTime = $this->web->getperiodTime($subject, $day_number);
-		
-	
-		if(!empty($getperiodTime)) {
-			$start_time_period = $getperiodTime->start_time;
-			$end_time_period = $getperiodTime->end_time;
-			
-			$start_time_stamp = strtotime(date("Y-m-d", strtotime($start_date)) . " " . $start_time_period . " +".$d." days");
-			$end_time_stamp = strtotime(date("Y-m-d", strtotime($start_date)) . " " . $end_time_period . " +".$d." days");
-			
-			$data = array();
-			
-			$monthUserAt = $this->web->getStudentAttendanceReportByDate($start_time_stamp,$end_time_stamp,$user->id,$loginId);
-			
-			
-			if(!empty($monthUserAt)) {
-				$data = array(
-					'status' => 'P',
-					'time' => date('H:i', $monthUserAt[0]->time)
-				);
-			} else {
-				$data = array(
-					'status' => 'A',
-					'time' => ''
-				);
+			// Calculate date range info
+			$date1 = date_create(date("Y-m-d",strtotime($start_date)));
+			$date2 = date_create(date("Y-m-d",strtotime($end_date)));
+			$diff = date_diff($date1,$date2);
+			$num_month = $diff->format("%a");
+			$num_month++;
+			if($num_month > 31){
+				$num_month = 31;
 			}
-		}
-		//  else {
-		// 	$data = array(
-		// 		'status' => 'N/A',
-		// 		'time' => ''
-		// 	);
-		// }
-		
-	//	if(($user->doj!="" || strtotime($start_date)>=$user->doj) && ($user->left_date=="" || strtotime($start_date)<$user->left_date)){
-			// $user_at = array_filter($monthUserAt, function($val) use($new_start_time, $new_end_time){
-			// 	return ($val->time>=$new_start_time and $val->time<=$new_end_time);
-			// });
-			// $user_at = array_reverse($user_at);
-									
-									
 			
-		
-		$months_array[] = array(
-			  'date'=>date("j",$new_start_time),
-			  'day'=>date("l",$new_start_time),
-			  'data'=>$data
-			);
-	//	}
-	  }
-	  
-	  
-	  
-	  if(count($months_array)>0){
-			$new_array[] =array(
-			'user_id'=>$user->id,
-		//	'mid'=>$user->mid,
-		//	'emp_code'=>$user->emp_code,
-			'name'=>$user->name,
-		//	'image'=>$user->image,
-		////	'user_status'=>$user->user_status,
-			'data'=> $months_array
-		  );
-	  }
-		
-	  
+			// First collect all days that have periods assigned
+			$period_days = array();
+			$sequential_index = 1; // Start numbering from 1
 			
-		// close users and post		
-		//	}
-			}}
+			for($d=0; $d<$num_month; $d++){
+				$new_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date))." +".$d." days");
+				$day_number = date('w', $new_start_time);
+				$calendar_day = date("d", $new_start_time);
+				$day_name = date("l", $new_start_time);
+
+				
+				
+				// Check if this day has a period
+				$getperiodTime = $this->web->getperiodTime($subject, $day_number);
+				if(!empty($getperiodTime)) {
+					// Get teacher name
+					$teacher_name = '';
+					if(!empty($getperiodTime->teacher)) {
+						$teacher_name = $this->web->getTeacherNameById($getperiodTime->teacher, $loginId);
+					}
+					
+					$period_days[] = array(
+						'sequential_day' => $sequential_index++, // Use numbered sequence
+						'original_index' => $d,
+						'calendar_day' => $calendar_day,
+						'day_name' => $day_name,
+						'timestamp' => $new_start_time,
+						'day_number' => $day_number,
+						'period_info' => $getperiodTime,
+						'teacher_name' => $teacher_name
+					);
+					
+					// Add to days array for the view (sequential numbering)
+					$days_array[] = $sequential_index - 1; // Sequential day number
+				}
+			}
+	  
+			if(!empty($users_data)){
+				foreach($users_data as $user){
+					$months_array = array();
+					
+					foreach($period_days as $day_info){
+						$d = $day_info['original_index'];
+						$new_start_time = $day_info['timestamp'];
+						$day_number = $day_info['day_number'];
+						$getperiodTime = $day_info['period_info'];
+						
+						$start_time_period = $getperiodTime->start_time;
+						$end_time_period = $getperiodTime->end_time;
+						
+						$start_time_stamp = strtotime(date("Y-m-d", strtotime($start_date)) . " " . $start_time_period . " +".$d." days");
+						$end_time_stamp = strtotime(date("Y-m-d", strtotime($start_date)) . " " . $end_time_period . " +".$d." days");
+						
+						
+
+						$holiday_name = $this->web->getHolidayByBusinessId_new($loginId, $new_start_time);
+        
+						if ($holiday_name) {
+							$data = array(
+								'status' => 'Holiday: ' . $holiday_name,
+								'time' => ''
+							);
+						} else {
+							$dayUserAt = $this->web->getStudentAttendanceReportByDate($start_time_stamp, $end_time_stamp, $user->id, $loginId);
+							
+							$data = array(
+								'status' => 'A',
+								'time' => ''
+							);
+							
+							if(!empty($dayUserAt)) {
+								$data = array(
+									'status' => 'P',
+									'time' => date('H:i', $dayUserAt[0]->time)
+								);
+							}
+						}
+						
+						$months_array[] = array(
+							'date' => $day_info['sequential_day'], // Use sequential day number
+							'calendar_day' => $day_info['calendar_day'], // Keep original calendar day too
+							'day' => $day_info['day_name'],
+							'teacher_name' => $day_info['teacher_name'],
+							'data' => $data
+						);
+					}
+					
+					if(count($months_array) > 0){
+						$new_array[] = array(
+							'user_id' => $user->id,
+							'name' => $user->name,
+							'data' => $months_array
+						);
+					}
+				}
 			}
 			
 			// Get branch, batch, and semester information
@@ -4112,48 +4097,37 @@ public function students_monthly_report_new(){
 				$subject_name = !empty($subject_info) ? $subject_info->name : '';
 			}
 			
-		$data = array(
-			'start_date' => $start_date,
-			'end_date' => $end_date,
-			'dept' => $dept,
-			'session' => $session,
-			'section' => $section,
-			'semester' => $semester,
-			'subject' => $subject,
-			'load' => $true,
-			'report' => $new_array,
-			'days' => $days_array,
-			'branch_name' => $branch_name,
-			'batch_name' => $batch_name,
-			'semester_name' => $semester_name,
-			'section_name' => $section_name,
-			'subject_name' => $subject_name,
-			'cmp_name' => $cmpName['name']
-		);
-
-		$days_with_time_periods = 0;
-		foreach ($days_array as $day) {
-			$day_number = date('w', strtotime($day));
-			$getperiodTime = $this->web->getperiodTime($subject, $day_number);
-			if (!empty($getperiodTime)) {
-				$days_with_time_periods++;
-			}
+			$data = array(
+				'start_date' => $start_date,
+				'end_date' => $end_date,
+				'dept' => $dept,
+				'session' => $session,
+				'section' => $section,
+				'semester' => $semester,
+				'subject' => $subject,
+				'load' => $true,
+				'report' => $new_array,
+				'days' => $days_array,
+				'period_days' => $period_days,
+				'branch_name' => $branch_name,
+				'batch_name' => $batch_name,
+				'semester_name' => $semester_name,
+				'section_name' => $section_name,
+				'subject_name' => $subject_name,
+				'cmp_name' => $cmpName['name']
+			);
+			
+			// Count days with time periods
+			$days_with_time_periods = count($period_days);
+			$data['days_with_time_periods'] = $days_with_time_periods;
+			
+			$this->load->view('student/students_monthly_report',$data);
 		}
-
-		// Add the count to the data array
-		$data['days_with_time_periods'] = $days_with_time_periods;
-
-		echo '<pre>';
-		print_r($data);
-		echo '</pre>';
-		die();
-		
-		$this->load->view('student/students_monthly_report',$data);
+		else{
+			redirect('user-login');
+		}
 	}
-	else{
-		redirect('user-login');
-	}
-}	
+}
 
 public function add_newtimetable(){
 	if(!empty($this->session->userdata('id'))){
@@ -4272,7 +4246,6 @@ public function get_sections_by_session(){
 
 public function period_timetable($timetable_id = null) {
 
-	
 	if(!empty($this->session->userdata('id'))){
 		if($timetable_id) {
 			$data['timetable'] = $this->web->get_timetable_by_id($timetable_id);
@@ -4518,8 +4491,6 @@ public function editsession(){
 		redirect('user-login');
 	}
 }
-
-
 public function delete_S_session(){
 	if (!empty($this->session->userdata('id'))) {
 		$id = $this->input->post('id');
@@ -4586,9 +4557,6 @@ public function add_newsection() {
         redirect('user-login');
     }
 }
-
-	
-
 public function edit_S_Section(){
 	if(!empty($this->session->userdata('id'))){
 		$id = $this->input->post('id');
@@ -5243,6 +5211,51 @@ public function addnew_S_student(){
 		redirect('user-login');
 	}
 }
+
+public function School_holiday(){
+	if(!empty($this->session->userdata('id'))){
+		$this->load->view('student/holidays_list');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+public function add_holiday() {
+    if(!empty($this->session->userdata('id'))) {
+        $postdata = $this->input->post();
+        
+        // Extract data from POST
+        $name = $postdata['name'];
+        $business_id = $postdata['bid'];
+        $dates = explode(', ', $postdata['h_dates']);
+        
+        // Prepare data for insertion
+        $insert_data = array();
+        foreach ($dates as $date_str) {
+            // Convert date to Unix timestamp
+            $date_timestamp = strtotime($date_str);
+            
+            $insert_data[] = array(
+                'business_id' => $business_id,
+                'name' => $name,
+                'date' => $date_timestamp,
+                'status' => 1 // Assuming default status is 1
+            );
+        }
+        
+        // Insert into database
+        if (!empty($insert_data)) {
+            $this->db->insert_batch('holiday', $insert_data);
+        }
+        
+        // Redirect or load view as needed
+        $this->load->view('student/holidays_list');
+    } else {
+        redirect('user-login');
+    }
+}
+
+
 
 
 }?>
