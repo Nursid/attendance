@@ -1542,5 +1542,45 @@ public function getHolidayByBusinessId_new($buid, $i) {
 }
 
 
+public function getperiodTimeByteacher($period, $day, $teacher) {
+    $this->db->select('p.id, p.bid, p.name, tt.subject, tt.teacher, p.start_time, p.end_time, p.status, p.date_time, tt.timetable_id, ttn.section, ss.name as section_name');
+    $this->db->from('s_period p');
+    $this->db->join('time_table tt', 'tt.period = p.id', 'left');
+    $this->db->join('time_table_name ttn', 'tt.timetable_id = ttn.id', 'left');
+    $this->db->join('s_section ss', 'ttn.section = ss.id', 'left');
+    $this->db->where('p.id', $period);
+    $this->db->where('tt.teacher', $teacher);
+    $this->db->where('tt.days', $day);
+    return $this->db->get()->row();
+}
+
+public function getAllAssignedClassesByTeacher($teacher) {
+    $this->db->select('time_table.id, time_table.bid, time_table.days, time_table.period, time_table.subject, time_table.class_room, time_table.teacher, time_table.timetable_id, s_period.start_time, s_period.end_time, subject.name as subject_name, time_table_name.section, s_section.name as section_name');
+    $this->db->from('time_table');
+    $this->db->join('s_period', 'time_table.period = s_period.id');
+    $this->db->join('subject', 'time_table.subject = subject.id', 'left');
+    $this->db->join('time_table_name', 'time_table.timetable_id = time_table_name.id', 'left');
+    $this->db->join('s_section', 'time_table_name.section = s_section.id', 'left');
+    $this->db->where('time_table.teacher', $teacher);
+    return $this->db->get()->result();
+}
+
+
+public function getSchoolStudentListbysection_new_api($section){
+	return $this->db->query("SELECT * FROM student WHERE section = '$section' and left_date = '' and status = '1' order by roll_no")->result();
+}  
+
+
+public function getAllPeriods($bid) {
+    $this->db->select('*');
+    $this->db->from('s_period');
+    $this->db->where('bid', $bid);
+    $this->db->where('status', 1);
+    $query = $this->db->get();
+    return $query->result();
+}
+
+
+
 }
 ?>

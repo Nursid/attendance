@@ -3447,14 +3447,14 @@ if (isset($_POST['submit'])) {
 		}
 	}
 	
-		public function teachers_list(){
-			if(!empty($this->session->userdata('id'))){
-				$this->load->view('student/teachers');
-			}
-			else{
-				redirect('user-login');
-			}
+	public function teachers_list(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('student/teachers');
 		}
+		else{
+			redirect('user-login');
+		}
+	}
 		
 		
 		
@@ -5255,7 +5255,199 @@ public function add_holiday() {
     }
 }
 
+public function get_assigned_class_by_teacher() {
+    header('Content-Type: application/json');
+    $json_input = json_decode(file_get_contents('php://input'), true);
+    if (!$json_input || !isset($json_input['teacher_mobile'])) {
+        echo json_encode(['status' => 'error', 'message' => 'teacher_mobile required']);
+        return;
+    }
+    $teacher_mobile = $json_input['teacher_mobile'];
+
+    $teacher_row = $this->db->query("SELECT id, company FROM login WHERE mobile = ?", [$teacher_mobile])->row();
+    if (!$teacher_row) {
+        echo json_encode(['status' => 'error', 'message' => 'Teacher not found']);
+        return;
+    }
+    $teacher_id = $teacher_row->id;
+
+    $assigned_classes = $this->web->getAllAssignedClassesByTeacher($teacher_id);
+    if (!$assigned_classes) {
+        echo json_encode(['status' => 'success', 'count' => 0, 'data' => [], 'message' => 'No assigned classes found for this teacher']);
+        return;
+    }
+
+    $days_map = [
+        0 => 'sunday',
+        1 => 'monday',
+        2 => 'tuesday',
+        3 => 'wednesday',
+        4 => 'thursday',
+        5 => 'friday',
+        6 => 'saturday'
+    ];
+
+    $result = [];
+    foreach ($assigned_classes as $class) {
+        $class_arr = (array)$class;
+        $day_name = isset($days_map[$class->days]) ? $days_map[$class->days] : $class->days;
+        $period_time = $class->start_time . ' - ' . $class->end_time;
+        $subject_display = $class->subject_name ? $class->subject_name : '';
+        $result[] = array_merge(
+            $class_arr,
+            [
+                'day' => $day_name,
+                'period' => $period_time,
+                'subject' => $subject_display
+            ]
+        );
+    }
+
+    echo json_encode([
+        'status' => 'success',
+        'data' => $result
+    ]);
+}
+// Set response header as JSON
+	
+public function students_daily_report_by_teacher()
+{
+	header('Content-Type: application/json');
+
+	$json_input = json_decode(file_get_contents('php://input'), true);
+
+	if ($json_input === null || !isset($json_input['teacher_mobile'], $json_input['selected_date'])) {
+		echo json_encode(['status' => false, 'message' => 'Invalid input']);
+		return;
+	}
+
+	$teacher_mobile = $json_input['teacher_mobile'];
+	$selected_date = $json_input['selected_date'];
+	$period = $json_input['period'];
+
+	// Get login id (business ID)
+	$loginId = 0;
+	$teacher_id = 0;
+	$teacher_name = 0;
+	if (isset($json_input['teacher_mobile'])) {
+		$teacher_row = $this->db->query("SELECT id, company, name FROM login WHERE mobile = ?", [$json_input['teacher_mobile']])->row();
+		if ($teacher_row) {
+			$loginId = $teacher_row->company;
+			$teacher_id = $teacher_row->id;
+			$teacher_name = $teacher_row->name;
+		}
+	}
 
 
+
+	$cmpName = $this->web->getBusinessById($loginId);
+	
+
+	// Fetch timetable entries for this teacher on the specific day
+	$day_number = date('w', strtotime($selected_date));
+	$periods = $this->web->getperiodTimeByteacher($period, $day_number, $teacher_id);
+
+	
+
+	$period_name = $periods->start_time . ' - ' . $periods->end_time;
+	$section_id = (int)$periods->section;
+
+	
+
+	
+	if (empty($periods)) {
+		echo json_encode(['status' => true, 'message' => 'No periods found for the teacher on this day', 'data' => []]);
+		return;
+	}
+
+	// Get students of the section
+	$students = $this->web->getSchoolStudentListbysection_new_api($section_id);
+
+
+	$response_data = [];
+
+	foreach ($students as $student) {
+		$student_data = [];
+
+	//    foreach ($periods as $period) {
+
+
+			$start_time = strtotime("{$selected_date} {$periods->start_time}");
+			$end_time = strtotime("{$selected_date} {$periods->end_time}");
+
+			$holiday = $this->web->getHolidayByBusinessId_new($loginId, strtotime($selected_date));
+
+			if ($holiday) {
+				$student_data[] = [
+					'period' => $periods->period,
+					'status' => "Holiday: $holiday",
+					'time' => '',
+				];
+			} else {
+				$attendance = $this->web->getStudentAttendanceReportByDate($start_time, $end_time, $student->id, $loginId);
+
+				if (!empty($attendance)) {
+					$student_data[] = [
+						'period' => $period_name,
+						'status' => 'P',
+						'time' => date('H:i', $attendance[0]->time),
+					];
+				} else {
+					$student_data[] = [
+						'period' => $period_name,
+						'status' => 'A',
+						'time' => '',
+					];
+				}
+			}
+		$response_data[] = [
+			'student_id' => $student->id,
+			'name' => $student->name,
+			'attendance' => $student_data,
+		];
+	}
+
+	echo json_encode([
+		'status' => true,
+		'selected_date' => $selected_date,
+		'teacher_id' => $teacher_id,
+		'teacher_name' => $teacher_name,
+		'report' => $response_data,
+		'cmp_name' => $cmpName['name']
+	]);
+}	
+
+public function get_all_periods_api() {
+    header('Content-Type: application/json');
+    $json_input = json_decode(file_get_contents('php://input'), true);
+    if (!$json_input || !isset($json_input['teacher_mobile'])) {
+        echo json_encode(['status' => 'error', 'message' => 'teacher_mobile required']);
+        return;
+    }
+    $teacher_mobile = $json_input['teacher_mobile'];
+    $teacher_row = $this->db->query("SELECT id, company FROM login WHERE mobile = ?", [$teacher_mobile])->row();
+    if (!$teacher_row) {
+        echo json_encode(['status' => 'error', 'message' => 'Teacher not found']);
+        return;
+    }
+    $bid = $teacher_row->company;
+    try {
+        $periods = $this->web->getAllPeriods($bid);
+        if (!is_array($periods)) {
+            echo json_encode(['status' => false, 'message' => 'Failed to fetch periods']);
+            return;
+        }
+
+        echo json_encode(['status' => true, 'data' => $periods]);
+    } catch (Exception $e) {
+        echo json_encode(['status' => false, 'message' => 'Internal server error', 'error' => $e->getMessage()]);
+    }
+}
+
+
+
+
+   
+	
 
 }?>

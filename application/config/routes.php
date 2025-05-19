@@ -183,3 +183,10 @@ $route['student_pass'] = 'User/studentsPass';
 $route['time_table'] = 'User/time_table';
 $route['period_timetable/(:num)'] = 'User/period_timetable/$1';
 $route['save_timetable_entry'] = 'User/save_timetable_entry';
+
+
+// new API 
+$route['students_daily_report_by_teacher'] = 'User/students_daily_report_by_teacher';
+$route['get_assigned_class_by_teacher'] = 'User/get_assigned_class_by_teacher';
+
+$route['get_all_periods_api'] = 'User/get_all_periods_api';
