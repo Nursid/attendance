@@ -8,7 +8,6 @@
   </ul>
 
 
-
   <?php
   $image=$this->web->getBusinessById($this->session->userdata()['login_id'])['image'];
   $name=$this->web->getBusinessById($this->session->userdata()['login_id'])['name'];
@@ -123,15 +122,35 @@
             
             <li class="nav-item">
                 <a href="<?php echo base_url('add_teachers')?>" class="nav-link">
-                  <i class="fa fa-users nav-icon"></i>
+                  <i class="fas fa-user-plus nav-icon"></i>
                   <p>Add Faculty </p>
                 </a>
               </li>
 
               <li class="nav-item">
                 <a href="<?php echo base_url('teachers_list')?>" class="nav-link">
-                  <i class="fa fa-users nav-icon"></i>
+                  <i class="fas fa-chalkboard-teacher nav-icon"></i>
                   <p>Faculty List </p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="<?php echo base_url('getteacher_class')?>" class="nav-link">
+                  <i class="fas fa-search nav-icon"></i>
+                  <p>Get Assign Teacher  </p>
+                </a>
+              </li>
+
+              <li class="nav-item">
+                <a href="<?php echo base_url('teachers_attendance_list')?>" class="nav-link">
+                  <i class="fas fa-calendar-check nav-icon"></i>
+                  <p>Teacher Daily Attendance  </p>
+                </a>
+              </li>
+
+              <li class="nav-item">
+                <a href="<?php echo base_url('teachers_monthly_report')?>" class="nav-link">
+                  <i class="fas fa-chart-line nav-icon"></i>
+                  <p>Teacher Monthly Report  </p>
                 </a>
               </li>
              <!-- <li class="nav-item">

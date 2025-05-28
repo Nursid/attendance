@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -92,6 +91,73 @@
       <?php
       if($this->session->userdata()['type']=='B' || $role[0]->employee_list=="1"){?>
       <div class="container-fluid">
+        <!-- Teacher Search Form -->
+        <div class="row mb-4">
+          <div class="col-md-12">
+            <div class="card card-info">
+              <div class="card-header">
+                <h3 class="card-title">Search Teacher's Classes</h3>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label for="teacher_select">Select Teacher:</label>
+                      <select class="form-control select2" id="teacher_select" style="width: 100%;">
+                        <option value="">-- Select Teacher --</option>
+                        <?php if(!empty($teachers)): ?>
+                          <?php foreach($teachers as $teacher): ?>
+                            <option value="<?php echo $teacher->mobile; ?>" data-name="<?php echo $teacher->name; ?>">
+                              <?php echo $teacher->name; ?> (<?php echo $teacher->mobile; ?>)
+                            </option>
+                          <?php endforeach; ?>
+                        <?php endif; ?>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-primary btn-block" id="search_teacher">Search Classes</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Teacher's Classes Result -->
+        <div class="row" id="teacher_classes_section" style="display:none;">
+          <div class="col-md-12">
+            <div class="card card-success">
+              <div class="card-header">
+                <h3 class="card-title" id="classes_title">Teacher's Assigned Classes</h3>
+              </div>
+              <div class="card-body">
+                <div id="classes_loading" style="display:none;">
+                  <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                      <span class="sr-only">Loading...</span>
+                    </div>
+                    <p>Loading classes data...</p>
+                  </div>
+                </div>
+                <div id="no_classes_found" style="display:none;">
+                  <div class="alert alert-warning">
+                    No classes assigned to this teacher or teacher not found.
+                  </div>
+                </div>
+                <div id="classes_data_container">
+                  <!-- Day tabs will be generated dynamically -->
+                  <ul class="nav nav-tabs" id="dayTabs" role="tablist"></ul>
+                  
+                  <!-- Tab content will be generated dynamically -->
+                  <div class="tab-content" id="dayTabContent"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <div class="row">
           <!-- left column -->
           <div class="col-md-2">
@@ -100,113 +166,6 @@
                 <span style="color: red"><?php echo $this->session->flashdata('msg');?></span>
               </div>-->
               
-              <!-- /.card-body -->
-            </div>
-            <!-- /.card -->
-          </div>
-        </div>
- 
-        <div class="row">
-          <!-- left column -->
-          <div class="col-md-12">
-            <div class="card card-primary">
-              <div class="card-header">
-                <h3 class="card-title">Teachers List
-                </h3>
-              </div>
-              <div class="card-body">
-              <table id="example1" class="table table-bordered table-striped">
-                  <thead>
-                  <tr>
-                    <th>S.No</th>
-                    <th>Name</th>
-                   <th>Subject</th>
-                    <th>Class</th>
-                     <th>Mobile No.</th>
-                     <th>BioId</th>
-                     <th>Action</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-               <?php 
-               
-             // echo  $omid = $this->app->getMaxMid()['m_id'];
-                    //  $str1 = substr($omid,3);
-               //  echo   $str1 = $str1 + 1;
-			           
-				   // $left=strtotime(date("d-m-Y",time()));
-				  $cudate = date("Y-m-d");
-				 // $cudate= '2022-04-15';
-				$cdate=strtotime($cudate);
-				
-				$start_time=time();
-                      $res=$this->web->getSchoolTeachersList($id);
-					  $count=1;
-            
-                      foreach($res as $val){
-						          $userid=$val->uid;
-                      ?>
-                      <tr>
-                       <td><?php echo $count++; ?></td>
-                       
-                        <td><?php $uname = $this->web->getNameByUserId($val->uid);
-                                echo $uname[0]->name; ?></td>
-                                
-                                <td><?php 
-                                echo $uname[0]->desig; ?></td>
-                                
-                                <td><?php 
-                                 $classname = $this->web->getclassnamebyid($val->class_id);
-                                echo $classname[0]->name; ?></td>
-                                
-                                
-                                <td><?php 
-                                echo $uname[0]->mobile; ?></td>
-                                
-                                
-                                     <td><?php $uname = $this->web->getNameByUserId($val->uid);
-                                echo $uname[0]->bio_id; ?></td>
-                                
-                                 
-                                    
-                                
-                          
-                       
-                                
-                        
-                                
-                                
-                                
-                          
-                        
-                        
-                          
-                        
-                     <!--   <td>  
-                        <button class="btn btn-danger"data-toggle="modal" data-target="#myModal" onclick="mclick('<?php echo $val->id; ?>')" >Left</button>
-                        
-                        <button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#myModal" onclick="mclick('<?php echo $res->id; ?>')">
-                            <i class="fas fa-edit"></i>
-                          </button>
-                        </td> -->
-                        <td> 
-                        <a href="<?php echo base_url('User/editTeachers?id=') . $val->uid ?>"
-                       
-                 
-                  
-               
-                          <button type="button"  class="btn btn-primary btn-lg"  value="('<?php echo $val->uid; ?>')">
-                            <i class="fas fa-edit"></i>
-                          </button>  </a>
-                     
-                        </td>
-                      </tr>
-                      <?php 
-                      }
-                      ?>
-                  </tfoot>
-                </table>
-              </div>
               <!-- /.card-body -->
             </div>
             <!-- /.card -->
@@ -280,11 +239,167 @@
   });
 </script>
 <script>$(document).ready(function () { 
+// Initialize Select2 for teacher dropdown
+$('#teacher_select').select2({
+  placeholder: "-- Select Teacher --",
+  allowClear: true
+});
+
 $('.nav-link').click(function(e) {
 $('.nav-link').removeClass('active');        
 $(this).addClass("active");
 
 });
+
+// Search for teacher's assigned classes
+$('#search_teacher').click(function() {
+  var mobile = $('#teacher_select').val();
+  var teacherName = $('#teacher_select option:selected').data('name');
+  
+  if(mobile === '') {
+    alert('Please select a teacher');
+    return;
+  }
+  
+  // Show loading
+  $('#classes_loading').show();
+  $('#no_classes_found').hide();
+  
+  // Clear previous content
+  $('#dayTabs').empty();
+  $('#dayTabContent').empty();
+  
+  // Create day tabs dynamically before making the API call
+  var days = [
+    {id: 'sunday', label: 'Sunday', dayNum: '0'},
+    {id: 'monday', label: 'Monday', dayNum: '1'},
+    {id: 'tuesday', label: 'Tuesday', dayNum: '2'},
+    {id: 'wednesday', label: 'Wednesday', dayNum: '3'},
+    {id: 'thursday', label: 'Thursday', dayNum: '4'},
+    {id: 'friday', label: 'Friday', dayNum: '5'},
+    {id: 'saturday', label: 'Saturday', dayNum: '6'}
+  ];
+  
+  // Create tabs
+  $.each(days, function(i, day) {
+    // Create tab
+    $('#dayTabs').append(
+      '<li class="nav-item">' +
+        '<a class="nav-link" id="' + day.id + '-tab" data-toggle="tab" href="#' + day.id + '" role="tab">' + day.label + '</a>' +
+      '</li>'
+    );
+    
+    // Create tab content
+    $('#dayTabContent').append(
+      '<div class="tab-pane fade" id="' + day.id + '" role="tabpanel">' +
+        '<div class="table-responsive mt-3">' +
+          '<table class="table table-bordered table-striped">' +
+            '<thead>' +
+              '<tr>' +
+                '<th>Time</th>' +
+                '<th>Subject</th>' +
+                '<th>Section</th>' +
+                '<th>Department</th>' +
+                '<th>Semester</th>' +
+                '<th>Room</th>' +
+              '</tr>' +
+            '</thead>' +
+            '<tbody id="' + day.id + '-classes"></tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>'
+    );
+  });
+  
+  $('#teacher_classes_section').show();
+  
+  // Update the title with teacher's name
+  $('#classes_title').text("Classes for " + teacherName);
+  
+  // Ajax call to get teacher's assigned classes
+  $.ajax({
+    url: '<?php echo base_url("User/get_assigned_class_by_teacher") ?>',
+    type: 'POST',
+    data: {teacher_mobile: mobile},
+    dataType: 'json',
+    success: function(response) {
+      $('#classes_loading').hide();
+      
+      if(response.status === 'success' && response.data && response.data.length > 0) {
+        var classCountByDay = {};
+        
+        // Initialize counts for each day
+        $.each(days, function(i, day) {
+          classCountByDay[day.dayNum] = 0;
+        });
+        
+        // Process each class
+        $.each(response.data, function(index, cls) {
+          var dayNumber = cls.days;
+          var dayId = getDayIdFromNumber(dayNumber, days);
+          
+          if (dayId) {
+            // Create row for this class
+            var html = '<tr>' +
+              '<td>' + cls.start_time + ' - ' + cls.end_time + '</td>' +
+              '<td>' + cls.subject_name + '</td>' +
+              '<td>' + cls.section_name + '</td>' +
+              '<td>' + cls.dept_name + '</td>' +
+              '<td>' + cls.semester_name + '</td>' +
+              '<td>' + cls.class_room + '</td>' +
+            '</tr>';
+            
+            // Add to the appropriate day tab
+            $('#' + dayId + '-classes').append(html);
+            classCountByDay[dayNumber]++;
+          }
+        });
+        
+        // Show "No classes" message for empty days
+        $.each(days, function(i, day) {
+          if (classCountByDay[day.dayNum] === 0) {
+            $('#' + day.id + '-classes').html('<tr><td colspan="7" class="text-center text-info">No classes assigned for ' + day.label + '</td></tr>');
+          }
+        });
+        
+        // Find first day with classes
+        var firstDayWithClasses = null;
+        for (var i = 0; i < days.length; i++) {
+          if (classCountByDay[days[i].dayNum] > 0) {
+            firstDayWithClasses = days[i].id;
+            break;
+          }
+        }
+        
+        if (firstDayWithClasses) {
+          // Show the tab for the first day with classes
+          $('#' + firstDayWithClasses + '-tab').tab('show');
+        } else {
+          // No classes found for any day
+          $('#no_classes_found').show();
+        }
+      } else {
+        // Show no classes found message
+        $('#no_classes_found').show();
+      }
+    },
+    error: function(xhr, status, error) {
+      $('#classes_loading').hide();
+      $('#no_classes_found').show();
+    }
+  });
+});
+
+// Helper function to get day ID from day number
+function getDayIdFromNumber(dayNumber, days) {
+  for (var i = 0; i < days.length; i++) {
+    if (days[i].dayNum === dayNumber) {
+      return days[i].id;
+    }
+  }
+  return null;
+}
+
 });
 
 $(function () {

@@ -3447,14 +3447,6 @@ if (isset($_POST['submit'])) {
 		}
 	}
 	
-	public function teachers_list(){
-		if(!empty($this->session->userdata('id'))){
-			$this->load->view('student/teachers');
-		}
-		else{
-			redirect('user-login');
-		}
-	}
 		
 		
 		
@@ -5257,12 +5249,14 @@ public function add_holiday() {
 
 public function get_assigned_class_by_teacher() {
     header('Content-Type: application/json');
-    $json_input = json_decode(file_get_contents('php://input'), true);
-    if (!$json_input || !isset($json_input['teacher_mobile'])) {
-        echo json_encode(['status' => 'error', 'message' => 'teacher_mobile required']);
-        return;
-    }
-    $teacher_mobile = $json_input['teacher_mobile'];
+    // $json_input = json_decode(file_get_contents('php://input'), true);
+
+	$postdata = $this->input->post();
+        
+	// Extract data from POST
+	$teacher_mobile = $postdata['teacher_mobile'];
+
+	
 
     $teacher_row = $this->db->query("SELECT id, company FROM login WHERE mobile = ?", [$teacher_mobile])->row();
     if (!$teacher_row) {
@@ -5293,12 +5287,26 @@ public function get_assigned_class_by_teacher() {
         $day_name = isset($days_map[$class->days]) ? $days_map[$class->days] : $class->days;
         $period_time = $class->start_time . ' - ' . $class->end_time;
         $subject_display = $class->subject_name ? $class->subject_name : '';
+
+		$semester = $this->web->getSemesterById($class->semester_id);
+		$semester_name =$semester[0]->semestar_name;
+
+
+		$department = $this->web->getBusinessDepByUserId($class->dept);
+		$department_name =$department[0]->name;
+		
+
+		$class_room = $this->web->getClassRoomById($class->class_room);
+		$class_room_name =$class_room[0]->name;
+
         $result[] = array_merge(
             $class_arr,
             [
                 'day' => $day_name,
                 'period' => $period_time,
-                'subject' => $subject_display
+                'subject' => $subject_display,
+				'semester_name' => $semester_name,
+				'dept_name' => $department_name
             ]
         );
     }
@@ -5443,6 +5451,286 @@ public function get_all_periods_api() {
         echo json_encode(['status' => false, 'message' => 'Internal server error', 'error' => $e->getMessage()]);
     }
 }
+
+
+public function getteacher_class(){
+	if(!empty($this->session->userdata('id'))){
+		if ($this->session->userdata()['type'] == 'P') {
+			$loginId = $this->session->userdata('empCompany');
+		} else {
+			$loginId = $this->web->session->userdata('login_id');
+		}
+		
+		// Get all teachers with login details
+		$teachers_data = $this->web->getSchoolTeachersList_with_login($loginId);
+		
+		$data = array(
+			'teachers' => $teachers_data
+		);
+		
+		$this->load->view('student/getteacher_class', $data);
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function teachers_list(){
+	if(!empty($this->session->userdata('id'))){
+		$this->load->view('student/teachers');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function teachers_attendance_list(){
+	if(!empty($this->session->userdata('id'))){
+		
+		$postdata=$this->input->post();
+			$start_date = date("Y-m-d");
+		//	$class=0;
+			$true = 0;
+			$totalActive = 0;
+			$totalPresent = 0;
+			$totalAbsent = 0;
+			$days_array = array();
+			$new_array = array();
+		if ($this->session->userdata()['type'] == 'P') {
+			$loginId = $this->session->userdata('empCompany');
+			$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+			} else {
+			$loginId = $this->web->session->userdata('login_id');
+			}
+			$cmpName = $this->web->getBusinessById($loginId);
+			$action="active";
+			if(isset($postdata['start_date'])){
+			$start_date = $postdata['start_date'];
+			$true= 1;
+			$action = $postdata['action'];
+		
+			}	
+			$teachers_data = $this->web->getSchoolTeachersList($loginId);
+			
+			
+			
+			$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+			$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date)));
+			
+			if(!empty($teachers_data)){
+				$seconds = 0;
+				foreach($teachers_data as $user){
+
+				// if($user->hostel=="1"){
+			$days_array[]= date("d",$start_time);
+			$data = array();
+			$day_hrs = "00:00 Hr";
+			
+		// if(($user->doj!="" || $start_time>=$user->doj) && ($user->left_date=="" || $start_time<$user->left_date)){
+
+			
+							$totalActive++;
+
+							$user_at = $this->web->getUserAttendanceReportByDate_new($start_time, $end_time, $user->uid, $loginId, 1);	
+					
+			if(!empty($user_at)){
+										$totalPresent++;
+								
+										foreach($user_at as $at){
+										 
+											
+											$data[] = array(
+													'time'=>$at->io_time,
+													'Att_status'=>"P"
+												);    
+											
+												$Attstatus="P";	   
+											
+										}
+											
+										}
+										//userat
+										
+										else{
+										$totalAbsent++;
+										$data = array(
+												//'Att_status'=>"A"
+											);
+									$Attstatus="A";	    
+									}
+			  if(($action=="active")||($action=="present" && count($data)>0)||($action=="absent" && empty($data))){
+			$new_array[] =array(
+											'user_id'=>$user->uid,
+										
+											// 'name'=>$user->name,
+											'Att_status'=>$Attstatus,
+											
+											//'image'=>$user->image,
+											//'comment'=>$comment,
+											//'workingHrs'=>$day_hrs,
+											'data'=>$data,
+											
+										);
+			  }
+			
+			// }
+			//	}
+			}
+			}
+			
+			
+	
+			$data=array(
+				'start_date'=>$start_date,	
+				'load'=>$true,
+				'report'=>$new_array,	
+				'totalAbsent'=>$totalAbsent,
+				'totalPresent'=>$totalPresent,				
+			);
+		$this->load->view('student/teachers_attendance_list',$data);
+	}
+	else{
+		redirect('user-login');
+	}
+}	
+
+
+public function teachers_monthly_report(){
+	if(!empty($this->session->userdata('id'))){
+		
+		$postdata=$this->input->post();
+		$start_date = date("Y-m-d");
+		$end_date = date("Y-m-d");
+
+		$true = 0;
+		$new_array = array();
+		
+		if ($this->session->userdata()['type'] == 'P') {
+			$loginId = $this->session->userdata('empCompany');
+			$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+		} else {
+			$loginId = $this->web->session->userdata('login_id');
+		}
+		
+		$cmpName = $this->web->getBusinessById($loginId);
+		
+		if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+			$start_date = $postdata['start_date'];
+			$end_date = $postdata['end_date'];
+			$true = 1;
+			
+			// Get all teachers
+			$teachers_data = $this->web->getSchoolTeachersList($loginId);
+			
+			// Calculate date range
+			$date1 = date_create(date("Y-m-d",strtotime($start_date)));
+			$date2 = date_create(date("Y-m-d",strtotime($end_date)));
+			$diff = date_diff($date1,$date2);
+			$num_days = $diff->format("%a");
+			$num_days++;
+			if($num_days > 31){
+				$num_days = 31;
+			}
+			
+			// Generate day information for the date range
+			$period_days = array();
+			for($d = 0; $d < $num_days; $d++) {
+				$current_date = strtotime(date("Y-m-d", strtotime($start_date)) . " +" . $d . " days");
+				$day_name = date('D', $current_date);
+				$calendar_day = date('d', $current_date);
+				
+				$period_days[] = array(
+					'original_index' => $d,
+					'sequential_day' => $d + 1,
+					'calendar_day' => $calendar_day,
+					'day_name' => $day_name,
+					'timestamp' => $current_date,
+					'date_string' => date('Y-m-d', $current_date)
+				);
+			}
+			
+			if(!empty($teachers_data)){
+				foreach($teachers_data as $user){
+					$months_array = array();
+					
+					foreach($period_days as $day_info){
+						$d = $day_info['original_index'];
+						$new_start_time = $day_info['timestamp'];
+						$date_string = $day_info['date_string'];
+						
+						// Check for holiday
+						$holiday_name = $this->web->getHolidayByBusinessId_new($loginId, $new_start_time);
+						
+						if ($holiday_name) {
+							$data = array(
+								'status' => 'Holiday: ' . $holiday_name,
+								'time' => ''
+							);
+						} else {
+							// Get attendance for full day
+							$start_time_stamp = strtotime($date_string . " 00:00:00");
+							$end_time_stamp = strtotime($date_string . " 23:59:59");
+							
+							// Check if teacher has attendance record for this day
+							$dayUserAt = $this->web->getUserAttendanceReportByDate_new($start_time_stamp, $end_time_stamp, $user->uid, $loginId, 1);
+							
+							$data = array(
+								'status' => 'A',
+								'time' => ''
+							);
+							
+							if(!empty($dayUserAt)) {
+								$data = array(
+									'status' => 'P',
+									'time' => date('H:i', $dayUserAt[0]->time)
+								);
+							}
+						}
+						
+						$months_array[] = array(
+							'date' => $day_info['sequential_day'],
+							'calendar_day' => $day_info['calendar_day'],
+							'day' => $day_info['day_name'],
+							'data' => $data
+						);
+					}
+					
+					if(count($months_array) > 0){
+						$teacherName = $this->web->getTeacherNameById($user->uid, $loginId);
+						$new_array[] = array(
+							'name' => $teacherName,
+							'data' => $months_array
+						);
+					}
+				}
+			}
+			
+			$data = array(
+				'start_date' => $start_date,
+				'end_date' => $end_date,
+				'load' => $true,
+				'report' => $new_array,
+				'period_days' => $period_days,
+				'cmp_name' => $cmpName['name']
+			);
+			
+			$this->load->view('student/teachers_monthly_report',$data);
+		} else {
+			$data = array(
+				'start_date' => $start_date,
+				'end_date' => $end_date,
+				'load' => false,
+				'report' => array(),
+				'period_days' => array(),
+				'cmp_name' => $cmpName['name']
+			);
+			$this->load->view('student/teachers_monthly_report',$data);
+		}
+	} else {
+		redirect('user-login');
+	}
+}
+
 
 
 

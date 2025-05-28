@@ -662,6 +662,7 @@ public function getHostelStudentList($id){
 	public function getallrooms($bid){
 		return $this->db->query("SELECT * FROM room_types WHERE bid='$bid'")->result();
 	}
+	
 	public function getRoomtype($rmid,$id){
 		return $this->db->query("SELECT * FROM room_types WHERE id='$rmid' and bid='$id'")->result();
 	}
@@ -1555,7 +1556,8 @@ public function getperiodTimeByteacher($period, $day, $teacher) {
 }
 
 public function getAllAssignedClassesByTeacher($teacher) {
-    $this->db->select('time_table.id, time_table.bid, time_table.days, time_table.period, time_table.subject, time_table.class_room, time_table.teacher, time_table.timetable_id, s_period.start_time, s_period.end_time, subject.name as subject_name, time_table_name.section, s_section.name as section_name');
+    $this->db->select('time_table.id, time_table.bid, time_table.days, time_table.period, time_table.subject, time_table.class_room, time_table.teacher, time_table.timetable_id, s_period.start_time, s_period.end_time, subject.name as subject_name, time_table_name.section, s_section.name as section_name, time_table_name.semester_id,
+	time_table_name.dept ');
     $this->db->from('time_table');
     $this->db->join('s_period', 'time_table.period = s_period.id');
     $this->db->join('subject', 'time_table.subject = subject.id', 'left');
@@ -1581,6 +1583,40 @@ public function getAllPeriods($bid) {
 }
 
 
+public function getUserAttendanceReportByDate_new($start_time, $end_time, $uid, $bid, $verified) {
+    // Use query builder to avoid null array issues and ensure correct parameter binding
+    $this->db->from('attendance');
+    $this->db->where('status', 1);
+    $this->db->where("io_time BETWEEN $start_time AND $end_time");
+    $this->db->where('user_id', $uid);
+    $this->db->where('bussiness_id', $bid);
+    $this->db->where('verified', $verified);
+    $this->db->where('manual !=', 2);
+    $this->db->where('mode !=', 'Log');
+    $this->db->order_by('io_time', 'DESC');
+    $query = $this->db->get();
+    if ($query && $query->num_rows() > 0) {
+        return $query->result();
+    }
+    return [];
+}
+
+//getSchoolTeachersList 
+
+
+public function getSchoolTeachersList_with_login($id){
+    $this->db->select('l.name, l.mobile');
+    $this->db->from('class_teacher ct');
+    $this->db->join('login l', 'ct.uid = l.id');
+    $this->db->where('ct.bid', $id);
+    $this->db->where('ct.status', '1');
+    $this->db->order_by('ct.update_date');
+    return $this->db->get()->result();
+}
+
+public function getClassRoomById($id){
+	return $this->db->query("SELECT name FROM room_types WHERE id='$id'")->row();
+}
 
 }
 ?>

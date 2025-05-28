@@ -163,6 +163,7 @@ $route['add_Students'] = 'User/add_Students';
 $route['Students_list'] = 'User/Students_list';
 $route['add_teachers'] = 'User/add_teachers';
 $route['teachers_list'] = 'User/teachers_list';
+$route['getteacher_class'] = 'User/getteacher_class';
 $route['Exstudents_list'] = 'User/Exstudents_list';
 $route['students_daily_report'] = 'User/students_daily_report';
 $route['students_monthly_report'] = 'User/students_monthly_report';
@@ -190,3 +191,7 @@ $route['students_daily_report_by_teacher'] = 'User/students_daily_report_by_teac
 $route['get_assigned_class_by_teacher'] = 'User/get_assigned_class_by_teacher';
 
 $route['get_all_periods_api'] = 'User/get_all_periods_api';
+
+
+$route['teachers_attendance_list'] = 'User/teachers_attendance_list';
+$route['teachers_monthly_report'] = 'User/teachers_monthly_report';
