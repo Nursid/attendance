@@ -1816,5 +1816,130 @@ public function getClassRoomById($id){
 		return true;
 	}
 
+	/**
+	 * Optimized method to get teachers daily attendance data
+	 */
+	public function getTeachersAttendanceListOptimized($bid, $date, $action = 'active') {
+		// Get all teachers
+		$teachers = $this->getTeachersWithDetails($bid);
+		
+		if (empty($teachers)) {
+			return [
+				'teachers' => [],
+				'totalActive' => 0,
+				'totalPresent' => 0,
+				'totalAbsent' => 0
+			];
+		}
+		
+		// Extract teacher IDs
+		$teacher_ids = array_column($teachers, 'uid');
+		
+		// Calculate timestamps for the specific date
+		$start_timestamp = strtotime($date . " 00:00:00");
+		$end_timestamp = strtotime($date . " 23:59:59");
+		
+		// Get all attendance data for the date in one query
+		$attendance_data = $this->getTeachersAttendanceForDate($teacher_ids, $start_timestamp, $end_timestamp, $bid);
+		
+		// Build report data
+		$report_data = [];
+		$totalActive = 0;
+		$totalPresent = 0;
+		$totalAbsent = 0;
+		
+		foreach ($teachers as $teacher) {
+			$totalActive++;
+			
+			// Check if teacher has attendance for this date
+			$teacher_attendance = isset($attendance_data[$teacher->uid]) ? $attendance_data[$teacher->uid] : [];
+			
+			if (!empty($teacher_attendance)) {
+				$totalPresent++;
+				$att_status = "P";
+				
+				// Format attendance data
+				$attendance_records = [];
+				foreach ($teacher_attendance as $record) {
+					$attendance_records[] = [
+						'time' => $record->io_time,
+						'Att_status' => "P"
+					];
+				}
+			} else {
+				$totalAbsent++;
+				$att_status = "A";
+				$attendance_records = [];
+			}
+			
+			// Filter based on action
+			$include_teacher = false;
+			switch ($action) {
+				case 'active':
+					$include_teacher = true;
+					break;
+				case 'present':
+					$include_teacher = !empty($attendance_records);
+					break;
+				case 'absent':
+					$include_teacher = empty($attendance_records);
+					break;
+				default:
+					$include_teacher = true;
+			}
+			
+			if ($include_teacher) {
+				$report_data[] = [
+					'user_id' => $teacher->uid,
+					'name' => $teacher->name,
+					'Att_status' => $att_status,
+					'data' => $attendance_records
+				];
+			}
+		}
+		
+		return [
+			'teachers' => $report_data,
+			'totalActive' => $totalActive,
+			'totalPresent' => $totalPresent,
+			'totalAbsent' => $totalAbsent
+		];
+	}
+
+	/**
+	 * Get attendance records for multiple teachers for a specific date
+	 */
+	public function getTeachersAttendanceForDate($teacher_ids, $start_timestamp, $end_timestamp, $bid) {
+		if (empty($teacher_ids)) {
+			return [];
+		}
+		
+		$teacher_ids_str = implode(',', array_map('intval', $teacher_ids));
+
+		echo $teacher_ids_str;
+		die();
+		
+		$sql = "SELECT user_id, io_time, mode, manual, verified
+				FROM attendance 
+				WHERE status = 1 
+				  AND verified = 1 
+				  AND manual != 2 
+				  AND mode != 'Log'
+				  AND io_time BETWEEN ? AND ?
+				  AND user_id IN ($teacher_ids_str)
+				  AND bussiness_id = ?
+				ORDER BY user_id, io_time ASC";
+		
+		$result = $this->db->query($sql, [$start_timestamp, $end_timestamp, $bid])->result();
+		
+		// Group by user_id for faster lookup
+		$attendance_data = [];
+		foreach ($result as $row) {
+			$attendance_data[$row->user_id][] = $row;
+		}
+		
+		return $attendance_data;
+	}
+
 }
 ?>

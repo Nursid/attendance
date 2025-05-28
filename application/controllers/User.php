@@ -5487,112 +5487,44 @@ public function teachers_list(){
 public function teachers_attendance_list(){
 	if(!empty($this->session->userdata('id'))){
 		
-		$postdata=$this->input->post();
-			$start_date = date("Y-m-d");
-		//	$class=0;
-			$true = 0;
-			$totalActive = 0;
-			$totalPresent = 0;
-			$totalAbsent = 0;
-			$days_array = array();
-			$new_array = array();
+		$postdata = $this->input->post();
+		$start_date = date("Y-m-d");
+		$true = 0;
+		$action = "active";
+		
 		if ($this->session->userdata()['type'] == 'P') {
 			$loginId = $this->session->userdata('empCompany');
-			$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
-			} else {
+			$role = $this->web->getRollbyid($this->web->session->userdata('login_id'), $loginId);
+		} else {
 			$loginId = $this->web->session->userdata('login_id');
-			}
-			$cmpName = $this->web->getBusinessById($loginId);
-			$action="active";
-			if(isset($postdata['start_date'])){
-			$start_date = $postdata['start_date'];
-			$true= 1;
-			$action = $postdata['action'];
+		}
 		
-			}	
-			$teachers_data = $this->web->getSchoolTeachersList($loginId);
-			
-			
-			
-			$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
-			$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date)));
-			
-			if(!empty($teachers_data)){
-				$seconds = 0;
-				foreach($teachers_data as $user){
-
-				// if($user->hostel=="1"){
-			$days_array[]= date("d",$start_time);
-			$data = array();
-			$day_hrs = "00:00 Hr";
-			
-		// if(($user->doj!="" || $start_time>=$user->doj) && ($user->left_date=="" || $start_time<$user->left_date)){
-
-			
-							$totalActive++;
-
-							$user_at = $this->web->getUserAttendanceReportByDate_new($start_time, $end_time, $user->uid, $loginId, 1);	
-					
-			if(!empty($user_at)){
-										$totalPresent++;
-								
-										foreach($user_at as $at){
-										 
-											
-											$data[] = array(
-													'time'=>$at->io_time,
-													'Att_status'=>"P"
-												);    
-											
-												$Attstatus="P";	   
-											
-										}
-											
-										}
-										//userat
-										
-										else{
-										$totalAbsent++;
-										$data = array(
-												//'Att_status'=>"A"
-											);
-									$Attstatus="A";	    
-									}
-			  if(($action=="active")||($action=="present" && count($data)>0)||($action=="absent" && empty($data))){
-			$new_array[] =array(
-											'user_id'=>$user->uid,
-										
-											// 'name'=>$user->name,
-											'Att_status'=>$Attstatus,
-											
-											//'image'=>$user->image,
-											//'comment'=>$comment,
-											//'workingHrs'=>$day_hrs,
-											'data'=>$data,
-											
-										);
-			  }
-			
-			// }
-			//	}
-			}
-			}
-			
-			
-	
-			$data=array(
-				'start_date'=>$start_date,	
-				'load'=>$true,
-				'report'=>$new_array,	
-				'totalAbsent'=>$totalAbsent,
-				'totalPresent'=>$totalPresent,				
-			);
-		$this->load->view('student/teachers_attendance_list',$data);
+		$cmpName = $this->web->getBusinessById($loginId);
+		
+		if(isset($postdata['start_date'])){
+			$start_date = $postdata['start_date'];
+			$true = 1;
+			$action = isset($postdata['action']) ? $postdata['action'] : 'active';
+		}
+		
+		// Use the optimized method
+		$report_result = $this->web->getTeachersAttendanceListOptimized($loginId, $start_date, $action);
+		
+		$data = array(
+			'start_date' => $start_date,	
+			'load' => $true,
+			'report' => $report_result['teachers'],	
+			'totalAbsent' => $report_result['totalAbsent'],
+			'totalPresent' => $report_result['totalPresent'],
+			'totalActive' => $report_result['totalActive']
+		);
+		
+		$this->load->view('student/teachers_attendance_list', $data);
 	}
 	else{
 		redirect('user-login');
 	}
-}	
+}
 
 
 public function teachers_monthly_report(){
@@ -5679,6 +5611,59 @@ public function teachers_monthly_report(){
 					'end_date' => $end_date,
 					'teachers' => $report_result['teachers'],
 					'period_days' => $report_result['period_days'],
+					'company_name' => $cmpName['name']
+				)
+			);
+			
+			echo json_encode($response);
+		} else {
+			$response = array(
+				'status' => 'error',
+				'message' => 'Unauthorized access'
+			);
+			echo json_encode($response);
+		}
+	}
+
+	// API endpoint for optimized teachers attendance list
+	public function teachers_attendance_list_api(){
+		if(!empty($this->session->userdata('id'))){
+			
+			$start_date = $this->input->post('start_date');
+			$action = $this->input->post('action');
+			
+			if(empty($start_date)){
+				$response = array(
+					'status' => 'error',
+					'message' => 'Start date is required'
+				);
+				echo json_encode($response);
+				return;
+			}
+			
+			if(empty($action)){
+				$action = 'active';
+			}
+			
+			if ($this->session->userdata()['type'] == 'P') {
+				$loginId = $this->session->userdata('empCompany');
+			} else {
+				$loginId = $this->web->session->userdata('login_id');
+			}
+			
+			// Use the optimized method
+			$report_result = $this->web->getTeachersAttendanceListOptimized($loginId, $start_date, $action);
+			$cmpName = $this->web->getBusinessById($loginId);
+			
+			$response = array(
+				'status' => 'success',
+				'data' => array(
+					'start_date' => $start_date,
+					'action' => $action,
+					'teachers' => $report_result['teachers'],
+					'totalActive' => $report_result['totalActive'],
+					'totalPresent' => $report_result['totalPresent'],
+					'totalAbsent' => $report_result['totalAbsent'],
 					'company_name' => $cmpName['name']
 				)
 			);
