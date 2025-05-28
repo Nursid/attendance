@@ -1618,5 +1618,203 @@ public function getClassRoomById($id){
 	return $this->db->query("SELECT name FROM room_types WHERE id='$id'")->row();
 }
 
+	// Optimized methods for monthly report - Add these at the end of the class before closing brace
+
+	/**
+	 * Get all teachers with their details in one query
+	 */
+	public function getTeachersWithDetails($bid) {
+		$sql = "SELECT ct.uid, l.name, l.mobile 
+				FROM class_teacher ct 
+				JOIN login l ON ct.uid = l.id 
+				WHERE ct.bid = ? AND ct.status = '1' 
+				ORDER BY l.name";
+		return $this->db->query($sql, [$bid])->result();
+	}
+
+	/**
+	 * Get all attendance records for multiple teachers in a date range
+	 */
+	public function getTeachersAttendanceBulk($teacher_ids, $start_timestamp, $end_timestamp, $bid) {
+		if (empty($teacher_ids)) {
+			return [];
+		}
+		
+		$teacher_ids_str = implode(',', array_map('intval', $teacher_ids));
+		
+		$sql = "SELECT user_id, 
+				       DATE(FROM_UNIXTIME(io_time)) as attendance_date,
+				       MIN(io_time) as first_time,
+				       MAX(io_time) as last_time,
+				       COUNT(*) as punch_count
+				FROM attendance 
+				WHERE status = 1 
+				  AND verified = 1 
+				  AND manual != 2 
+				  AND mode != 'Log'
+				  AND io_time BETWEEN ? AND ?
+				  AND user_id IN ($teacher_ids_str)
+				  AND bussiness_id = ?
+				GROUP BY user_id, DATE(FROM_UNIXTIME(io_time))";
+		
+		$result = $this->db->query($sql, [$start_timestamp, $end_timestamp, $bid])->result();
+		
+		// Convert to associative array for faster lookup
+		$attendance_data = [];
+		foreach ($result as $row) {
+			$attendance_data[$row->user_id][$row->attendance_date] = $row;
+		}
+		
+		return $attendance_data;
+	}
+
+	/**
+	 * Get all holidays in a date range
+	 */
+	public function getHolidaysBulk($bid, $start_date, $end_date) {
+		$sql = "SELECT DATE(FROM_UNIXTIME(date)) as holiday_date, name 
+				FROM holiday 
+				WHERE business_id = ? 
+				  AND status = 1 
+				  AND DATE(FROM_UNIXTIME(date)) BETWEEN ? AND ?";
+		
+		$result = $this->db->query($sql, [$bid, $start_date, $end_date])->result();
+		
+		// Convert to associative array for faster lookup
+		$holidays = [];
+		foreach ($result as $row) {
+			$holidays[$row->holiday_date] = $row->name;
+		}
+		
+		return $holidays;
+	}
+
+	/**
+	 * Optimized method to get teachers monthly report data
+	 */
+	public function getTeachersMonthlyReportOptimized($bid, $start_date, $end_date) {
+		// Get all teachers
+		$teachers = $this->getTeachersWithDetails($bid);
+		
+		if (empty($teachers)) {
+			return [];
+		}
+		
+		// Extract teacher IDs
+		$teacher_ids = array_column($teachers, 'uid');
+		
+		// Calculate timestamps
+		$start_timestamp = strtotime($start_date . " 00:00:00");
+		$end_timestamp = strtotime($end_date . " 23:59:59");
+		
+		// Get all attendance data in one query
+		$attendance_data = $this->getTeachersAttendanceBulk($teacher_ids, $start_timestamp, $end_timestamp, $bid);
+		
+		// Get all holidays in one query
+		$holidays = $this->getHolidaysBulk($bid, $start_date, $end_date);
+		
+		// Generate date range
+		$period_days = [];
+		$current_date = strtotime($start_date);
+		$end_date_timestamp = strtotime($end_date);
+		$day_counter = 1;
+		
+		while ($current_date <= $end_date_timestamp) {
+			$date_string = date('Y-m-d', $current_date);
+			$period_days[] = [
+				'sequential_day' => $day_counter,
+				'calendar_day' => date('d', $current_date),
+				'day_name' => date('D', $current_date),
+				'date_string' => $date_string,
+				'timestamp' => $current_date
+			];
+			$current_date = strtotime('+1 day', $current_date);
+			$day_counter++;
+		}
+		
+		// Build report data
+		$report_data = [];
+		foreach ($teachers as $teacher) {
+			$teacher_report = [];
+			
+			foreach ($period_days as $day_info) {
+				$date_string = $day_info['date_string'];
+				
+				// Check if it's a holiday
+				if (isset($holidays[$date_string])) {
+					$status_data = [
+						'status' => 'Holiday: ' . $holidays[$date_string],
+						'time' => ''
+					];
+				} else {
+					// Check attendance
+					if (isset($attendance_data[$teacher->uid][$date_string])) {
+						$attendance = $attendance_data[$teacher->uid][$date_string];
+						$status_data = [
+							'status' => 'P',
+							'time' => date('H:i', $attendance->first_time)
+						];
+					} else {
+						$status_data = [
+							'status' => 'A',
+							'time' => ''
+						];
+					}
+				}
+				
+				$teacher_report[] = [
+					'date' => $day_info['sequential_day'],
+					'calendar_day' => $day_info['calendar_day'],
+					'day' => $day_info['day_name'],
+					'data' => $status_data
+				];
+			}
+			
+			$report_data[] = [
+				'name' => $teacher->name,
+				'uid' => $teacher->uid,
+				'data' => $teacher_report
+			];
+		}
+		
+		return [
+			'teachers' => $report_data,
+			'period_days' => $period_days
+		];
+	}
+
+	/**
+	 * Create database indexes for better performance
+	 * Call this method once to optimize database queries
+	 */
+	public function createOptimizationIndexes() {
+		$indexes = [
+			// Attendance table indexes
+			"CREATE INDEX IF NOT EXISTS idx_attendance_user_date ON attendance (user_id, io_time, bussiness_id)",
+			"CREATE INDEX IF NOT EXISTS idx_attendance_business_date ON attendance (bussiness_id, io_time, status, verified)",
+			"CREATE INDEX IF NOT EXISTS idx_attendance_date_range ON attendance (io_time, status, verified, manual, mode)",
+			
+			// Holiday table indexes
+			"CREATE INDEX IF NOT EXISTS idx_holiday_business_date ON holiday (business_id, date, status)",
+			
+			// Class teacher table indexes
+			"CREATE INDEX IF NOT EXISTS idx_class_teacher_bid ON class_teacher (bid, status)",
+			
+			// Login table indexes
+			"CREATE INDEX IF NOT EXISTS idx_login_company ON login (company, deleted)"
+		];
+		
+		foreach ($indexes as $sql) {
+			try {
+				$this->db->query($sql);
+			} catch (Exception $e) {
+				// Index might already exist, continue
+				log_message('info', 'Index creation: ' . $e->getMessage());
+			}
+		}
+		
+		return true;
+	}
+
 }
 ?>

@@ -5596,140 +5596,102 @@ public function teachers_attendance_list(){
 
 
 public function teachers_monthly_report(){
-	if(!empty($this->session->userdata('id'))){
-		
-		$postdata=$this->input->post();
-		$start_date = date("Y-m-d");
-		$end_date = date("Y-m-d");
-
-		$true = 0;
-		$new_array = array();
-		
-		if ($this->session->userdata()['type'] == 'P') {
-			$loginId = $this->session->userdata('empCompany');
-			$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
-		} else {
-			$loginId = $this->web->session->userdata('login_id');
-		}
-		
-		$cmpName = $this->web->getBusinessById($loginId);
-		
-		if(isset($postdata['start_date']) && isset($postdata['end_date'])){
-			$start_date = $postdata['start_date'];
-			$end_date = $postdata['end_date'];
-			$true = 1;
+		if(!empty($this->session->userdata('id'))){
 			
-			// Get all teachers
-			$teachers_data = $this->web->getSchoolTeachersList($loginId);
+			$postdata = $this->input->post();
+			$start_date = date("Y-m-d");
+			$end_date = date("Y-m-d");
+			$true = 0;
 			
-			// Calculate date range
-			$date1 = date_create(date("Y-m-d",strtotime($start_date)));
-			$date2 = date_create(date("Y-m-d",strtotime($end_date)));
-			$diff = date_diff($date1,$date2);
-			$num_days = $diff->format("%a");
-			$num_days++;
-			if($num_days > 31){
-				$num_days = 31;
+			if ($this->session->userdata()['type'] == 'P') {
+				$loginId = $this->session->userdata('empCompany');
+				$role = $this->web->getRollbyid($this->web->session->userdata('login_id'), $loginId);
+			} else {
+				$loginId = $this->web->session->userdata('login_id');
 			}
 			
-			// Generate day information for the date range
-			$period_days = array();
-			for($d = 0; $d < $num_days; $d++) {
-				$current_date = strtotime(date("Y-m-d", strtotime($start_date)) . " +" . $d . " days");
-				$day_name = date('D', $current_date);
-				$calendar_day = date('d', $current_date);
+			$cmpName = $this->web->getBusinessById($loginId);
+			
+			if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+				$start_date = $postdata['start_date'];
+				$end_date = $postdata['end_date'];
+				$true = 1;
 				
-				$period_days[] = array(
-					'original_index' => $d,
-					'sequential_day' => $d + 1,
-					'calendar_day' => $calendar_day,
-					'day_name' => $day_name,
-					'timestamp' => $current_date,
-					'date_string' => date('Y-m-d', $current_date)
+				// Use the optimized method
+				$report_result = $this->web->getTeachersMonthlyReportOptimized($loginId, $start_date, $end_date);
+				
+				$data = array(
+					'start_date' => $start_date,
+					'end_date' => $end_date,
+					'load' => $true,
+					'report' => $report_result['teachers'],
+					'period_days' => $report_result['period_days'],
+					'cmp_name' => $cmpName['name']
 				);
+				
+				$this->load->view('student/teachers_monthly_report', $data);
+			} else {
+				$data = array(
+					'start_date' => $start_date,
+					'end_date' => $end_date,
+					'load' => false,
+					'report' => array(),
+					'period_days' => array(),
+					'cmp_name' => $cmpName['name']
+				);
+				$this->load->view('student/teachers_monthly_report', $data);
 			}
-			
-			if(!empty($teachers_data)){
-				foreach($teachers_data as $user){
-					$months_array = array();
-					
-					foreach($period_days as $day_info){
-						$d = $day_info['original_index'];
-						$new_start_time = $day_info['timestamp'];
-						$date_string = $day_info['date_string'];
-						
-						// Check for holiday
-						$holiday_name = $this->web->getHolidayByBusinessId_new($loginId, $new_start_time);
-						
-						if ($holiday_name) {
-							$data = array(
-								'status' => 'Holiday: ' . $holiday_name,
-								'time' => ''
-							);
-						} else {
-							// Get attendance for full day
-							$start_time_stamp = strtotime($date_string . " 00:00:00");
-							$end_time_stamp = strtotime($date_string . " 23:59:59");
-							
-							// Check if teacher has attendance record for this day
-							$dayUserAt = $this->web->getUserAttendanceReportByDate_new($start_time_stamp, $end_time_stamp, $user->uid, $loginId, 1);
-							
-							$data = array(
-								'status' => 'A',
-								'time' => ''
-							);
-							
-							if(!empty($dayUserAt)) {
-								$data = array(
-									'status' => 'P',
-									'time' => date('H:i', $dayUserAt[0]->time)
-								);
-							}
-						}
-						
-						$months_array[] = array(
-							'date' => $day_info['sequential_day'],
-							'calendar_day' => $day_info['calendar_day'],
-							'day' => $day_info['day_name'],
-							'data' => $data
-						);
-					}
-					
-					if(count($months_array) > 0){
-						$teacherName = $this->web->getTeacherNameById($user->uid, $loginId);
-						$new_array[] = array(
-							'name' => $teacherName,
-							'data' => $months_array
-						);
-					}
-				}
-			}
-			
-			$data = array(
-				'start_date' => $start_date,
-				'end_date' => $end_date,
-				'load' => $true,
-				'report' => $new_array,
-				'period_days' => $period_days,
-				'cmp_name' => $cmpName['name']
-			);
-			
-			$this->load->view('student/teachers_monthly_report',$data);
 		} else {
-			$data = array(
-				'start_date' => $start_date,
-				'end_date' => $end_date,
-				'load' => false,
-				'report' => array(),
-				'period_days' => array(),
-				'cmp_name' => $cmpName['name']
-			);
-			$this->load->view('student/teachers_monthly_report',$data);
+			redirect('user-login');
 		}
-	} else {
-		redirect('user-login');
 	}
-}
+
+	// API endpoint for optimized teachers monthly report
+	public function teachers_monthly_report_api(){
+		if(!empty($this->session->userdata('id'))){
+			
+			$start_date = $this->input->post('start_date');
+			$end_date = $this->input->post('end_date');
+			
+			if(empty($start_date) || empty($end_date)){
+				$response = array(
+					'status' => 'error',
+					'message' => 'Start date and end date are required'
+				);
+				echo json_encode($response);
+				return;
+			}
+			
+			if ($this->session->userdata()['type'] == 'P') {
+				$loginId = $this->session->userdata('empCompany');
+			} else {
+				$loginId = $this->web->session->userdata('login_id');
+			}
+			
+			// Use the optimized method
+			$report_result = $this->web->getTeachersMonthlyReportOptimized($loginId, $start_date, $end_date);
+			$cmpName = $this->web->getBusinessById($loginId);
+			
+			$response = array(
+				'status' => 'success',
+				'data' => array(
+					'start_date' => $start_date,
+					'end_date' => $end_date,
+					'teachers' => $report_result['teachers'],
+					'period_days' => $report_result['period_days'],
+					'company_name' => $cmpName['name']
+				)
+			);
+			
+			echo json_encode($response);
+		} else {
+			$response = array(
+				'status' => 'error',
+				'message' => 'Unauthorized access'
+			);
+			echo json_encode($response);
+		}
+	}
 
 
 
@@ -5738,4 +5700,5 @@ public function teachers_monthly_report(){
    
 	
 
-}?>
+}
+?>
