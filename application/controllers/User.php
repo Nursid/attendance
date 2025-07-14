@@ -4125,22 +4125,29 @@ public function add_newtimetable(){
 	if(!empty($this->session->userdata('id'))){
 		$postdata=$this->input->post();
 
-		$postdata=array(
+		// Handle multi-select arrays by converting to comma-separated strings
+		$branch_ids = is_array($postdata['branch_id']) ? implode(',', $postdata['branch_id']) : $postdata['branch_id'];
+		$semester_ids = is_array($postdata['semester_id']) ? implode(',', $postdata['semester_id']) : $postdata['semester_id'];
+		$section_ids = is_array($postdata['section_id']) ? implode(',', $postdata['section_id']) : $postdata['section_id'];
+		
+		$timetable_data=array(
 			'name'=>$postdata['name'],
 			'start_date'=>strtotime($postdata['start']),
 			'end_date'=>strtotime($postdata['end']),
-			'dept'=>$postdata['branch_id'],
-			'session'=>$postdata['batch_id'],
-			'semester_id'=>$postdata['semester_id'],
-			'section'=>$postdata['section_id'],
+			'dept'=>$branch_ids,
+			'session'=>$postdata['batch_id'], // batch_id remains single value
+			'semester_id'=>$semester_ids,
+			'section'=>$section_ids,
 			'bid'=>$postdata['bid']
 		);
-		$data=$this->db->insert('time_table_name',$postdata);
+
+
+		$data=$this->db->insert('time_table_name',$timetable_data);
 		$timetable_id = $this->db->insert_id(); // Get the ID of the newly inserted timetable
 		
 		if($data > 0){
 			// Get all periods for this bid
-			$periods = $this->web->getallperiodbyid($postdata['bid']);
+			$periods = $this->web->getallperiodbyid($timetable_data['bid']);
 			
 			// Add entries for all days and periods
 			if(!empty($periods)){
@@ -4148,7 +4155,7 @@ public function add_newtimetable(){
 					// Add for all days (0=Sunday, 1=Monday, 2=Tuesday, etc.)
 					for($day = 0; $day <= 6; $day++){
 						$period_data = array(
-							'bid' => $postdata['bid'],
+							'bid' => $timetable_data['bid'],
 							'days' => $day,
 							'period' => $period->id,
 							'subject' => '',
@@ -5628,62 +5635,72 @@ public function teachers_monthly_report(){
 	// API endpoint for optimized teachers attendance list
 	public function teachers_attendance_list_api(){
 		if(!empty($this->session->userdata('id'))){
+			$postdata = $this->input->post();
+			$bid = $this->session->userdata('login_id');
 			
-			$start_date = $this->input->post('start_date');
-			$action = $this->input->post('action');
+			$date = $postdata['date'];
+			$action = isset($postdata['action']) ? $postdata['action'] : 'active';
 			
-			if(empty($start_date)){
-				$response = array(
-					'status' => 'error',
-					'message' => 'Start date is required'
-				);
-				echo json_encode($response);
-				return;
-			}
+			$result = $this->web->getTeachersAttendanceListOptimized($bid, $date, $action);
 			
-			if(empty($action)){
-				$action = 'active';
-			}
-			
-			if ($this->session->userdata()['type'] == 'P') {
-				$loginId = $this->session->userdata('empCompany');
-			} else {
-				$loginId = $this->web->session->userdata('login_id');
-			}
-			
-			// Use the optimized method
-			$report_result = $this->web->getTeachersAttendanceListOptimized($loginId, $start_date, $action);
-			$cmpName = $this->web->getBusinessById($loginId);
-			
-			$response = array(
+			echo json_encode([
 				'status' => 'success',
-				'data' => array(
-					'start_date' => $start_date,
-					'action' => $action,
-					'teachers' => $report_result['teachers'],
-					'totalActive' => $report_result['totalActive'],
-					'totalPresent' => $report_result['totalPresent'],
-					'totalAbsent' => $report_result['totalAbsent'],
-					'company_name' => $cmpName['name']
-				)
-			);
-			
-			echo json_encode($response);
+				'data' => $result
+			]);
 		} else {
-			$response = array(
-				'status' => 'error',
-				'message' => 'Unauthorized access'
-			);
-			echo json_encode($response);
+			echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
 		}
 	}
 
+	// Multi-select methods for timetable functionality
+	public function get_batches_by_multiple_dept(){
+		if(!empty($this->session->userdata('id'))){
+			$dept_ids = $this->input->post('dept_ids');
+			$bid = $this->session->userdata('login_id');
+			
+			if(empty($dept_ids) || !is_array($dept_ids)) {
+				echo json_encode([]);
+				return;
+			}
+			
+			$batches = $this->web->getBatchesByMultipleDeptIds($dept_ids, $bid);
+			
+			echo json_encode($batches);
+		}
+	}
 
+	public function get_semester_by_multiple_branch() {
+		if(!empty($this->session->userdata('id'))) {
+			$branch_ids = $this->input->post('branch_ids');
+			$bid = $this->session->userdata('login_id');
+			
+			if(empty($branch_ids) || !is_array($branch_ids)) {
+				echo json_encode([]);
+				return;
+			}
+			
+			$semesters = $this->web->getSemestersByMultipleBranches($branch_ids, $bid);
+			
+			echo json_encode($semesters);
+		}
+	}
 
-
-
-   
-	
+	public function get_section_by_multiple_branch_semester() {
+		if(!empty($this->session->userdata('id'))) {
+			$branch_ids = $this->input->post('branch_ids');
+			$semester_ids = $this->input->post('semester_ids');
+			$bid = $this->session->userdata('login_id');
+			
+			if(empty($branch_ids) || !is_array($branch_ids)) {
+				echo json_encode([]);
+				return;
+			}
+			
+			$sections = $this->web->getSectionsByMultipleBranchesAndSemesters($branch_ids, $semester_ids, $bid);
+			
+			echo json_encode($sections);
+		}
+	}
 
 }
 ?>

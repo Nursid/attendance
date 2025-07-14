@@ -1915,11 +1915,12 @@ public function getClassRoomById($id){
 		}
 		
 		$teacher_ids_str = implode(',', array_map('intval', $teacher_ids));
-
-		echo $teacher_ids_str;
-		die();
 		
-		$sql = "SELECT user_id, io_time, mode, manual, verified
+		$sql = "SELECT user_id, 
+				       DATE(FROM_UNIXTIME(io_time)) as attendance_date,
+				       MIN(io_time) as first_time,
+				       MAX(io_time) as last_time,
+				       COUNT(*) as punch_count
 				FROM attendance 
 				WHERE status = 1 
 				  AND verified = 1 
@@ -1928,17 +1929,77 @@ public function getClassRoomById($id){
 				  AND io_time BETWEEN ? AND ?
 				  AND user_id IN ($teacher_ids_str)
 				  AND bussiness_id = ?
-				ORDER BY user_id, io_time ASC";
+				GROUP BY user_id, DATE(FROM_UNIXTIME(io_time))";
 		
-		$result = $this->db->query($sql, [$start_timestamp, $end_timestamp, $bid])->result();
-		
-		// Group by user_id for faster lookup
-		$attendance_data = [];
-		foreach ($result as $row) {
-			$attendance_data[$row->user_id][] = $row;
+		return $this->db->query($sql, [$start_timestamp, $end_timestamp, $bid])->result();
+	}
+
+	// Multi-select methods for timetable functionality
+	public function getBatchesByMultipleDeptIds($dept_ids, $bid) {
+		if(empty($dept_ids) || !is_array($dept_ids)) {
+			return [];
 		}
 		
-		return $attendance_data;
+		// Build the FIND_IN_SET conditions for multiple department IDs
+		$where_conditions = [];
+		foreach($dept_ids as $dept_id) {
+			$where_conditions[] = "FIND_IN_SET('$dept_id', dep_id)";
+		}
+		
+		$where_clause = '(' . implode(' OR ', $where_conditions) . ')';
+		
+		$sql = "SELECT * FROM S_Session WHERE $where_clause AND bid = ? AND status = 1 ORDER BY session_name";
+		return $this->db->query($sql, [$bid])->result();
+	}
+
+	public function getSemestersByMultipleBranches($branch_ids, $bid) {
+		if(empty($branch_ids) || !is_array($branch_ids)) {
+			return [];
+		}
+		
+		// Get all semesters for the business
+		$all_semesters = $this->getallSemesters($bid);
+		$filtered_semesters = [];
+		
+		foreach($all_semesters as $semester) {
+			// Check if semester is associated with any of the selected branches
+			$dep_ids = explode(',', $semester->dep_id);
+			foreach($branch_ids as $branch_id) {
+				if(in_array($branch_id, $dep_ids)) {
+					$filtered_semesters[] = $semester;
+					break; // Avoid duplicates
+				}
+			}
+		}
+		
+		return $filtered_semesters;
+	}
+
+	public function getSectionsByMultipleBranchesAndSemesters($branch_ids, $semester_ids, $bid) {
+		if(empty($branch_ids) || !is_array($branch_ids)) {
+			return [];
+		}
+		
+		// Start building the query
+		$this->db->select('s_section.id, s_section.name');
+		$this->db->from('s_section');
+		$this->db->join('section_semesters', 's_section.id = section_semesters.section_id', 'left');
+		$this->db->where('s_section.bid', $bid);
+		$this->db->where('s_section.status', 1);
+		
+		// Add branch conditions
+		$this->db->where_in('section_semesters.branch_id', $branch_ids);
+		
+		// Add semester conditions if provided
+		if(!empty($semester_ids) && is_array($semester_ids)) {
+			$this->db->where_in('section_semesters.semester_id', $semester_ids);
+		}
+		
+		$this->db->group_by('s_section.id'); // Avoid duplicates
+		$this->db->order_by('s_section.name');
+		
+		$query = $this->db->get();
+		return $query->result();
 	}
 
 }

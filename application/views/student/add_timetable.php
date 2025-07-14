@@ -99,8 +99,7 @@ $buid=$this->web->session->userdata('login_id');
 
                   <div class="from-group col-md-2">
                     <label for="branch">Branch</label>
-                    <select name="branch_id" class="form-control" id="branch" required>
-                      <option value="">Select Branch</option>
+                    <select name="branch_id[]" class="form-control select2" id="branch" multiple="multiple" data-placeholder="Select Branches" style="width: 100%;" required>
                       <?php
                         $branches = $this->web->getBusinessDepByBusinessId($buid);
                         if(!empty($branches)){
@@ -121,14 +120,14 @@ $buid=$this->web->session->userdata('login_id');
 
                   <div class="from-group col-md-2">
                     <label for="semester">Semester</label>
-                    <select name="semester_id" class="form-control" id="semester" required>
+                    <select name="semester_id[]" class="form-control select2" id="semester" multiple="multiple" data-placeholder="Select Semesters" style="width: 100%;" required>
                       <option value="">Select Semester</option>
                     </select>
                   </div>
 
                   <div class="from-group col-md-2">
                     <label for="section">Section</label>
-                    <select name="section_id" class="form-control" id="section" required>
+                    <select name="section_id[]" class="form-control select2" id="section" multiple="multiple" data-placeholder="Select Sections" style="width: 100%;" required>
                       <option value="">Select Section</option>
                     </select>
                   </div>
@@ -184,15 +183,24 @@ $buid=$this->web->session->userdata('login_id');
                         <td><?php echo date("d-M-y",$res->start_date) ; ?></td>
                         <td><?php echo date("d-M-y",$res->end_date) ; ?></td>
                         <td><?php 
-                            if(isset($res->dept)) {
-                                $branch = $this->web->getBusinessDepByUserId($res->dept);
-                                echo !empty($branch) ? $branch[0]->name : 'N/A';
+                            if(isset($res->dept) && !empty($res->dept)) {
+                                $dept_ids = explode(',', $res->dept);
+                                $branch_names = array();
+                                
+                                foreach($dept_ids as $dept_id) {
+                                    $branch = $this->web->getBusinessDepByUserId(trim($dept_id));
+                                    if(!empty($branch)) {
+                                        $branch_names[] = $branch[0]->name;
+                                    }
+                                }
+                                
+                                echo !empty($branch_names) ? implode(', ', $branch_names) : 'N/A';
                             } else {
                                 echo 'N/A';
                             }
                         ?></td>
                         <td><?php 
-                            if(isset($res->session)) {
+                            if(isset($res->session) && !empty($res->session)) {
                                 $batch = $this->web->getSessionById($res->session);
                                 echo !empty($batch) ? $batch[0]->session_name : 'N/A';
                             } else {
@@ -200,17 +208,35 @@ $buid=$this->web->session->userdata('login_id');
                             }
                         ?></td>
                         <td><?php 
-                            if(isset($res->semester_id)) {
-                                $semester = $this->web->getSemesterById($res->semester_id);
-                                echo !empty($semester) ? $semester[0]->semestar_name : 'N/A';
+                            if(isset($res->semester_id) && !empty($res->semester_id)) {
+                                $semester_ids = explode(',', $res->semester_id);
+                                $semester_names = array();
+                                
+                                foreach($semester_ids as $semester_id) {
+                                    $semester = $this->web->getSemesterById(trim($semester_id));
+                                    if(!empty($semester)) {
+                                        $semester_names[] = $semester[0]->semestar_name;
+                                    }
+                                }
+                                
+                                echo !empty($semester_names) ? implode(', ', $semester_names) : 'N/A';
                             } else {
                                 echo 'N/A';
                             }
                         ?></td>
                         <td><?php 
-                            if(isset($res->section)) {
-                                $section = $this->web->getsectionById($res->section);
-                                echo !empty($section) ? $section[0]->name : 'N/A';
+                            if(isset($res->section) && !empty($res->section)) {
+                                $section_ids = explode(',', $res->section);
+                                $section_names = array();
+                                
+                                foreach($section_ids as $section_id) {
+                                    $section = $this->web->getsectionById(trim($section_id));
+                                    if(!empty($section)) {
+                                        $section_names[] = $section[0]->name;
+                                    }
+                                }
+                                
+                                echo !empty($section_names) ? implode(', ', $section_names) : 'N/A';
                             } else {
                                 echo 'N/A';
                             }
@@ -311,6 +337,22 @@ $buid=$this->web->session->userdata('login_id');
   });
 </script>
 <script>
+$(function () {
+    //Initialize Select2 Elements
+    $('.select2').select2({
+      placeholder: function(){
+        return $(this).data('placeholder');
+      },
+      allowClear: true
+    })
+
+    //Initialize Select2 Elements
+    $('.select2bs4').select2({
+      theme: 'bootstrap4'
+    })
+  });
+</script>
+<script>
 function mclick(data){
   var add_section_data = "add_section";
   $.ajax({
@@ -364,76 +406,88 @@ $(function () {
   $(document).ready(function() {
     // When branch changes
     $('#branch').change(function() {
-      var branchId = $(this).val();
-      if(branchId != '') {
+      var branchIds = $(this).val();
+      if(branchIds && branchIds.length > 0) {
         // Clear and disable dependent dropdowns
-        $('#batch').empty().append('<option value="">Loading batches...</option>');
-        $('#semester').empty().append('<option value="">Select Semester</option>');
-        $('#section').empty().append('<option value="">Select Section</option>');
+        $('#batch').empty().trigger('change');
+        $('#semester').empty().trigger('change');
+        $('#section').empty().trigger('change');
         
-        // Get batches for selected branch
+        // Get batches for selected branches
         $.ajax({
           type: "POST",
-          url: "<?php echo base_url('User/get_batches_by_dept'); ?>",
-          data: {dept_id: branchId},
+          url: "<?php echo base_url('User/get_batches_by_multiple_dept'); ?>",
+          data: {dept_ids: branchIds},
           success: function(response) {
             var batches = JSON.parse(response);
-            $('#batch').empty().append('<option value="">Select Batch</option>');
+            $('#batch').empty();
             $.each(batches, function(index, batch) {
               $('#batch').append('<option value="' + batch.id + '">' + batch.session_name + '</option>');
             });
+            $('#batch').trigger('change');
           }
         });
+      } else {
+        // Clear all dependent dropdowns if no branch selected
+        $('#batch').empty().trigger('change');
+        $('#semester').empty().trigger('change');
+        $('#section').empty().trigger('change');
       }
     });
 
     // When batch changes
     $('#batch').change(function() {
       var batchId = $(this).val();
-      var branchId = $('#branch').val();
-      if(batchId != '' && branchId != '') {
+      var branchIds = $('#branch').val();
+      if(batchId != '' && branchIds && branchIds.length > 0) {
         // Clear and disable dependent dropdowns
-        $('#semester').empty().append('<option value="">Loading semesters...</option>');
-        $('#section').empty().append('<option value="">Select Section</option>');
+        $('#semester').empty().trigger('change');
+        $('#section').empty().trigger('change');
         
-        // Get semesters for selected branch
+        // Get semesters for selected branches
         $.ajax({
           type: "POST",
-          url: "<?php echo base_url('User/get_semester_by_branch'); ?>",
-          data: {branch_id: branchId},
+          url: "<?php echo base_url('User/get_semester_by_multiple_branch'); ?>",
+          data: {branch_ids: branchIds},
           success: function(response) {
             var semesters = JSON.parse(response);
-            $('#semester').empty().append('<option value="">Select Semester</option>');
+            $('#semester').empty();
             $.each(semesters, function(index, semester) {
               $('#semester').append('<option value="' + semester.id + '">' + semester.semestar_name + '</option>');
             });
+            $('#semester').trigger('change');
           }
         });
+      } else {
+        $('#semester').empty().trigger('change');
+        $('#section').empty().trigger('change');
       }
     });
 
     // When semester changes
     $('#semester').change(function() {
-      var semesterId = $(this).val();
-      console.log("semesterId---",semesterId)
-      var batchId = $('#branch').val();
-      if(semesterId != '' && batchId != '') {
-        // Clear and disable section dropdown
-        $('#section').empty().append('<option value="">Loading sections...</option>');
+      var semesterIds = $(this).val();
+      var branchIds = $('#branch').val();
+      if(semesterIds && semesterIds.length > 0 && branchIds && branchIds.length > 0) {
+        // Clear section dropdown
+        $('#section').empty().trigger('change');
         
-        // Get sections for selected batch and semester
+        // Get sections for selected branches and semesters
         $.ajax({
           type: "POST",
-          url: "<?php echo base_url('User/get_section_by_branch_semester'); ?>",
-          data: {branch_id: batchId, semester_id: semesterId},
+          url: "<?php echo base_url('User/get_section_by_multiple_branch_semester'); ?>",
+          data: {branch_ids: branchIds, semester_ids: semesterIds},
           success: function(response) {
             var sections = JSON.parse(response);
-            $('#section').empty().append('<option value="">Select Section</option>');
+            $('#section').empty();
             $.each(sections, function(index, section) {
               $('#section').append('<option value="' + section.id + '">' + section.name + '</option>');
             });
+            $('#section').trigger('change');
           }
         });
+      } else {
+        $('#section').empty().trigger('change');
       }
     });
   });
