@@ -22,7 +22,7 @@
 <body class="hold-transition login-page">
 <div class="login-box">
   <div class="login-logo">
-      <img src="<?php echo base_url('adminassets/dist/img/midapp logo .png')?>" width="75%">
+      <img src="<?php echo base_url('adminassets/dist/img/1709239494.jpg')?>" width="40%">
   </div>
   <!-- /.login-logo -->
   <div class="card">
@@ -30,7 +30,7 @@
 
       <span style="color: red; width: 100%;"><?php echo $this->session->flashdata('msg'); ?></span>
 
-      <h5 class="login-box-msg">Business Login</h5>
+      <h5 class="login-box-msg">MCS Business Login</h5>
 
       <form action="<?php echo base_url('log')?>" method="post">
         <div class="input-group mb-3">
@@ -54,10 +54,8 @@
                        <!-- <label for="empType">Type</label>
                       &nbsp; &nbsp;-->
                         <select class="form-control" id="page" name="page">
+                          <option value="1">Attendance Mgt</option>
                          
-                          <option value="3">Student Attendance</option>
-                          <option value="4">Hostel Attendance</option>
-              
                         </select>
                          
                         </div>  &nbsp; &nbsp; &nbsp; &nbsp;
@@ -88,7 +86,7 @@
          
         </div>-->
       </form> <br>
-   <div> <h5><a href="<?php echo base_url('staff-login')?>" class="nav-link"> Click hear for Employee Login </a> </h5> </div>
+   <div> <h5><a href="<?php echo base_url('staff-login')?>" class="nav-link"> Click Here for Employee Login </a> </h5> </div>
      
      
     </div>

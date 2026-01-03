@@ -28,10 +28,10 @@
 <!-- Main Sidebar Container -->
 <aside class="main-sidebar sidebar-dark-primary elevation-4">
   <!-- Brand Logo -->
-  <a href="#" class="brand-link">
-    <img src="<?php echo base_url('adminassets/dist/img/logo.png')?>" alt="AdminLTE Logo" class="brand-image img-squre elevation-3"
+ <a href="<?php echo base_url('page')?>" class="brand-link">
+    <img src="<?php echo base_url('adminassets/dist/img/1709239494.jpg')?>" alt="AdminLTE Logo" class="brand-image img-squre elevation-3"
     style="opacity: .8">
-    <span class="brand-text font-weight-light">Midapp</span>
+    <span class="brand-text font-weight-light">MCS</span>
   </a>
 
   <!-- Sidebar -->
@@ -135,7 +135,7 @@
           $page=$this->web->getPages();
           foreach ($page as $key => $page) {
             $data=$this->web->checkPermission($this->session->userdata('login_id'));
-            if($data['assign_menu_id']==$page->page_id && $data['status']==0){
+            if(isset($data) && $data['assign_menu_id']==$page->page_id && $data['status']==0){
 
               //print_r($data['assign_menu_id']);
               $sub_page=$this->web->getSubPages($data['assign_menu_id']);
@@ -329,18 +329,7 @@
                   <p>Employee Report</p>
                 </a>
               </li>
-              <li class="nav-item">
-                <a href="<?php echo base_url('field_duty')?>" class="nav-link">
-                  <i class="fa fa-map-marked nav-icon"></i>
-                  <p>Field Duty Report</p>
-                </a>
-              </li>
-              <li class="nav-item">
-                <a href="<?php echo base_url('gps_report')?>" class="nav-link">
-                  <i class="fa fa-map-marked nav-icon"></i>
-                  <p>GPS Report</p>
-                </a>
-              </li>
+              
               <li class="nav-item">
                 <a href="<?php echo base_url('access_report')?>" class="nav-link">
                   <i class="fa fa-map-marked nav-icon"></i>
@@ -399,12 +388,7 @@
                   <p>Attendance Rule</p>
                 </a>
               </li>
-               <li class="nav-item">
-                <a href="<?php echo base_url('attendance_option')?>" class="nav-link">
-                  <i class="fa fa-random nav-icon"></i>
-                  <p>Attendance Option</p>
-                </a>
-              </li>
+               
              </ul></li> 
               
               
@@ -502,27 +486,14 @@
            
               
               
-               <li class="nav-item">
-                <a href="<?php echo base_url('salary_rule')?>" class="nav-link">
-                  <i class="fa fa-book nav-icon"></i>
-                  <p>Salary Rule</p>
-                </a>
-              </li>
+              
               
               
               </ul></li>   
           
           
           
-           <li class="nav-item has-treeview">
-            <a href="<?php echo base_url('salary-employees')?>" class="nav-link">
-              <i class="nav-icon fas fa-money-bill-alt"></i>
-              <p>
-                Direct Salary 
-                
-              </p>
-            </a>
-          </li>
+           
           
               <li class="nav-item has-treeview">
                 <a href="#" class="nav-link">
@@ -675,6 +646,8 @@
                   <p>Manual Attendance</p>
                 </a>
               </li>
+               <?php } 
+			   if($role[0]->pending_att=="1" || $role[0]->type=="1"){ ?>
               <li class="nav-item">
                 <a href="<?php echo base_url('User/Assign_working')?>" class="nav-link">
                   <i class="nav-icon fa fa-book-reader"></i>
@@ -682,8 +655,7 @@
                 </a>
               </li>
               
-               <?php } 
-			   if($role[0]->pending_att=="1" || $role[0]->type=="1"){ ?>
+              
                <li class="nav-item">
                 <a href="<?php echo base_url('pending_att')?>" class="nav-link">
                   <i class="nav-icon fa fa-book-reader"></i>
@@ -728,20 +700,7 @@
                 </a>
               </li>
               <?php } 
-			    if($role[0]->gps_report=="1" || $role[0]->type=="1"){ ?>
-              <li class="nav-item">
-                <a href="<?php echo base_url('field_duty')?>" class="nav-link">
-                  <i class="fa fa-map-marked nav-icon"></i>
-                  <p>Field Duty Report</p>
-                </a>
-              </li>
-              <li class="nav-item">
-                <a href="<?php echo base_url('gps_report')?>" class="nav-link">
-                  <i class="fa fa-map-marked nav-icon"></i>
-                  <p>GPS Report</p>
-                </a>
-              </li>
-              <?php } 
+			    
 			    if($role[0]->log_report=="1" || $role[0]->type=="1"){ ?>
                <li class="nav-item">
                 <a href="<?php echo base_url('access_report')?>" class="nav-link">
@@ -806,12 +765,7 @@
                   <p>Attendance Rule</p>
                 </a>
               </li>
-              <li class="nav-item">
-                <a href="<?php echo base_url('attendance_option')?>" class="nav-link">
-                  <i class="fa fa-random nav-icon"></i>
-                  <p>Attendance Option</p>
-                </a>
-              </li>
+             
               
              </ul></li> 
               

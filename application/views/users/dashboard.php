@@ -87,7 +87,7 @@
           </div><!-- /.col -->
           <div class="col-sm-6">
             <ol class="breadcrumb float-sm-right">
-              <li class="breadcrumb-item"><a href="#">Home</a></li>
+              <li class="breadcrumb-item"><a href="">Home</a></li>
               <li class="breadcrumb-item active">Dashboard</li>
             </ol>
           </div><!-- /.col -->
@@ -393,7 +393,7 @@ $inact="SELECT count(id) as inactemp FROM user_request WHERE business_id='$id'an
               <!-- small box -->
               <div class="small-box bg-green">
                 <div class="inner">
-                  <h3><?php echo  $active ;?></h3>
+               <!--   <h3><?php echo  $active ;?></h3>-->
                   <p>Active Employee</p>
                 </div>
                 <div class="icon">
@@ -410,14 +410,14 @@ $inact="SELECT count(id) as inactemp FROM user_request WHERE business_id='$id'an
               <!-- small box -->
               <div class="small-box bg-danger">
                 <div class="inner">
-                 <h3><?php echo  $inactive ;?></h3>
-                  <p>InActive Employee</p>
+               <!--  <h3><?php echo  $inactive ;?></h3>-->
+                  <p>EX Employee</p>
                 </div>
                 <div class="icon">
                  <i class="fa fa-users"></i>
 
                 </div>
-                <a href="<?php echo base_url('employees')?>" class="small-box-footer">Inactive Detail <i class="fa fa-arrow-circle-right"></i></a>
+                <a href="<?php echo base_url('left_employee')?>" class="small-box-footer">EX Employee Detail <i class="fa fa-arrow-circle-right"></i></a>
               </div>
             </div><!-- ./col -->
             
@@ -429,7 +429,151 @@ $inact="SELECT count(id) as inactemp FROM user_request WHERE business_id='$id'an
               <!-- small box -->
               <div class="small-box bg-lime">
                 <div class="inner">
-                 <h3><?php echo  $pending_leave ;?></h3>
+                 <!--<h3><?php echo  $pending_leave ;?></h3>-->
+                  <p>Today Attendance</p>
+                </div>
+                <div class="icon">
+                 <i class="fa fa-users"></i>
+
+                </div>
+                <a href="<?php echo base_url('dailyreport')?>" class="small-box-footer">Daily Report <i class="fa fa-arrow-circle-right"></i></a>
+              </div>
+            </div><!-- ./col -->
+            
+            
+            
+            
+            <div class="col-lg-3 col-xs-6">
+              <!-- small box -->
+              <div class="small-box bg-yellow">
+                <div class="inner">
+               <!--   <h3><?php echo base_url('pending_att')?></h3>-->
+                  <p>Monthly Attendance</p>
+                </div>
+                <div class="icon">
+                 <i class="fa fa-users"></i>
+
+                </div>
+                <a href="<?php echo base_url('monthly_report')?>" class="small-box-footer">Monthly Report<i class="fa fa-arrow-circle-right"></i></a>
+              </div>
+            </div><!-- ./col -->
+            
+
+  </div>
+        <!-- /.row -->
+
+      
+
+      
+      </div><!--/. container-fluid -->
+    </section>
+    
+    <br> 
+    
+    <section class="content">
+      <div class="container-fluid">
+        <!-- Info boxes -->
+        <div class="row">
+
+
+ <div class="col-lg-3 col-xs-6">
+              <!-- small box -->
+              <div class="small-box bg-blue">
+                <div class="inner">
+               <!--   <h3><?php echo  $active ;?></h3>-->
+                  <p>Log Report</p>
+                </div>
+                <div class="icon">
+                 <i class="fa fa-users"></i>
+
+                </div>
+                <a href="<?php echo base_url('access_report')?>" class="small-box-footer">Access Log  Detail <i class="fa fa-arrow-circle-right"></i></a>
+              </div>
+            </div><!-- ./col -->
+          
+
+
+<div class="col-lg-3 col-xs-6">
+              <!-- small box -->
+              <div class="small-box bg-orange">
+                <div class="inner">
+               <!--  <h3><?php echo  $inactive ;?></h3>-->
+                  <p>Leave Report</p>
+                </div>
+                <div class="icon">
+                 <i class="fa fa-users"></i>
+
+                </div>
+                <a href="<?php echo base_url('open_leave')?>" class="small-box-footer">Leave Detail <i class="fa fa-arrow-circle-right"></i></a>
+              </div>
+            </div><!-- ./col -->
+            
+            
+            
+            
+            
+            <div class="col-lg-3 col-xs-6">
+              <!-- small box -->
+              <div class="small-box bg-pink">
+                <div class="inner">
+                 <!--<h3><?php echo  $pending_danger ;?></h3>-->
+                  <p>Salary Report</p>
+                </div>
+                <div class="icon">
+                 <i class="fa fa-users"></i>
+
+                </div>
+                <a href="<?php echo base_url('Payroll/employeesSalary')?>" class="small-box-footer">Salary Detail <i class="fa fa-arrow-circle-right"></i></a>
+              </div>
+            </div><!-- ./col -->
+            
+            
+            
+            
+            <div class="col-lg-3 col-xs-6">
+              <!-- small box -->
+              <div class="small-box bg-purple">
+                <div class="inner">
+               <!--   <h3><?php echo base_url('pending_att')?></h3>-->
+                  <p>Net Payable</p>
+                </div>
+                <div class="icon">
+                 <i class="fa fa-users"></i>
+
+                </div>
+                <a href="<?php echo base_url('Payroll/employeesNetSalary')?>" class="small-box-footer">net Payable<i class="fa fa-arrow-circle-right"></i></a>
+              </div>
+            </div><!-- ./col -->
+            
+
+  </div>
+        <!-- /.row -->
+
+      
+
+      
+      </div><!--/. container-fluid -->
+    </section>
+    <br>
+    
+    
+    
+    <section class="content">
+      <div class="container-fluid">
+        <!-- Info boxes -->
+        <div class="row">
+
+
+ 
+            
+            
+            
+            
+            <div class="col-lg-3 col-xs-6">
+              <!-- small box -->
+              <div class="small-box bg-lime">
+                <div class="inner">
+                 <!--<h3><?php echo  $pending_leave ;?></h3>-->
                   <p>Pending Leave</p>
                 </div>
                 <div class="icon">
@@ -447,16 +591,53 @@ $inact="SELECT count(id) as inactemp FROM user_request WHERE business_id='$id'an
               <!-- small box -->
               <div class="small-box bg-yellow">
                 <div class="inner">
-                  <h3><?php echo  $pending_attendance ;?></h3>
+               <!--   <h3><?php echo base_url('pending_att')?></h3>-->
                   <p>Pending Attendance</p>
                 </div>
                 <div class="icon">
                  <i class="fa fa-users"></i>
 
                 </div>
-                <a href="" class="small-box-footer">Aprove Attendance<i class="fa fa-arrow-circle-right"></i></a>
+                <a href="<?php echo base_url('pending_att')?>" class="small-box-footer">Aprove Attendance<i class="fa fa-arrow-circle-right"></i></a>
               </div>
             </div><!-- ./col -->
+            
+            
+            
+            
+            
+            <div class="col-lg-3 col-xs-6">
+              <!-- small box -->
+              <div class="small-box bg-green">
+                <div class="inner">
+               <!--   <h3><?php echo  $active ;?></h3>-->
+                  <p>Pending Short Leave</p>
+                </div>
+                <div class="icon">
+                 <i class="fa fa-users"></i>
+
+                </div>
+                <a href="<?php echo base_url('Sleave')?>" class="small-box-footer">Short Leave Detail <i class="fa fa-arrow-circle-right"></i></a>
+              </div>
+            </div><!-- ./col -->
+          
+
+
+<div class="col-lg-3 col-xs-6">
+              <!-- small box -->
+              <div class="small-box bg-danger">
+                <div class="inner">
+               <!--  <h3><?php echo  $inactive ;?></h3>-->
+                  <p>Pending Out Duty</p>
+                </div>
+                <div class="icon">
+                 <i class="fa fa-users"></i>
+
+                </div>
+                <a href="<?php echo base_url('User/Assign_working')?>" class="small-box-footer">Assign Working Detail <i class="fa fa-arrow-circle-right"></i></a>
+              </div>
+            </div><!-- ./col -->
+            
             
 
   </div>
@@ -467,13 +648,26 @@ $inact="SELECT count(id) as inactemp FROM user_request WHERE business_id='$id'an
       
       </div><!--/. container-fluid -->
     </section>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
 
 <div class="content-header">
       <div class="container-fluid">
         <div class="row mb-2">
           <div class="col-sm-6">
-            <h1 class="m-0 text-dark">Chart Report</h1>
+          <!--  <h1 class="m-0 text-dark">Chart Report</h1>-->
           </div><!-- /.col -->
          
         </div><!-- /.row -->

@@ -610,9 +610,7 @@ if (isset($_REQUEST['user_detail'])=="use_detail") {
  // echo $id;
      // $value = $this->web->getDepartById($id);
 	 			  $busi=$this->web->getBusinessbyUser($id);
-	 			  $buid=0;
-	 			  if(!empty($busi)){
-		             $buid=$busi[0]->business_id; }
+		             $buid=$busi[0]->business_id;
 					 $uname = $this->web->getNameByUserId($buid);
 					 echo"company Name ".$uname[0]->name;
 					  echo"<br>Join Date ".date("d-m-Y",$busi[0]->doj);
@@ -900,15 +898,15 @@ if (isset($_REQUEST['add_bio_data'])=="add_device") {
                                 <option value="<?php echo $model; ?>"> 
                                  <?php  
                         if($model==0){
-                           echo MidApp;
+                           echo "MidApp";
                         }elseif($model==1){
-                           echo Syrotech;
+                           echo "Syrotech";
                         }
                          elseif($model==2){
-                           echo Secureye;
+                           echo "Secureye";
                         } 
                         else{
-                           echo Mantra;
+                           echo "Mantra";
                         }
                         
                         ?>
@@ -954,15 +952,24 @@ if (isset($_REQUEST['add_bio_data'])=="add_device") {
 <?php
 if (isset($_REQUEST['edit_left'])=="edit_left") {
   $id = $this->input->post('data');
-  $bid=$this->web->session->userdata('login_id');
- 	//  $refer=$this->web->getNameByUserId($id);
-	// $unames = $this->web->getIdByMb($refer[0]->reference);
+ // $bid=$this->web->session->userdata('login_id');
+ 
 					  
-			 
-			 
 	 ?>
 	 
-	 
+<?php
+   
+	  if($this->session->userdata()['type']=='P'){
+      // $busi=$this->web->getBusinessbyUser($this->web->session->userdata('login_id'));
+      // $id=$busi[0]->business_id;
+      $bid = $this->session->userdata('empCompany');
+     // $role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$id);
+  
+    } else {
+      $ibd=$this->web->session->userdata('login_id');
+    }
+    ?>
+    
 <dev style="color:red; font-size: 2rem;" id="msg"></dev>
 
       <form method="post" id="from" action="User/left_emp">
@@ -1066,460 +1073,6 @@ if (isset($_REQUEST['edit_emproll'])=="edit_emproll") {
 <?php 
 }
 ?>
-
-
-
-
-
-
-<?php
-if (isset($_REQUEST['add_class_data'])=="add_class") {
-  $id = $this->input->post('data');
-      $value = $this->web->getclassById($id);
-?>
-      <dev style="color:red; font-size: 2rem;" id="msg"></dev>
-      <form method="post" id="from" action="User/editclass">
-
-        <div class="from-group">
-          <label for="name">Name</label>
-          <input type="text" name="name" id="name" class="form-control" value="<?php echo $value['0']->name; ?>" required>
-        </div>
-        
-        <br>
-        <input type="hidden" name="id" id="id" value="<?php echo $value['0']->id; ?>">
-        <button type="button" class="btn btn-success" id="bt_form">Save Changes</button>
-
-      </form>
-
-  <script type="text/javascript">
-      $('#bt_form').on('click', function(){
-        var fdata = $("#from").serialize();
-      $.ajax({
-        type: "POST",
-        url: "User/editclass",
-        data: fdata,
-      success: function(res){
-      $('#msg').html('New entries updated!');
-    }
-    });
-  });    
-  </script>
-
-<?php
-}
-?>
-
-
-
-
-
-
-
-<?php
-if (isset($_REQUEST['add_subject_data'])=="add_subject") {
-  $id = $this->input->post('data');
-      $value = $this->web->getsubjectnamebyid($id);
-?>
-      <dev style="color:red; font-size: 2rem;" id="msg"></dev>
-      <form method="post" id="from" action="User/editsubject">
-
-        <div class="from-group">
-          <label for="name">Name</label>
-          <input type="text" name="name" id="name" class="form-control" value="<?php echo $value['0']->name; ?>" required>
-        </div>
-        
-        <br>
-        <input type="hidden" name="id" id="id" value="<?php echo $value['0']->id; ?>">
-        <button type="button" class="btn btn-success" id="bt_form">Save Changes</button>
-
-      </form>
-
-  <script type="text/javascript">
-      $('#bt_form').on('click', function(){
-        var fdata = $("#from").serialize();
-      $.ajax({
-        type: "POST",
-        url: "User/editsubject",
-        data: fdata,
-      success: function(res){
-      $('#msg').html('New entries updated!');
-    }
-    });
-  });    
-  </script>
-
-<?php
-}
-?>
-
-
-<?php
-if (isset($_REQUEST['add_period_data'])=="add_period") {
-  $id = $this->input->post('data');
-      $value = $this->web->getperiodnamebyid($id);
-?>
-      <dev style="color:red; font-size: 2rem;" id="msg"></dev>
-      <form method="post" id="from" action="User/editperiod">
-
-        <div class="from-group">
-          <label for="name">Name</label>
-          <input type="text" name="name" id="name" class="form-control" value="<?php echo $value['0']->name; ?>" required>
-        </div>
-        
-        <br>
-        <input type="hidden" name="id" id="id" value="<?php echo $value['0']->id; ?>">
-        <button type="button" class="btn btn-success" id="bt_form">Save Changes</button>
-
-      </form>
-
-  <script type="text/javascript">
-      $('#bt_form').on('click', function(){
-        var fdata = $("#from").serialize();
-      $.ajax({
-        type: "POST",
-        url: "User/editperiod",
-        data: fdata,
-      success: function(res){
-      $('#msg').html('New entries updated!');
-    }
-    });
-  });    
-  </script>
-
-<?php
-}
-?>
-
-
-
-
-<?php
-if (isset($_REQUEST['add_section_data'])=="add_section") {
-  $id = $this->input->post('data');
-  $value = $this->web->getsectionById($id);
-  $buid = $this->web->session->userdata('login_id');
-  
-  // Get all branches
-  $branches = $this->web->getBusinessDepByBusinessId($buid);
-  // Get all semesters
-  $allSemesters = $this->web->getallSemesters($buid);
-  
-  // Get current branch-semester assignments for this section
-  $currentBranchSemesters = $this->web->getSectionBranchSemesters($id);
-  
-  // Create arrays to store current selections
-  $selectedBranches = array();
-  $selectedSemesters = array();
-  
-  foreach($currentBranchSemesters as $bs) {
-    $selectedBranches[] = $bs->branch_id;
-    $selectedSemesters[] = $bs->semester_id;
-  }
-?>
-      <dev style="color:red; font-size: 2rem;" id="msg"></dev>
-      <form method="post" id="edit_section_form">
-        <div class="from-group mb-3">
-          <label for="name">Section Name</label>
-          <input type="text" name="name" id="name" class="form-control" value="<?php echo $value['0']->name; ?>" required>
-        </div>
-        
-        <div class="from-group mb-3">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <label class="mb-0">Branches and Semesters</label>
-            <div class="d-flex">
-              <div class="form-check mr-3">
-                <input class="form-check-input" type="checkbox" id="edit-select-all-branches">
-                <label class="form-check-label" for="edit-select-all-branches">
-                  <strong>All Branches</strong>
-                </label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="edit-select-all-semesters">
-                <label class="form-check-label" for="edit-select-all-semesters">
-                  <strong>All Semesters</strong>
-                </label>
-              </div>
-            </div>
-          </div>
-          
-          <div id="edit_branches_semesters_container" class="border p-3 rounded">
-            <?php
-              if(!empty($branches)) {
-                // First create an array to store semesters by branch
-                $semestersByBranch = array();
-                
-                // Organize semesters by branch
-                foreach($branches as $branch) {
-                  $semestersByBranch[$branch->id] = array(
-                    'name' => $branch->name,
-                    'semesters' => array()
-                  );
-                }
-                
-                // Categorize semesters by branch
-                foreach($allSemesters as $semester) {
-                  $semesterDeps = explode(',', $semester->dep_id);
-                  foreach($semesterDeps as $depId) {
-                    if(isset($semestersByBranch[$depId])) {
-                      $semestersByBranch[$depId]['semesters'][] = $semester;
-                    }
-                  }
-                }
-                
-                // Display branches and their semesters
-                foreach($semestersByBranch as $branchId => $branchData) {
-                  if(empty($branchData['semesters'])) {
-                    continue; // Skip branches with no semesters
-                  }
-                  
-                  $isBranchSelected = in_array($branchId, $selectedBranches);
-                  
-                  echo '<div class="branch-section mb-4">';
-                  echo '<div class="branch-header d-flex align-items-center bg-primary text-white p-2 rounded">';
-                  echo '<div class="form-check mb-0 mr-2">';
-                  echo '<input class="form-check-input edit-branch-checkbox" type="checkbox" value="' . $branchId . '" id="edit_branch_' . $branchId . '" data-branch-name="' . $branchData['name'] . '"' . ($isBranchSelected ? ' checked' : '') . '>';
-                  echo '</div>';
-                  echo '<h5 class="mb-0 branch-title">' . $branchData['name'] . '</h5>';
-                  echo '</div>';
-                  
-                  echo '<div class="semester-list pl-4" id="edit_semesters_' . $branchId . '" style="display:' . ($isBranchSelected ? 'block' : 'none') . ';">';
-                  foreach($branchData['semesters'] as $semester) {
-                    $isSemesterSelected = in_array($semester->id, $selectedSemesters);
-                    echo '<div class="form-check">';
-                    echo '<input class="form-check-input edit-semester-checkbox" data-branch="' . $branchId . '" type="checkbox" value="' . $semester->id . '" id="edit_semester_' . $branchId . '_' . $semester->id . '" data-semester-name="' . $semester->semestar_name . '"' . ($isSemesterSelected ? ' checked' : '') . ($isBranchSelected ? '' : ' disabled') . '>';
-                    echo '<label class="form-check-label" for="edit_semester_' . $branchId . '_' . $semester->id . '">' . $semester->semestar_name . ' (' . $semester->year . ' Year)</label>';
-                    echo '</div>';
-                  }
-                  echo '</div>'; // End semester-list
-                  echo '</div>'; // End branch-section
-                }
-              } else {
-                echo '<div class="alert alert-info">No branches found</div>';
-              }
-            ?>
-          </div>
-        </div>
-        
-        <!-- Hidden input to store structured branch/semester data -->
-        <input type="hidden" name="structured_data" id="edit_structured_data" value="">
-        <input type="hidden" name="id" id="id" value="<?php echo $value['0']->id; ?>">
-        <button type="button" class="btn btn-success" id="bt_form">Save Changes</button>
-      </form>
-
-  <script type="text/javascript">
-    $(function () {
-      // Branch checkbox functionality
-      $('.edit-branch-checkbox').on('change', function() {
-        var branchId = $(this).val();
-        var isChecked = $(this).is(':checked');
-        
-        // Show/hide semester list for this branch
-        $('#edit_semesters_' + branchId).toggle(isChecked);
-        
-        // Enable/disable semester checkboxes for this branch
-        $('.edit-semester-checkbox[data-branch="' + branchId + '"]').prop('disabled', !isChecked);
-        
-        // If branch is unchecked, uncheck all its semesters
-        if (!isChecked) {
-          $('.edit-semester-checkbox[data-branch="' + branchId + '"]').prop('checked', false);
-        }
-        
-        // If branch is checked and "select all semesters" is checked, check all its semesters
-        if (isChecked && $('#edit-select-all-semesters').is(':checked')) {
-          $('.edit-semester-checkbox[data-branch="' + branchId + '"]').prop('checked', true);
-        }
-        
-        // Update "Select All Branches" checkbox
-        updateSelectAllBranches();
-      });
-      
-      // "Select All Branches" checkbox functionality
-      $('#edit-select-all-branches').on('change', function() {
-        var isChecked = $(this).is(':checked');
-        $('.edit-branch-checkbox').prop('checked', isChecked);
-        
-        // Show/hide all semester lists
-        if (isChecked) {
-          $('.semester-list').show();
-        } else {
-          $('.semester-list').hide();
-        }
-        
-        // Enable/disable all semester checkboxes
-        $('.edit-semester-checkbox').prop('disabled', !isChecked);
-        
-        // If unchecking all branches, uncheck all semesters
-        if (!isChecked) {
-          $('.edit-semester-checkbox').prop('checked', false);
-        }
-        
-        // If checking all branches and "select all semesters" is checked, check all semesters
-        if (isChecked && $('#edit-select-all-semesters').is(':checked')) {
-          $('.edit-semester-checkbox').prop('checked', true);
-        }
-      });
-      
-      // "Select All Semesters" checkbox functionality
-      $('#edit-select-all-semesters').on('change', function() {
-        var isChecked = $(this).is(':checked');
-        
-        // Only check semesters for selected branches
-        $('.edit-branch-checkbox:checked').each(function() {
-          var branchId = $(this).val();
-          $('.edit-semester-checkbox[data-branch="' + branchId + '"]').prop('checked', isChecked);
-        });
-        
-        // Update "All Semesters" checkbox status
-        updateSelectAllSemesters();
-      });
-      
-      // When any individual semester checkbox changes
-      $('.edit-semester-checkbox').on('change', function() {
-        updateSelectAllSemesters();
-      });
-      
-      // Initialize "Select All" checkboxes
-      updateSelectAllBranches();
-      updateSelectAllSemesters();
-      
-      // Helper function to update "Select All Branches" checkbox
-      function updateSelectAllBranches() {
-        var allBranches = $('.edit-branch-checkbox').length;
-        var selectedBranches = $('.edit-branch-checkbox:checked').length;
-        $('#edit-select-all-branches').prop('checked', allBranches === selectedBranches && allBranches > 0);
-      }
-      
-      // Helper function to update "Select All Semesters" checkbox
-      function updateSelectAllSemesters() {
-        var enabledSemesters = $('.edit-semester-checkbox:not(:disabled)').length;
-        var selectedSemesters = $('.edit-semester-checkbox:checked').length;
-        $('#edit-select-all-semesters').prop('checked', enabledSemesters === selectedSemesters && enabledSemesters > 0);
-      }
-    });
-  
-    $('#bt_form').on('click', function(){
-      // Create a structured data object
-      var structuredData = {};
-      
-      // Loop through all checked branches
-      $('.edit-branch-checkbox:checked').each(function() {
-        var branchId = $(this).val();
-        
-        // Find all checked semesters for this branch
-        var branchSemesters = [];
-        $('.edit-semester-checkbox[data-branch="' + branchId + '"]:checked').each(function() {
-          var semesterId = $(this).val();
-          branchSemesters.push(semesterId);
-        });
-        
-        // Add branch and its semesters to the structured data
-        structuredData[branchId] = branchSemesters;
-      });
-      
-      // Store structured data in hidden input
-      $('#edit_structured_data').val(JSON.stringify(structuredData));
-      
-      // Create form data including the structured data
-      var fdata = {
-        id: $('#id').val(),
-        name: $('#name').val(),
-        structured_data: JSON.stringify(structuredData)
-      };
-      
-      $.ajax({
-        type: "POST",
-        url: "User/edit_S_Section",
-        data: fdata,
-        success: function(res){
-          $('#msg').html('Section updated successfully!');
-          // Reload the section list table after a short delay
-          setTimeout(function() {
-            location.reload();
-          }, 1500);
-        }
-      });
-    });
-  </script>
-
-<?php
-}
-?>
-
-
-
-
-
-
-<?php
-if(isset($_REQUEST['datatypes_session'])=="sessionlist") {
-  $did = $this->input->post('id');
-            $bid = $this->web->session->userdata('login_id');
-
-  $result = $this->web->getSessionByDeptId($did,$bid);  print_r($result);
-?>     
-      <option value="" disabled selected>selected</option>  
-                <?php
-                echo "<option value=0> Select All </option>";
-                  if(!empty($result)){
-                    foreach($result as $result):
-                          
-                          echo "<option value=".$result->id .">".$result->session_name." </option>";
-                    endforeach;
-                  }
-  }
-?>
-
-
-
-<?php
-if(isset($_REQUEST['datatypes_session'])=="sessionlist_multiple") {
-  $ids = $this->input->post('ids');
-  $bid = $this->web->session->userdata('login_id');
-  
-  echo "<option value='' disabled selected>Select Semesters</option>";
-  
-  // For each branch ID, get related semesters
-  if(is_array($ids)) {
-    $processed_semesters = array(); // To track already added semesters
-    
-    foreach($ids as $did) {
-      $result = $this->web->getallSemesters($bid);
-      
-      if(!empty($result)) {
-        foreach($result as $semester) {
-          // Check if the semester is related to this branch
-          $dep_ids = explode(',', $semester->dep_id);
-          if(in_array($did, $dep_ids) && !in_array($semester->id, $processed_semesters)) {
-            echo "<option value='" . $semester->id . "'>" . $semester->semestar_name . " (" . $semester->year . " Year)</option>";
-            $processed_semesters[] = $semester->id; // Track this semester as processed
-          }
-        }
-      }
-    }
-  }
-}
-?>
-
-
-
-<?php
-if(isset($_REQUEST['datatypes_section'])=="sectionlist") {
-  $did = $this->input->post('id');
-  $result = $this->web->getSectionBySessionId($did);  print_r($result);
-?>
-      <option value="" disabled selected>Select</option>  
-                <?php
-                echo "<option value=0> Select All </option>";
-                  if(!empty($result)){
-                      
-                    foreach($result as $result):
-                        
-                          echo "<option value=".$result->id .">".$result->name." </option>";
-                    endforeach;
-                  }
-  }
-?>
-
 
 
 

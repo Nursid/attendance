@@ -73,7 +73,9 @@ date_default_timezone_set('Asia/Kolkata');
               <div class="row">
     <div class="col-lg-12 float-left">
     
-      <form action="<?php echo base_url('User/students_monthly_report_new')?>" method="POST" id="hostelmonthlyReport">
+      <!-- <form action="<?php echo base_url('User/students_monthly_report_new')?>" method="POST" id="hostelmonthlyReport"> -->
+      <form id="hostelmonthlyReport" onsubmit="return false;">
+
                           <div class="row">
                               
                               
@@ -192,7 +194,7 @@ date_default_timezone_set('Asia/Kolkata');
                              
                             <div class="col-sm-1">
                             
-                              <button type="submit" id="actionSubmit" class="btn btn-success btn-fill btn-block" onclick="showLoader()">Show</button>
+                              <button type="button" id="actionSubmit" class="btn btn-success btn-fill btn-block">Show</button>
                             </div>
                           
                            </div>
@@ -203,7 +205,7 @@ date_default_timezone_set('Asia/Kolkata');
            <br>   
               
              <?php
-                      if($load) {
+                      // if($load) {
                         $stdate=strtotime($start_date);
                         $endate=strtotime($end_date);
                         
@@ -228,7 +230,7 @@ date_default_timezone_set('Asia/Kolkata');
                         </h5>
                         
                     
-                  
+<!--                   
                         <table id="attendanceReport" class="table table-bordered table-striped">
                         <thead>
                             <tr>
@@ -295,7 +297,10 @@ date_default_timezone_set('Asia/Kolkata');
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
-                    </table>
+                    </table> -->
+
+                    <div id="attendanceReport"></div>
+
 
                     <div class="mb-3">
                       <button id="exportToCsv" class="btn btn-primary">Export to CSV</button>
@@ -312,7 +317,7 @@ date_default_timezone_set('Asia/Kolkata');
             </div><!-- /.container-fluid -->
 
   <?php 
-        }
+        // }
    ?>
    </section>
     <!-- /.content -->
@@ -361,15 +366,15 @@ date_default_timezone_set('Asia/Kolkata');
 
  <script>
     $(document).ready(function () {
-        var table = $('#attendanceReport').DataTable( {
-            scrollY:        "500px",
-            scrollX:        true,
-            scrollCollapse: true,
-            paging:         false,
-            fixedColumns:   {
-                leftColumns: 2
-            }
-        } );
+        // var table = $('#attendanceReport').DataTable( {
+        //     scrollY:        "500px",
+        //     scrollX:        true,
+        //     scrollCollapse: true,
+        //     paging:         false,
+        //     fixedColumns:   {
+        //         leftColumns: 2
+        //     }
+        // } );
       $('.nav-link').click(function(e) {
         $('.nav-link').removeClass('active');
         $(this).addClass("active");
@@ -598,6 +603,109 @@ $(document).ready(function() {
         link.click();
         document.body.removeChild(link);
     });
+  })
+
+$(document).ready(function () {
+
+  $("#actionSubmit").click(function () {
+    let payload = {
+        dept: $("#departs").val(),
+        session: $("#sdeparts").val(),
+        semester: $("#semester").val(),
+        section: $("#section").val(),
+        subject: $("#subject").val(),
+        start_date: $("#start_date").val(),
+        end_date: $("#end_date").val()
+    };
+
+    $.ajax({
+        url: "http://localhost:5000/api/students_monthly_report",
+        method: "POST",
+        contentType: "application/json",
+        data: JSON.stringify(payload),
+        success: function (response) {
+            renderMonthlyReport(response);
+        }
+    });
+});
+
+
+function renderMonthlyReport(data) {
+  console.log(data)
+    let report = data.report;
+    let periodDays = data.period_days;
+
+    let tableHtml = `
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Student ID</th>
+                    <th>Name</th>
+    `;
+
+    periodDays.forEach(day => {
+        tableHtml += `
+            <th class="text-center">
+                ${day.sequential_day}<br>
+                <small>
+                    ${day.day_name}<br>
+                    (${day.calendar_day})<br>
+                    ${day.teacher_name ?? ""}
+                </small>
+            </th>
+        `;
+    });
+
+    tableHtml += `
+        <th>Present</th>
+        <th>Absent</th>
+        <th>Holiday</th>
+        <th>Total Lecture</th>
+        </tr>
+        </thead>
+        <tbody>
+    `;
+
+    report.forEach((student, index) => {
+        let present = 0, absent = 0, holiday = 0, lecture = 0;
+
+        tableHtml += `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${student.user_id}</td>
+                <td>${student.name}</td>
+        `;
+
+        student.data.forEach(day => {
+            let status = day.data.status;
+
+            if (status === "P") {
+                present++; lecture++;
+            } else if (status.includes("Holiday")) {
+                holiday++;
+            } else {
+                absent++; lecture++;
+            }
+
+            tableHtml += `<td class="text-center">${status}</td>`;
+        });
+
+        tableHtml += `
+            <td>${present}</td>
+            <td>${absent}</td>
+            <td>${holiday}</td>
+            <td>${lecture}</td>
+            </tr>
+        `;
+    });
+
+    tableHtml += "</tbody></table>";
+    console.log(tableHtml)
+
+    document.getElementById("attendanceReport").innerHTML = tableHtml;
+}
+
 });
 </script>
 

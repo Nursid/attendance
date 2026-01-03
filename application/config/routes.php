@@ -103,7 +103,7 @@ $route['assign_shift'] = 'User/assign_shift';
 $route['department_list'] = 'User/department_list';
 $route['section_list'] = 'User/section_list';
 $route['shifts'] = 'User/shifts';
-$route['holidays_list'] = 'User/School_holiday';
+$route['holidays_list'] = 'User/holidays_list';
 $route['gps_report'] = 'User/gps_report';
 $route['attendance_option'] = 'User/attendanceOptions';
 $route['manual_report'] = 'User/manualReport';
@@ -153,45 +153,3 @@ $route['students_checkin'] = 'User/student_checkin';
 $route['get_user_from_device'] = 'User/getUserFromDevice';
 $route['add_user_to_device'] = 'User/addUserToDevice';
 $route['leave_history'] = 'User/leave_history';
-
-
-///// new scool
-
-
-$route['page_school'] = 'User/dashboard_school';
-$route['add_Students'] = 'User/add_Students';
-$route['Students_list'] = 'User/Students_list';
-$route['add_teachers'] = 'User/add_teachers';
-$route['teachers_list'] = 'User/teachers_list';
-$route['getteacher_class'] = 'User/getteacher_class';
-$route['Exstudents_list'] = 'User/Exstudents_list';
-$route['students_daily_report'] = 'User/students_daily_report';
-$route['students_monthly_report'] = 'User/students_monthly_report';
-$route['school_students_report'] = 'User/students_report';
-$route['add_class'] = 'User/add_class';
-$route['add_branch'] = 'User/add_branch';
-$route['add_session'] = 'User/add_batch';
-$route['add_batch'] = 'User/add_batch';
-$route['add_semester'] = 'User/add_semester';
-$route['add_s_section'] = 'User/add_s_section';
-$route['add_period'] = 'User/add_period';
-$route['add_subject'] = 'User/add_subject';
-$route['student_device'] = 'User/student_device';
-$route['stu_device_access'] = 'User/stu_device_access';
-$route['student_pass'] = 'User/studentsPass';
-
-
-$route['time_table'] = 'User/time_table';
-$route['period_timetable/(:num)'] = 'User/period_timetable/$1';
-$route['save_timetable_entry'] = 'User/save_timetable_entry';
-
-
-// new API 
-$route['students_daily_report_by_teacher'] = 'User/students_daily_report_by_teacher';
-$route['get_assigned_class_by_teacher'] = 'User/get_assigned_class_by_teacher';
-
-$route['get_all_periods_api'] = 'User/get_all_periods_api';
-
-
-$route['teachers_attendance_list'] = 'User/teachers_attendance_list';
-$route['teachers_monthly_report'] = 'User/teachers_monthly_report';

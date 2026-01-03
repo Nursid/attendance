@@ -201,9 +201,17 @@
                      // $endate = strtotime($end_date);
                     ?>
                   <?php // echo "sod=".$sid; ?>
+                  <button type="button" class="btn btn-warning mb-4" id="openBulkPromoteModal" disabled>
+                      Bulk Promote
+                  </button>
+                 
+
               <table id="example1" class="table table-bordered table-striped">
                   <thead>
                   <tr>
+                  <th>
+                      <input type="checkbox" id="selectAllStudents">
+                  </th>
                     <th>S.No</th>
                     <th>Enroll Id</th>
                     <th>Student Id</th>
@@ -229,13 +237,17 @@
 				$start_time=time();
                      // $res=$this->web->getSchoolStudentListbyclass($id,$sid);
                       	$res = $this->web->getSchoolStudentListbysection_new($bid,$dept,$semester,$section);
-                        print_r([$bid, $dept, $semester, $section]);
 					  $count=1;
             
                       foreach($res as $val){
 						         //  $userid=$val->user_id;
                       ?>
                       <tr>
+                    
+ 
+                      <td>
+                          <input type="checkbox" class="student-checkbox" value="<?= $val->id ?>">
+                      </td>
                        <td><?php echo $count++; ?></td>
                        <td><?php  echo $val->enroll_id; ?></td>
                        <td><?php  echo $val->student_code; ?></td>
@@ -258,8 +270,7 @@
 						    
                                ?>
                           </td> 
-                          
-                          
+                         
                           <td><?php  echo $val->roll_no; ?></td>
                           <td><?php  echo $val->semester; ?></td>
                           <td><?php  echo $val->session; ?></td>
@@ -310,6 +321,18 @@
                           </button>  </a>
                      
                         </td>
+                        <td>
+                            <button 
+                                class="btn btn-success promoteModalBtn"
+                                data-id="<?= $val->id ?>"
+                                data-branch="<?= $val->department ?>"
+                                data-semester="<?= $val->semester ?>"
+                                data-section="<?= $val->section ?>"
+                            >
+                                Promote
+                            </button>
+                        </td>
+
                       </tr>
                       <?php 
                       }
@@ -345,9 +368,80 @@
                       ?>
     <!-- /.content -->
   </div>
+
   <!-- /.content-wrapper -->
   
-  
+  <!-- Promote Modal -->
+  <div class="modal fade" id="promoteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5>Promote Student</h5>
+        <button class="close" data-dismiss="modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+
+        <input type="hidden" id="modal_student_id">
+
+        <div class="form-group">
+          <label>Semester</label>
+          <select id="modal_semester" class="form-control">
+            <option value="" disabled selected>Select Semester</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Section</label>
+          <select id="modal_section" class="form-control">
+            <option value="" disabled selected>Select Section</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button id="savePromotion" class="btn btn-primary">Save</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="bulkPromoteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5>Bulk Promote Students</h5>
+        <button class="close" data-dismiss="modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="form-group">
+          <label>Semester</label>
+          <select id="bulk_semester" class="form-control"></select>
+        </div>
+
+        <div class="form-group">
+          <label>Section</label>
+          <select id="bulk_section" class="form-control"></select>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button id="saveBulkPromotion" class="btn btn-primary">Save</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+
   
    
   <?php $this->load->view('menu/footer')?>
@@ -445,6 +539,212 @@ $(function () {
 
  <script>
 $(document).ready(function () {
+
+ // When user clicks Promote Button
+ $(document).on("click", ".promoteModalBtn", function () {
+
+let student_id = $(this).data("id");
+let branch_id = $(this).data("branch");
+let selectedSemester = parseInt($(this).data("semester"));
+let selectedSection = $(this).data("section");
+
+$("#modal_student_id").val(student_id);
+
+$.ajax({
+    type: "POST",
+    url: "<?= base_url('User/get_semester_by_branch') ?>",
+    data: { branch_id },
+    success: function (data) {
+        
+        let semesters = JSON.parse(data);
+        let options = '<option disabled>Select Semester</option>';
+
+        semesters.forEach(function (sem) {
+            let semNum = parseInt(sem.id);
+            let disabledAttr = semNum < selectedSemester ? "disabled" : "";
+            let selectedAttr = semNum === selectedSemester ? "selected" : "";
+            options += `<option value="${sem.id}" ${disabledAttr} ${selectedAttr}>${sem.semestar_name}</option>`;
+        });
+
+        options += `<option value="passout">Passout</option>`;
+
+        $("#modal_semester").html(options);
+
+        if (selectedSemester) {
+            loadSections(branch_id, selectedSemester, selectedSection);
+        }
+
+        $("#promoteModal").modal("show");
+    }
+});
+});
+
+
+
+// Function to load sections
+function loadSections(branch_id, semester_id, selectedSection=null) {
+  if (semester_id == "passout") {
+      $("#modal_section").html(`<option>No Section</option>`);
+      return;
+  }
+
+  $.post("<?= base_url('User/get_section_by_branch_semester') ?>",
+    { branch_id, semester_id },
+    function(res){
+
+        let sections = JSON.parse(res);
+        let html = '<option disabled>Select Section</option>';
+
+        sections.forEach(sec=>{
+            html += `<option value="${sec.id}" ${sec.id == selectedSection ? "selected":""}>${sec.name}</option>`;
+        });
+
+        $("#modal_section").html(html);
+    }
+  );
+}
+
+
+
+// Change section when semester changes
+$(document).on("change", "#modal_semester", function () { 
+
+let branch_id = $(".promoteModalBtn").data("branch");
+let semester_id = $(this).val();
+
+loadSections(branch_id, semester_id);
+});
+
+
+
+$("#savePromotion").on("click", function(){
+    $.post("<?= base_url('User/update_student_promotion') ?>",
+    {
+        student_id: $("#modal_student_id").val(),
+        semester: $("#modal_semester").val(),
+        section: $("#modal_section").val()
+    },
+    function(res){
+        alert(JSON.parse(res).msg);
+        location.reload();
+    });
+});
+
+$("#selectAllStudents").on("change", function(){
+    $(".student-checkbox").prop("checked", this.checked);
+});
+
+
+$(document).on("change", ".student-checkbox", function () {
+
+let selected = $(".student-checkbox:checked").length;
+
+if (selected > 0) {
+    $("#openBulkPromoteModal").prop("disabled", false);
+} else {
+    $("#openBulkPromoteModal").prop("disabled", true);
+}
+});
+
+$("#selectAllStudents").on("change", function () {
+
+$(".student-checkbox").prop("checked", this.checked);
+
+let selected = $(".student-checkbox:checked").length;
+
+if (selected > 0) {
+    $("#openBulkPromoteModal").prop("disabled", false);
+} else {
+    $("#openBulkPromoteModal").prop("disabled", true);
+}
+});
+
+
+
+$("#openBulkPromoteModal").on("click", function () {
+    
+    let ids = $(".student-checkbox:checked").map(function(){
+        return this.value;
+    }).get();
+
+    if (ids.length === 0) {
+        alert("Please select at least one student");
+        return;
+    }
+
+    window.bulkIds = ids;
+
+    let branch_id = $("#departs").val();
+    let sem = $("#semester").val();
+    let sec = $("#section").val();
+
+    $.post("<?= base_url('User/get_semester_by_branch') ?>",
+      { branch_id },
+      function(data){
+          let semesters = JSON.parse(data);
+          let options = '<option disabled>Select Semester</option>';
+
+          semesters.forEach(function (s) {
+              let disabledAttr = s.id < sem ? "disabled" : "";
+              let selectedAttr = s.id == sem ? "selected" : "";
+              options += `<option value="${s.id}" ${disabledAttr} ${selectedAttr}>${s.semestar_name}</option>`;
+          });
+
+          options += `<option value="passout">Passout</option>`;
+
+          $("#bulk_semester").html(options);
+
+          loadBulkSections(branch_id, sem, sec);
+
+          $("#bulkPromoteModal").modal("show");
+      }
+  );
+});
+
+function loadBulkSections(branch_id, semester_id, selectedSec=null){
+    
+    if (semester_id == "passout") {
+        $("#bulk_section").html(`<option>No Section</option>`);
+        return;
+    }
+
+    $.post("<?= base_url('User/get_section_by_branch_semester') ?>",
+      { branch_id, semester_id },
+      function(res){
+          let sections = JSON.parse(res);
+          let html = '<option disabled>Select Section</option>';
+
+          sections.forEach(sec=>{
+              html += `<option value="${sec.id}" ${sec.id==selectedSec?'selected':''}>${sec.name}</option>`;
+          });
+
+          $("#bulk_section").html(html);
+      }
+    );
+}
+
+$("#saveBulkPromotion").on("click", function(){
+
+$.post("<?= base_url('User/bulk_update_student_promotion') ?>",
+{
+    student_ids: window.bulkIds,
+    semester: $("#bulk_semester").val(),
+    section: $("#bulk_section").val()
+},
+function(res){
+    alert(JSON.parse(res).msg);
+    location.reload();
+});
+});
+
+
+
+
+
+
+
+
+
   // Initialize Select2
   $('.select2').select2({
     theme: 'bootstrap4'

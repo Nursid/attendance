@@ -1,0 +1,6731 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+date_default_timezone_set('Asia/Kolkata');
+class User extends CI_Controller {
+	function __construct(){
+		parent::__construct();
+		$this->load->database();
+		$this->load->helper('url');
+		$this->load->library(array('session','Ciqrcode','zip'));
+		$this->load->model('Web_Model','web');
+		//$this->load->model('Api_Model_v11','app');
+		$this->load->helper('cookie');
+
+	}
+	public function index(){
+		$this->load->view('users/login');
+	}
+	public function login(){
+		$post=$this->input->post();
+		$page=$post['page'];
+		$getLogin=$this->web->login($post['username'],md5($post['password']));
+		if(!empty($getLogin)){
+		    
+		   
+			
+			
+			$linked = $this->web->getAllLinked($getLogin['username']);
+			$linkedData = array();	if($getLogin['type']=='P'){
+			}
+			$linkedData[]=$getLogin;
+			if(!empty($linked)){
+				foreach($linked as $link){
+					$linkedData[]=$this->web->getLinkedWeb($link->mobile);
+				}
+			}
+			if(!empty($linkedData)){
+				$this->session->set_userdata('linked',$linkedData);
+			}
+
+				if(!empty($linkedData)){
+					$this->session->set_userdata($linkedData[0]);
+				}
+				
+				 	if($getLogin['type']=='P'){
+		    	    $getUserCompanies  = $this->web->getUserCompanies($getLogin['login_id']);
+		    	    if($getUserCompanies){
+				$this->session->set_userdata('empCompany',$getUserCompanies[0]->bid);
+			}
+			else{
+			   	$this->session->set_flashdata('msg', 'User Not Authrised ');
+			   		redirect('user-login');
+			}
+		    	 //	$getPLogin=$this->web->Plogin($getUserCompanies[0]->bid,$getLogin['login_id']);   
+		     }
+				
+				
+				
+				if($getLogin['type']=='P'){
+					$bid =$getUserCompanies[0]->bid;
+					} else {
+						$bid=$getLogin['login_id'];
+						}
+				
+				$actdata=array(
+			   'bid'=>$bid,
+				'uid'=>$getLogin['login_id'],
+				'activity'=>"Login to portal",
+				'date_time'=>time()
+				
+			);
+			$data=$this->db->insert('activity',$actdata);	
+				
+				
+				
+				
+				if($page==2){
+				 redirect('page_hostel');   
+				}elseif($page==3){
+					redirect('page_school');   
+				   }else{
+			redirect('page');}
+		}
+		else{
+			$res = $this->web->checkUserStatus($post['username'],md5($post['password']));
+			if (empty($res)) {
+				$this->session->set_flashdata('msg', 'Incorrect username or password!');
+			}elseif($res['status'] == 0){
+				$this->session->set_flashdata('msg', 'User account not ACTIVE!');
+			}
+			redirect('user-login');
+		}
+	}
+	public function dashboard(){
+		if(!empty($this->session->userdata('id'))){
+			$data['bookappoinment']=$this->web->GetBookCount();
+			$data['counter']=$this->web->GetCountersCount();
+			$data['count']=$this->web->GetUsersCount();
+			$this->load->view('users/dashboard',$data);
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+
+	public function getajaxRequest(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('department/edit');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	public function userslist(){
+		if(!empty($this->session->userdata('id'))){
+			$data['users']=$this->web->getallusers();
+			$data['business']=$this->web->getallbusiness();
+			$this->load->view('users/users',$data);
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+	public function activateUser(){
+		if (!empty($this->session->userdata('id'))) {
+			$id = $this->input->post('id');
+			$res= $this->web->statusActivate($id);
+			if ($res) {
+				echo $id;
+				return($id);
+			}
+		} else {
+			redirect('user-login');
+		}
+
+	}
+	public function inactivateUser(){
+		if (!empty($this->session->userdata('id'))) {
+			$id = $this->input->post('id');
+			$res= $this->web->statusInctivate($id);
+			if ($res) {
+				echo $id;
+				return($id);
+			}
+		} else {
+			redirect('user-login');
+		}
+
+	}
+	
+	public function changePass(){
+		if (!empty($this->session->userdata('id'))) {
+			$this->load->view('setting/pass');
+		}else{
+			redirect('user-login');
+		}
+	}
+	
+	//-------------------PUSH NOTIFICATION-----------------------
+
+	function push_notification_android($offers,$firebasetoken,$title){
+		//API URL of FCM
+		$url = 'https://fcm.googleapis.com/fcm/send';
+
+		/*api_key available in:
+		Firebase Console -> Project Settings -> CLOUD MESSAGING -> Server key*/
+		$api_key = 'AAAAPoWBUlE:APA91bEc5rknh3hGlP1wL2VTz38yYArAlv0wXWoyqmzpfx33OFPI7O4Q6Z0N3bT3ZrddlrGDRmFgmqQBPbKQVmx_cp_xd7_OwnB-ZZpxfVBt-93VOrOtcmsMqGtpqZ3NM-7w22spOhIi'; //Replace with yours
+
+		//$target = "cfcMQz6JGVo:APA91bFjoKN45oDIEMMH9xz537JQnSuu4CBNjHzYpN5acihRPJkK6hoA9UXlu7rjv72LOeBJGsCukDz5lEA-9gmR-YN_0gTec-51lLrBy4cxeO8CsjQ_o6LxL5xXRFUDwPUW78v4c4Yt";
+		$target = $firebasetoken;
+
+		$fields = array();
+		$fields['priority'] = "high";
+		$fields['notification'] = [ "title" => $title,
+		"body" => $offers,
+		'data' => ['message' => $offers],
+		"sound" => "default"];
+		if (is_array($target)){
+			$fields['registration_ids'] = $target;
+		} else{
+			$fields['to'] = $target;
+		}
+
+		//header includes Content type and api key
+		$headers = array(
+			'Content-Type:application/json',
+			'Authorization:key='.$api_key
+		);
+
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_POST, true);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($fields));
+		$result = curl_exec($ch);
+		if ($result === FALSE) {
+			die('FCM Send Error: ' . curl_error($ch));
+		}
+		curl_close($ch);
+		return $result;
+		print_r($result);
+	}
+
+
+
+	public function logout(){
+		$linked = $this->session->userdata('linked');
+		$newLinked = array();
+		if(count($linked)>1){
+			foreach($linked as $account){
+				if($this->session->userdata('id')!=$account['id']){
+					$newLinked[]=$account;
+				}
+			}
+		}
+		if(!empty($newLinked) && !empty($newLinked[0])){
+			$this->session->set_userdata('linked',$newLinked);
+			$this->session->set_userdata($newLinked[0]);
+			redirect('page');
+		}else{
+			$this->session->unset_userdata('id');
+			$this->session->sess_destroy();
+			redirect('user-login');
+		}
+	}
+
+	public function profile($id)
+	{
+		$this->load->view('users/profile');
+	}
+	
+		public function activation(){
+			$id=$this->input->post('id');
+			$res=$this->web->statusInctivation($id);
+			if ($res){
+				echo $id;
+				return $id;
+			}
+
+		}
+
+		public function inactivation(){
+			$id=$this->input->post('id');
+			$res=$this->web->statusactivation($id);
+			if ($res){
+				echo $id;
+				return $id;
+			}
+		}
+
+		
+
+		public function attendance(){
+			if(!empty($this->session->userdata('id'))){
+				$data['attendance']=$this->web->attendance($this->session->userdata('login_id'));
+				$this->load->view('attendance',$data);
+			}else{
+				redirect('user-login');
+			}
+		}
+
+		public function businessUsers2(){
+			if(!empty($this->session->userdata('id'))){
+			    		$end_time=time();
+						$start_time=strtotime('-60 day',$end_time);
+			
+				$data['premium']=$this->web->getallpremium2($start_time,$end_time);
+			    
+				//$data['premium']=$this->web->getallpremium();
+				$this->load->view('users/exportbusers',$data);
+			}
+			else{
+				redirect('user-login');
+			}
+		}
+		
+		
+		
+		
+		public function businessUsers(){
+			if(!empty($this->session->userdata('id'))){
+				$data['premium']=$this->web->getallpremium();
+				$this->load->view('users/business_users',$data);
+			}
+			else{
+				redirect('user-login');
+			}
+		}
+
+		public function changeDate(){
+			if (!empty($this->session->userdata('id'))) {
+				$id = $this->input->post("id");
+				$validity = $this->input->post("validity");
+				$info = $this->web->updateValidity($id,strtotime($validity));
+			}else{
+				redirect('user-login');
+			}
+		}
+
+		public function changeStartDate(){
+			if (!empty($this->session->userdata('id'))) {
+				$id = $this->input->post("id");
+				$startDate = $this->input->post("startDate");
+				$info = $this->web->updateStartDate($id,strtotime($startDate));
+			}else{
+				redirect('user-login');
+			}
+
+		}
+
+
+		/////////////arpit/////////
+
+
+
+
+		public function employees(){
+			if(!empty($this->session->userdata('id'))){
+				$this->load->view('attendance/employees');
+			}
+			else{
+				redirect('user-login');
+			}
+		}
+
+
+		public function editemployees(){
+			if(!empty($this->session->userdata('id'))){
+				$id = $this->input->post("id");
+				//	$this->load->view('attendance/editemployees',$id);
+				//$id = $_post['id'];
+				//$id = $this->input->post('id');
+				//$res= $this->web->statusInctivate($id);
+				//$this->load->view('users/users',$data);
+
+				//$val=$this->web->getNameByUserId($id);
+
+				//$data = $this->input->post('id');
+				//$val = $this->web->getNameByUserId($id);
+				//$data['value'] = $dep;
+				//$data['option'] = 'edit_dep';
+				$this->load->view('attendance/editemployees');
+			}
+
+			else{
+				redirect('user-login');
+			}
+		}
+		public function addemployee(){
+			if(!empty($this->session->userdata('id'))){
+				$this->load->view('attendance/addemployee');
+			}
+			else{
+				redirect('user-login');
+			}
+		}
+
+
+		public function activateEmployee(){
+			if (!empty($this->session->userdata('id'))) {
+				$id = $this->input->post('id');
+				$res= $this->web->statusActivateEmp($id);
+				if ($res) {
+					echo $id;
+					return($id);
+				}
+			} else {
+				redirect('user-login');
+			}
+
+		}
+		public function inactivateEmployee(){
+			if (!empty($this->session->userdata('id'))) {
+				$id = $this->input->post('id');
+				$res= $this->web->statusInctivateEmp($id);
+				if ($res) {
+					echo $id;
+					return($id);
+				}
+			} else {
+				redirect('user-login');
+			}
+
+		}
+
+		public function addnewemployee(){
+				if(!empty($this->session->userdata('id'))){
+					if($this->session->userdata()['type']=='P'){
+						$uid = $this->session->userdata('empCompany');
+					} else {
+						$uid=$this->web->session->userdata('login_id');
+					}
+				
+					// if($this->session->userdata('type')=="P"){
+					// 	$userCmp = $this->app->getUserCompany($loginId);
+					// 	if(isset($userCmp) && ($userCmp['left_date']=="" || $userCmp['left_date']>time())){
+					// 		$uid = $userCmp['business_id'];
+					// 	}
+					// }
+					$omid = $this->web->getMaxMid()['m_id'];
+					$temp_ = "MI";
+					if($omid == ''){
+						$nmid = $temp_.'00000';
+					}else{
+						$str1 = substr($omid,4);
+						$str1 = $str1 + 1;
+						$str2 = str_pad($str1 , 5 , 0 , STR_PAD_LEFT);
+						$nmid = $temp_.$str2;
+					}
+
+					$postdata=$this->input->post();
+					 $doj=strtotime($_POST['doj']);
+					$otp=rand(1000,9999);
+					$i='upload/nextpng.png';
+
+					$postdata=array(
+						'name'=>$postdata['name'],
+						'mobile'=>trim($postdata['mobile']),
+						'address'=>$postdata['address'],
+						'user_group'=>"2",
+						'email'=>$postdata['email'],
+						'emp_code'=>$postdata['empcode'],
+						'dob'=>$postdata['dob'],
+						'bio_id'=>$postdata['devcode'],
+						'gender'=>$postdata['gender'],
+						'designation'=>$postdata['desig'],
+						'business_group'=>$postdata['group'],
+						'department'=>$postdata['department'],
+						'manager'=>$postdata['post'],
+						'doj'=>strtotime($postdata['doj']),
+						'active'=>0,
+						'date'=>time(),
+						'baseurl'=>base_url().'User/profile/'.$nmid,
+						'login'=>md5($mobile),
+						'image'=>$i,
+						'company'=>$uid,
+						'm_id'=>$nmid,
+						'otp'=>$otp
+
+					);
+					$data=$this->db->insert('login',$postdata);
+					$id = $this->db->insert_id();
+
+					if($data > 0){
+						if($id){
+						   
+							$cmpInData = array(
+								'business_id'=>$uid,
+								'user_id'=>$id,
+								'doj'=>$doj,
+								'date'=>time(),
+								'user_status'=>"1"
+							);
+							$data=$this->db->insert('user_request',$cmpInData);
+						}
+                      $uname = $this->web->getNameByUserId($id);
+                                     //echo $uname[0]->name;	
+							$actdata=array(
+			                            'bid'=>$uid,
+				                        'uid'=>$this->web->session->userdata('login_id'),
+				                        'activity'=>"New Employee ".$uname[0]->name. " added",
+				                        'date_time'=>time()
+				
+			                             );
+			                  $data=$this->db->insert('activity',$actdata);	
+				
+						}
+                       
+						$this->session->set_flashdata('msg','New Employee Added!');
+						redirect('employees');
+					
+				}
+				else{
+					redirect('user-login');
+				}
+			}
+
+
+
+
+	public function updateemployee(){
+		if(!empty($this->session->userdata('id'))){
+			echo $id=$_POST['id'];
+			echo $bid=$_POST['bid'];
+			//echo $id = $_POST['id'];
+			echo $name = $_POST['name'];
+			
+			
+			echo $phone = $_POST['phone'];
+			echo $father_name = $_POST['father_name'];
+		    echo $blood_group = $_POST['blood_group'];
+			echo $experience = $_POST['experience'];
+			echo $employement = $_POST['employement'];
+			echo $doreg = strtotime($_POST['doreg']);
+			
+			echo $email = $_POST['email'];
+			echo $address = $_POST['address'];
+			echo $empcode = $_POST['empcode'];
+			echo $bio_id = $_POST['bio_id'];
+			echo $dob = $_POST['dob'];
+			echo $gender = $_POST['gender'];
+			echo $desig = $_POST['desig'];
+			echo $edu = $_POST['edu'];
+			echo $post = $_POST['post'];
+			echo $department = $_POST['department'];
+			
+			echo $doj = strtotime($_POST['doj']);
+			echo $dol = strtotime($_POST['dol']);
+			echo $trf =$_POST['trf'];
+			echo $group = $_POST['group'];
+			$data=array(
+						'name' => $name,
+						'email' => $email,
+						'address' => $address,
+						'emp_code' => $empcode,
+						'bio_id' => $bio_id,
+						'gender' => $gender,
+						'designation' => $desig,
+						'education' => $edu,
+						'manager' => $post,
+						'doj' => $doj,
+						'dob' => $dob,
+						'company' => $bid,
+						'phone' => $phone,
+						'father_name' => $father_name,
+						'blood_group' => $blood_group,
+						'experience' => $experience,
+						'start_date' => $doreg,
+						
+						'business_group' => $group,
+						'department' => $department
+				
+					);
+			//$data=$this->db->update('login',$postdata);
+			$this->db->where('id',$id);
+			$data= $this->db->update('login',$data);
+			
+			$uname = $this->web->getNameByUserId($id);
+			$actdata=array(
+			                            'bid'=>$bid,
+				                        'uid'=>$this->web->session->userdata('login_id'),
+				                        'activity'=>"Employee data ".$uname[0]->name. " updated",
+				                        'date_time'=>time()
+				
+			                             );
+			                  $data=$this->db->insert('activity',$actdata);	
+			if($doj!=''){
+			
+			$jdata=array('doj' => $doj
+						//'left_date' => $dol
+						
+						);
+			$this->db->where('user_id',$id);
+			$data= $this->db->update('user_request',$jdata);
+			}
+			
+			if($dol!=''){
+			
+			$ldata=array(//'doj' => $doj,
+						'left_date' => $dol
+						
+						);
+			$this->db->where('user_id',$id);
+			$data= $this->db->update('user_request',$ldata);
+			}
+			if($trf!=''){
+			
+			$ldata=array(
+						'left_date' =>time()
+						);
+			$this->db->where('user_id',$id);
+			$data= $this->db->update('user_request',$ldata);			
+			$tdata=array(
+			             'business_id' => $trf,
+			             'user_id' => $id,
+						 'user_status' => 1,
+						 'date' => time(),
+						 'doj' =>time()
+						);			
+			
+			$tdata= $this->db->insert('user_request',$tdata);
+			}
+			
+		
+			
+				$this->session->set_flashdata('msg','Employee Updated Successfully!');
+				redirect('employees');
+			
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+
+
+	public function addstaff(){
+			if(!empty($this->session->userdata('id'))){
+				if($this->session->userdata()['type']=='P'){
+					$uid = $this->session->userdata('empCompany');
+				} else {
+					$uid=$this->web->session->userdata('login_id');
+				}
+				$postdata=$this->input->post();
+				$id=$_POST['usid'];
+				$userCmp = $this->web->getUserCompany($id);
+				if(isset($userCmp) && ($userCmp['left_date']=="" || $userCmp['left_date']>time())){
+						$this->session->set_flashdata('msg','Already Added in a Company!');
+						redirect('employees');
+				}else{
+					$data1=array(
+						'doj'=>strtotime(date("d-m-Y 00:00:00",time())),
+						'company'=>$uid
+					);
+					$this->db->where('id',$id);
+					$data= $this->db->update('login',$data1);
+					$cmpInData = array(
+						'business_id'=>$uid,
+						'user_id'=>$postdata['usid'],
+						'doj'=>strtotime(date("d-m-Y 00:00:00",time())),
+						'date'=>time(),
+						'user_status'=>"1"
+					);
+					$data=$this->db->insert('user_request',$cmpInData);
+					if($data > 0){
+						$this->session->set_flashdata('msg','New Employee Added!');
+						redirect('employees');
+					}
+				}
+			}
+			else{
+				redirect('user-login');
+			}
+		}
+
+
+
+
+	
+	
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+	public function changeAttToDate(){
+		if (!empty($this->session->userdata('id'))) {
+			$i = $this->input->post("i");
+			$buid = $this->input->post("buid");
+			$id = $this->input->post("id");
+			$in_times = $this->input->post("in_times");
+			$in=date("Y-m-d",$i);
+			//$io_time=date('Y-m-d H-i-s',strtotime("$in $in_time"));
+
+			$postdata=array(
+				//'bussiness_id'=>$postdata['name'],
+				//'user_id'=>$postdata['mobile'],
+				//'io_time'=>strtotime("$in_time"),
+
+				'io_time'=>strtotime("$in $in_times"),
+				'date'=>strtotime("$in $in_times"),
+				'user_id'=>"$id",
+				'bussiness_id'=>"$buid",
+				'mode'=>"in",
+				'manual'=>"1",
+				'verified'=>"1",
+				'status'=>"1"
+
+			);
+			$data=$this->db->insert('attendance',$postdata);
+		}else{
+			redirect('user-login');
+		}
+	}
+
+
+
+
+	public function changeOutToDate(){
+		if (!empty($this->session->userdata('id'))) {
+			$i = $this->input->post("i");
+			$buid = $this->input->post("buid");
+			$id = $this->input->post("id");
+			$out_times = $this->input->post("out_times");
+			$in=date("Y-m-d",$i);
+			//$io_time=date('Y-m-d H-i-s',strtotime("$in $in_time"));
+
+			$postdata=array(
+				//'bussiness_id'=>$postdata['name'],
+				//'user_id'=>$postdata['mobile'],
+				//'io_time'=>strtotime("$in_time"),
+
+				'io_time'=>strtotime("$in $out_times"),
+				'date'=>strtotime("$in $in_times"),
+				'user_id'=>"$id",
+				'bussiness_id'=>"$buid",
+				'mode'=>"out",
+				'manual'=>"1",
+				'verified'=>"1",
+				'status'=>"1"
+
+			);
+			$data=$this->db->insert('attendance',$postdata);
+		}else{
+			redirect('user-login');
+		}
+	}
+
+
+
+
+	public function aproveUser(){
+		if (!empty($this->session->userdata('id'))) {
+			$id = $this->input->post('id');
+			$uid = $this->input->post('uid');
+			$fromdate = $this->input->post('fromdate');
+			$uname = $this->web->getNameByUserId($uid);
+			$res= $this->web->statusaprove($id);
+			if ($res) {
+			    	 if ($this->session->userdata()['type'] == 'P') {
+          
+          $loginId = $this->session->userdata('empCompany');
+         // $role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+        } else {
+          $loginId = $this->web->session->userdata('login_id');
+        }
+			$actdata=array(
+			                            'bid'=>$loginId ,
+				                        'uid'=>$this->web->session->userdata('login_id'),
+				                        'activity'=>"employee ".$uname[0]->name. " Leave Apoved  for date ".$fromdate."",
+				                        'date_time'=>time()
+				
+			                             );
+			                  $data=$this->db->insert('activity',$actdata);
+				echo $id;
+				return($id);
+			}
+		} else {
+			redirect('user-login');
+		}
+	}
+
+	public function rejectUser(){
+		if (!empty($this->session->userdata('id'))) {
+			$id = $this->input->post('id');
+				$uid = $this->input->post('uid');
+			$fromdate = $this->input->post('fromdate');
+			$res= $this->web->statusreject($id);
+			if ($res) {
+			    	 if ($this->session->userdata()['type'] == 'P') {
+          
+          $loginId = $this->session->userdata('empCompany');
+         // $role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+        } else {
+          $loginId = $this->web->session->userdata('login_id');
+        }
+        $uname = $this->web->getNameByUserId($uid);
+			$actdata=array(
+			                            'bid'=>$loginId ,
+				                        'uid'=>$this->web->session->userdata('login_id'),
+				                        'activity'=>"employee ".$uname[0]->name. " Leave Rejected  for date ".$fromdate."",
+				                        'date_time'=>time()
+				
+			                             );
+			                  $data=$this->db->insert('activity',$actdata);
+				echo $id;
+				return($id);
+			}
+		} else {
+			redirect('user-login');
+		}
+	}
+
+
+
+
+	
+
+
+
+
+
+
+
+
+
+/*  GET PAYROLL HISTORY  */
+
+
+public function switchAccount(){
+	if (!empty($this->session->userdata('id'))) {
+		$id = $this->input->post('id');
+		$linked = $this->session->userdata('linked');
+		if(!empty($linked)){
+			foreach($linked as $account){
+				if($account['login_id']==$id){
+					$this->session->set_userdata($account);
+				}
+			}
+		}
+	} else {
+		redirect('user-login');
+	}
+}
+
+/////////////////////////new/////
+
+
+
+	public function getRoll(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('attendance/roll');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+	
+	public function emp_roll(){
+		if(!empty($this->session->userdata('id'))){
+			//$id = $this->input->post("id");
+		//	$this->load->view('attendance/editemployees',$id);
+			//$id = $_post['id'];
+			//$id = $this->input->post('id');
+			//$res= $this->web->statusInctivate($id);
+			//$this->load->view('users/users',$data);
+			
+			   //$val=$this->web->getNameByUserId($id);
+			
+			//$data = $this->input->post('id');
+			//$val = $this->web->getNameByUserId($id);
+			//$data['value'] = $dep;
+			//$data['option'] = 'edit_dep';
+			
+			$data=array(
+				'rules'=>$this->web->getAttendanceRules($this->session->userdata('login_id')),
+			);
+			$this->load->view('attendance/roll');
+		}
+		
+		else{
+			redirect('user-login');
+		}
+	}
+	
+	
+	
+	
+	
+	
+
+
+
+
+
+	public function switchCompany(){
+		if (!empty($this->session->userdata('id'))) {
+			$id = $this->input->post('id');
+			$this->session->set_userdata('empCompany',$id);
+		} else {
+			redirect('user-login');
+		}
+	}
+	
+/////new admin arpit june-23 ////
+		
+		
+
+
+
+	
+	
+
+//// hostel//
+
+
+public function student_list(){
+			if(!empty($this->session->userdata('id'))){
+				$this->load->view('hostel/students');
+			}
+			else{
+				redirect('user-login');
+			}
+		}
+
+
+		public function editstudent(){
+			if(!empty($this->session->userdata('id'))){
+				
+				$this->load->view('hostel/editstudent');
+			}
+
+			else{
+				redirect('user-login');
+			}
+		}
+		
+
+
+		
+		
+		
+		
+
+
+
+public function updatestudent(){
+		if(!empty($this->session->userdata('id'))){
+			echo $id=$_POST['id'];
+			echo $bid=$_POST['bid'];
+			echo $edu = $_POST['edu'];
+			echo $name = $_POST['name'];
+			echo $email = $_POST['email'];
+			echo $address = $_POST['address'];
+			echo $block = $_POST['block'];
+			echo $dob = $_POST['dob'];
+			echo $gender = $_POST['gender'];
+		    echo $floor = $_POST['floor'];
+		    echo $room = $_POST['room'];
+		    echo $roomtype = $_POST['roomtype'];
+			echo $parent = $_POST['parent'];
+			echo $parent_mobile = $_POST['parent_mobile'];
+			echo $parent_relation = $_POST['parent_relation'];
+			echo $doj = strtotime($_POST['doj']);
+			echo $dol = strtotime($_POST['dol']);
+			echo $bio_id = $_POST['bio_id'];
+			//echo $trf =$_POST['trf'];
+			//echo $group = $_POST['group'];
+			$data=array(
+						'name' => $name,
+						'email' => $email,
+						'address' => $address,
+						//'emp_code' => $empcode,
+						'gender' => $gender,
+						//'designation' => $desig,
+						'education' => $edu,
+						//'manager' => $post,
+						'doj' => $doj,
+						'bio_id' => $bio_id,
+						'dob' => $dob,
+						//'business_group' => $group,
+						//'department' => $department
+				
+					);
+			//$data=$this->db->update('login',$postdata);
+			$this->db->where('id',$id);
+			$data= $this->db->update('login',$data);
+			if($dol!=''){
+			
+			
+			$ldata=array('doj' => $doj,
+					     'left_date' => $dol
+						
+						);
+			$this->db->where('user_id',$id);
+			$data= $this->db->update('user_request',$ldata);
+			}
+						
+			$tdata=array(
+			             'floor' => $floor,
+			             'room_no' => $room,
+						 'room_type' => $roomtype,
+						 'block' => $block,
+			             'parent_name' => $parent,
+						 'parent_relation' => $parent_relation,
+						 'parent_mobile' => $parent_mobile,
+						  'bid' => $bid,
+						  'date_time' =>time()
+						);			
+			$this->db->where('uid',$id);
+			$tdata= $this->db->update('hostel_detail',$tdata);
+			
+			
+		
+			
+				$this->session->set_flashdata('msg','Student Updated Successfully!');
+				redirect('student_list');
+			
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+public function hostel_detail(){
+			if(!empty($this->session->userdata('id'))){
+				$this->load->view('hostel/hostel_detail');
+			}
+			else{
+				redirect('user-login');
+			}
+		}
+
+
+public function addblock(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata=$this->input->post();
+			$postdata=array(
+				'name'=>$postdata['block'],
+				'bid'=>$postdata['bid'],
+				'date_time'=> time(),
+				'status'=> '1'
+				
+			);
+			$data=$this->db->insert('blocks',$postdata);
+			if($data > 0){
+				$this->session->set_flashdata('msg','New Block Added!');
+				redirect('hostel_detail');
+			}
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+	public function addroomtype(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata=$this->input->post();
+			$postdata=array(
+				'name'=>$postdata['roomtype'],
+				'bid'=>$postdata['bid'],
+				'date_time'=> time(),
+				'status'=> '1'
+				
+			);
+			$data=$this->db->insert('room_types',$postdata);
+			if($data > 0){
+				$this->session->set_flashdata('msg','New Room types  Added!');
+				redirect('hostel_detail');
+			}
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+	public function editblock(){
+		if(!empty($this->session->userdata('id'))){
+			$check=$_REQUEST;
+			print_r($check);
+			echo $name = $_POST['name'];
+			echo $id = $_POST['id'];
+			$data = array(
+				'name' => $name
+				
+			);
+			print_r($data);
+			$this->db->where('id',$id);
+			$res = $this->db->update('blocks',$data);
+			echo $res;
+			return($res);
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+	
+	public function editroomtype(){
+		if(!empty($this->session->userdata('id'))){
+			$check=$_REQUEST;
+			print_r($check);
+			echo $name = $_POST['name'];
+			echo $id = $_POST['id'];
+			$data = array(
+				'name' => $name
+				
+			);
+			print_r($data);
+			$this->db->where('id',$id);
+			$res = $this->db->update('room_types',$data);
+			echo $res;
+			return($res);
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+	
+	
+	
+	
+		
+	public function hostel_daily_report(){
+			if(!empty($this->session->userdata('id'))){
+				
+				$postdata=$this->input->post();
+					$start_date = date("Y-m-d");
+					$true = 0;
+					$days_array = array();
+					$new_array = array();
+				if ($this->session->userdata()['type'] == 'P') {
+					$loginId = $this->session->userdata('empCompany');
+					$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+					} else {
+					$loginId = $this->web->session->userdata('login_id');
+					}
+					
+					$cmpName = $this->web->getBusinessById($loginId);
+					$action="active";
+					if(isset($postdata['start_date'])){
+					$start_date = $postdata['start_date'];
+					$action = $postdata['action'];
+					}
+					$true= 1;
+					$totalActive = 0;
+					$totalPresent = 0;
+					$totalAbsent = 0;
+					//$totalMispunch = 0;
+					$users_data = $this->web->getCompanyUsers($loginId);
+					$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+					$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date)));
+					if(!empty($users_data)){
+						$seconds = 0;
+						foreach($users_data as $user){
+					     if($user->hostel=="1"){
+					$days_array[]= date("d",$start_time);
+					$data = array();
+					$day_hrs = "00:00 Hr";
+					
+				if(($user->doj!="" || $start_time>=$user->doj) && ($user->left_date=="" || $start_time<$user->left_date)){
+											$totalActive++;
+									$user_at = $this->web->getUserAttendanceReportByDate($start_time,$end_time,$user->user_id,$loginId,1);
+					
+					
+					
+					if(!empty($user_at)){
+												$totalPresent++;
+												$ins_array = array();
+												$outs_array = array();
+												$comment_array = array();
+												$user_at = array_reverse($user_at);
+												foreach($user_at as $at){
+												   $timeSearch = array_search($at->io_time,array_column($data,'time'));
+													if(is_bool($timeSearch)){
+    													$data[] = array(
+    														'mode'=>$at->mode,
+    														'time'=>$at->io_time,
+    														'comment'=>$at->comment,
+    														'manual'=>$at->manual,
+    														'location'=>$at->location
+    													);
+														
+    													if($at->mode=='in' && !in_array($at->io_time,$ins_array)){
+    																$ins_array[]=$at->io_time;
+    															}
+    													if($at->mode=='out' && !in_array($at->io_time,$outs_array)){
+    														$outs_array[]=$at->io_time;
+    													}
+					
+					                                  $io_end = count($ins_array)-count($outs_array);
+												if(count($outs_array)<count($ins_array)){
+													for($io=0; $io<$io_end;$io++){
+														$outs_array[]="0";
+													}
+												}
+												foreach($ins_array as $k => $ins){
+													if($outs_array[$k]!="0"){
+														if($outs_array[$k]>$ins_array[$k]){
+															$seconds += $outs_array[$k]-$ins_array[$k];
+														}
+														$day_seconds += $outs_array[$k]-$ins_array[$k];
+													}
+												}
+												
+											
+													$day_seconds = $data[count($data)-1]['time']-$data[0]['time'];
+												$hours = floor($day_seconds / 3600);
+												$minutes = floor($day_seconds / 60%60);
+												$day_hrs = "$hours:$minutes Hr";
+
+					                                 $comment_array = $at->comment;
+													}}
+													
+												}
+												//userat
+												
+												else{
+												$totalAbsent++;
+												$data = array();
+											}
+					
+					$new_array[] =array(
+													'user_id'=>$user->user_id,
+													'mid'=>$user->mid,
+													'name'=>$user->name,
+													'image'=>$user->image,
+													'comment'=>$comment,
+													'workingHrs'=>$day_hrs,
+													'data'=>$data,
+													
+												);
+					
+					}
+						}
+					}
+					}
+					
+			$data=array(
+						'start_date'=>$start_date,
+						//'end_date'=>$end_date,
+						'load'=>$true,
+						'report'=>$new_array,
+						'days'=>$days_array,
+						'totalActive'=>$totalActive,
+						'totalAbsent'=>$totalAbsent,
+						'totalPresent'=>$totalPresent,
+						'cmp_name'=>$cmpName['name']
+					);		
+					
+				
+				
+				$this->load->view('hostel/hostel_dailyreport',$data);
+			}
+			else{
+				redirect('user-login');
+			}
+		}	
+		
+		
+		
+		
+		
+		
+		
+	public function hostel_monthly_report(){
+			if(!empty($this->session->userdata('id'))){
+				
+				$postdata=$this->input->post();
+					$start_date = date("Y-m-d");
+					$end_date = date("Y-m-d");
+					$true = 0;
+				    $days_array = array();
+					$new_array = array();
+				if ($this->session->userdata()['type'] == 'P') {
+					$loginId = $this->session->userdata('empCompany');
+					$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+					} else {
+					$loginId = $this->web->session->userdata('login_id');
+					}
+					
+					$cmpName = $this->web->getBusinessById($loginId);
+					//$action="active";
+					if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+				$start_date = $postdata['start_date'];
+				$end_date = $postdata['end_date'];
+					//$action = $postdata['action'];
+					
+					$true= 1;
+					
+					//$totalMispunch = 0;
+					$users_data = $this->web->getCompanyUsers($loginId);
+				$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+				$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($end_date)));
+
+					if(!empty($users_data)){
+						//$seconds = 0;
+						foreach($users_data as $user){
+							if($user->hostel=="1"){
+							
+						$date1=date_create(date("Y-m-d",strtotime($start_date)));
+									$date2=date_create(date("Y-m-d",strtotime($end_date)));
+									$diff=date_diff($date1,$date2);
+
+									$num_month = $diff->format("%a");
+
+									$num_month++;
+									if($num_month>31){
+										$num_month=31;
+									}	
+							
+							$months_array = array();
+							$days_array = array();
+						//	
+             // $monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($mid->checkon->datefrom)));
+            //  $monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($mid->checkon->datefrom))." +".$num_month." days");
+		                           $monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+									$monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$num_month." days");
+			$monthUserAt = $this->web->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$loginId,1);
+											
+			               // $monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$check['id'],1);
+              for($d=0; $d<$num_month;$d++){
+               $new_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date))." +".$d." days");
+				$new_end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$d." days");
+                $days_array[]= date("d",$new_start_time);
+                $data = array();
+				
+				
+				if(($user->doj!="" || strtotime($start_date)>=$user->doj) && ($user->left_date=="" || strtotime($start_date)<$user->left_date)){
+											$user_at = array_filter($monthUserAt, function($val) use($new_start_time, $new_end_time){
+												return ($val->io_time>=$new_start_time and $val->io_time<=$new_end_time);
+											});
+											$user_at = array_reverse($user_at);
+											
+											
+                    if(!empty($user_at)){
+                      foreach($user_at as $at){
+                        if($at->hostel=="1"){
+                          $data[] = array(
+                            'mode'=>$at->mode,
+                            'time'=>$at->io_time,
+                            'comment'=>$at->comment
+                          );
+                        }
+                      }
+                    }else{
+                      $data = array();
+                    }
+				
+				$months_array[] = array(
+                      'date'=>date("j",$new_start_time),
+                      'day'=>date("l",$new_start_time),
+                      'data'=>$data
+                    );
+                }
+              }
+			  
+			  
+			  
+			  if(count($months_array)>0){
+                    $new_array[] =array(
+                    'user_id'=>$user->user_id,
+                    'mid'=>$user->mid,
+                    'emp_code'=>$user->emp_code,
+                    'name'=>$user->name,
+                    'image'=>$user->image,
+                    'user_status'=>$user->user_status,
+                    'data'=> $months_array
+                  );
+              }
+				
+			  
+					
+				// close users and post		
+					}
+					}}
+					}
+					
+			$data=array(
+						'start_date'=>$start_date,
+						'end_date'=>$end_date,
+						'load'=>$true,
+						'report'=>$new_array,
+						'days'=>$days_array,
+						
+						'cmp_name'=>$cmpName['name']
+					);	
+					
+			
+				
+				$this->load->view('hostel/hostel_monthly_report',$data);
+			}
+			else{
+				redirect('user-login');
+			}
+		}	
+			
+
+
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+///////till new	
+		
+
+	
+/////new emp detail
+	
+	
+///login
+	
+	
+	
+
+
+
+
+public function updateemployeedetail(){
+		if(!empty($this->session->userdata('id'))){
+			echo $id=$_POST['id'];
+			echo $bid=$_POST['bid'];
+			//echo $uid = $_POST['uid'];
+			echo $pay_mode = $_POST['pay_mode'];
+			echo $bank_name = $_POST['bank_name'];
+			echo $ifsc_code = $_POST['ifsc_code'];
+		    echo $account_no = $_POST['account_no'];
+			echo $upi = $_POST['upi'];
+			echo $pan = $_POST['pan'];
+			echo $adhar = $_POST['adhar'];
+			echo $epf = $_POST['epf'];
+			echo $uan = $_POST['uan'];
+			echo $esic = $_POST['esic'];
+			
+			$data=array(
+						//'uid' => $id,
+						//'bid' => $bid,
+						'pay_mode' => $pay_mode,
+						'bank_name' => $bank_name,
+						'ifsc_code' => $ifsc_code,
+						'account_no' => $account_no,
+						'upi' => $upi,
+						'pan' => $pan,
+						'adhar' => $adhar,
+						'epf' => $epf,
+						'uan' => $uan,
+						'esic' => $esic
+				);
+			$detail=$this->web->getstaffinfoByUserId($id,$bid);
+			if(!empty($detail)){
+				$detailid=$detail[0]->id;
+				
+			$this->db->where('id',$detailid);
+			$udata= $this->db->update('staff_detail',$data);
+		//$uname = $this->web->getNameByUserId($uid);
+				 if ($this->session->userdata()['type'] == 'P') {
+          
+          $loginId = $this->session->userdata('empCompany');
+        
+        } else {
+          $loginId = $this->web->session->userdata('login_id');
+        }
+			$actdata=array(
+			                            'bid'=>$loginId ,
+				                        'uid'=>$this->web->session->userdata('login_id'),
+				                        'activity'=>"Employee Data updated ",
+				                        'date_time'=>time()
+				
+			                             );
+			                  $data=$this->db->insert('activity',$actdata);
+			}else{
+				
+			$newdata=array(
+						'uid' => $id,
+						'bid' => $bid,
+						'pay_mode' => $pay_mode,
+						'bank_name' => $bank_name,
+						'ifsc_code' => $ifsc_code,
+						'account_no' => $account_no,
+						'upi' => $upi,
+						'pan' => $pan,
+						'adhar' => $adhar,
+						'epf' => $epf,
+						'uan' => $uan,
+						'esic' => $esic
+				);	
+				
+		  $tdata= $this->db->insert('staff_detail',$newdata);
+		  $uname = $this->web->getNameByUserId($id);
+				 if ($this->session->userdata()['type'] == 'P') {
+          
+          $loginId = $this->session->userdata('empCompany');
+        
+        } else {
+
+          $loginId = $this->web->session->userdata('login_id');
+        }
+			$actdata=array(
+			                            'bid'=>$loginId ,
+				                        'uid'=>$this->web->session->userdata('login_id'),
+				                        'activity'=>"Employee data of employee ".$uname[0]->name. " Added",
+				                        'date_time'=>time()
+				
+			                             );
+			                  $data=$this->db->insert('activity',$actdata);
+			}
+			
+			$this->session->set_flashdata('msg','Employee Updated Successfully!');
+				redirect('employees');
+			
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+
+
+public function dashboard_hostel(){
+		if(!empty($this->session->userdata('id'))){
+			
+			$this->load->view('hostel/hostel_dashboard');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+
+	
+
+	
+public function update_password(){
+		if (!empty($this->session->userdata('id'))) {
+			$id = $this->session->userdata('id');
+			$opass = $this->input->post('opass');
+			$npass = $this->input->post('npass');
+			$cnpass = $this->input->post('cnpass');
+			$check = $this->web->checkOPass($id,md5($opass));
+			if (!empty($check)) {
+				if($npass === $cnpass){
+					$res = $this->web->upPass($id,md5($npass));
+					if ($res) {
+						$this->session->set_flashdata('msg','Password updated successfully!');
+						redirect('page_staff');
+					}
+				}else{
+					$this->session->set_flashdata('msg','Confirm password does not match!');
+					redirect('User/staffPass');
+				}
+			}else{
+				$this->session->set_flashdata('msg','Incorrect old password!');
+				redirect('User/staffPass');
+			}
+		}else{
+			redirect('user-login');
+		}
+	}
+	
+	
+///// new student code starts
+
+
+//// live finis
+public function activatecstudent(){
+		if (!empty($this->session->userdata('id'))) {
+			$id = $this->input->post('id');
+			echo $bid=$this->web->session->userdata('login_id');
+			$uname = $this->web->getNameByUserId($id);
+			echo $bioid=$uname[0]->bio_id;
+			$res=$this->web->getdevice($bid);
+			echo $devid=$res[0]->deviceid;
+          $res= $this->web->Activatecstudent($devid,$bioid,$id);
+			if ($res) {
+				echo $id;
+				return($id);
+			}
+		} else {
+			redirect('user-login');
+		}
+
+	}
+	public function inactivatecstudent(){
+		if (!empty($this->session->userdata('id'))) {
+			$id = $this->input->post('id');
+			$bid=$this->web->session->userdata('login_id');
+			$uname = $this->web->getNameByUserId($id);
+			$bioid=$uname[0]->bio_id;
+			$res=$this->web->getdevice($bid);
+			$devid=$res[0]->deviceid;
+          $res= $this->web->Inactivatecstudent($devid,$bioid,$id);
+   
+			if ($res) {
+				echo $id;
+				return($id);
+			}
+		} else {
+			redirect('user-login');
+		}
+
+	}
+	
+		public function device_access_att(){
+			if(!empty($this->session->userdata('id'))){
+				$this->load->view('attendance/device_access');
+			}
+			else{
+				redirect('user-login');
+			}
+		}
+		
+			public function device_access_admin(){
+			if(!empty($this->session->userdata('id'))){
+				$this->load->view('attendance/device_access_admin');
+			}
+			else{
+				redirect('user-login');
+			}
+		}
+		
+		
+		public function bio_detail(){
+			if(!empty($this->session->userdata('id'))){
+				$this->load->view('users/bio_detail');
+			}
+			else{
+				redirect('user-login');
+			}
+		}
+		
+	/// student attendance new///
+	
+	
+	public function dashboard_school(){
+		$bid = $this->session->userdata('login_id');
+		if(!empty($bid)){
+			$data['total_branches'] = $this->web->getTotalBranches($bid);
+			
+			$data['total_students'] = $this->web->getTotalStudents($bid);
+
+			
+			$data['total_staff'] = $this->web->getTotalStaff($bid);
+
+			
+			$data['total_subjects'] = $this->web->getTotalSubjects($bid);
+
+			  // Get all branches for initial dropdown
+			  $data['branches'] = $this->web->getBusinessDepByBusinessId($bid);
+        
+			  $data['total_branches'] = $this->web->getTotalBranches($bid);
+			  $data['total_students'] = $this->web->getTotalStudents($bid);
+			  $data['total_staff'] = $this->web->getTotalStaff($bid);
+			  $data['total_subjects'] = $this->web->getTotalSubjects($bid);
+
+			$this->load->view('student/school_dashboard', $data);
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+	public function add_Students(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('student/addstudents');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+	
+	public function Students_list(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata = $this->input->post();
+			$sid = "";
+			$true = 0;  
+			$students = array();
+			
+			if(isset($postdata['dept'])){
+				$dept = $postdata['dept'];
+				$semester = $postdata['semester'];
+				$section = $postdata['section'];
+				$true = 1;
+				// Call the model to get the student list
+				$students = $this->web->getSchoolStudentListbysection_new($this->session->userdata('login_id'), $dept, $semester, $section);
+			}
+			
+			$data = array(
+				'dept' => $dept,
+				'semester' => $semester,
+				'section' => $section,
+				'load' => $true,
+				'students' => $students // Pass the student data to the view
+			);
+
+		
+			
+			$this->load->view('student/students_list', $data);
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+// public function addnew_S_student(){
+// 			if(!empty($this->session->userdata('id'))){
+// 				if($this->session->userdata()['type']=='P'){
+// 					$uid = $this->session->userdata('empCompany');
+// 				} else {
+// 					$uid=$this->web->session->userdata('login_id');
+// 				}
+			
+// 				$postdata=$this->input->post();
+				
+// 				$i='upload/nextpng.png';
+
+// 				$postdata=array(
+// 					'bid'=>$postdata['bid'],
+// 					'name'=>$postdata['name'],
+// 					'enroll_id'=>trim($postdata['mobile']),
+// 					'address'=>$postdata['address'],
+// 					'roll_no'=>$postdata['rollno'],
+// 					'student_code'=>$postdata['stuid'],
+// 					'dob'=>$postdata['dob'],
+// 					'bio_id'=>$postdata['devcode'],
+// 					'rfid'=>$postdata['rfid'],
+// 					'blood_group'=>$postdata['blood'],
+// 					'image'=>$i,
+// 					'gender'=>$postdata['gender'],
+// 					'class_id'=>$postdata['class'],
+					
+// 						'section'=>$postdata['section'],
+// 							'batch'=>$postdata['batch'],
+// 								'semester'=>$postdata['semester'],
+// 									'session'=>$postdata['session'],
+// 										'department'=>$postdata['department'],
+// 											'email'=>$postdata['email'],
+// 				   'doj'=>strtotime($postdata['doj']),
+// 				  'parent_name'=>$postdata['par_name'],
+// 				   'parent_mobile'=>$postdata['par_mobile'],
+// 				   'parent_relation'=>$postdata['relation'],
+// 					'status'=>1,
+// 					'date_time'=>time()
+				
+// 				);
+// 				$data=$this->db->insert('student',$postdata);
+// 				//$id = $this->db->insert_id();
+  
+// 					$this->session->set_flashdata('msg','New Student Added!');
+// 					redirect('Students_list');
+				
+// 			}
+// 			else{
+// 				redirect('user-login');
+// 			}
+// 		}
+
+
+
+
+
+	
+
+		public function edit_S_student(){
+			if(!empty($this->session->userdata('id'))){
+				
+				$this->load->view('student/editstudents');
+			}
+
+			else{
+				redirect('user-login');
+			}
+		}
+		
+
+
+		
+		
+		
+		
+
+
+
+public function update_S_student(){
+		if(!empty($this->session->userdata('id'))){
+			echo $id=$_POST['id'];
+			echo $bid=$_POST['bid'];
+			echo $enroll_id = $_POST['mobile'];
+			echo $name = $_POST['name'];
+			echo $roll_no = $_POST['roll_no'];
+			echo $address = $_POST['address'];
+			echo $class = $_POST['class'];
+			echo $dob = $_POST['dob'];
+			echo $gender = $_POST['gender'];
+		    echo $student_code = $_POST['student_code'];
+		   	echo $parent_name = $_POST['parent_name'];
+			echo $parent_mobile = $_POST['parent_mobile'];
+			echo $parent_relation = $_POST['parent_relation'];
+			echo $doj = strtotime($_POST['doj']);
+			echo $dol = strtotime($_POST['dol']);
+			echo $bio_id = $_POST['bio_id'];
+			echo $rfid = $_POST['rfid'];
+			//echo $trf =$_POST['trf'];
+			//echo $group = $_POST['group'];
+			$data=array(
+						'name' => $name,
+						'roll_no' => $roll_no,
+						'address' => $address,
+						'student_code' => $student_code,
+						'gender' => $gender,
+						'class_id' => $class,
+						'department' =>$_POST['department'],
+						'section' =>$_POST['section'],
+						'session' =>$_POST['session'],
+						'batch' =>$_POST['batch'],
+						'semester' =>$_POST['semester'],
+						'email' =>$_POST['email'],
+						
+						
+						
+						'parent_name' => $parent_name,
+						'parent_mobile' => $parent_mobile,
+						'parent_relation' => $parent_relation,
+						//'manager' => $post,
+						'doj' => $doj,
+						//'left_date' => $dol,
+						'bio_id' => $bio_id,
+						'rfid' => $rfid,
+						'dob' => $dob,
+						//'business_group' => $group,
+						//'department' => $department
+				
+					);
+			//$data=$this->db->update('login',$postdata);
+			$this->db->where('id',$id);
+			$data= $this->db->update('student',$data);
+			
+		
+				$this->session->set_flashdata('msg','Student Updated Successfully!');
+				redirect('Students_list');
+			
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+	public function Exstudents_list(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('student/Exstudents');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+
+	public function students_daily_report(){
+		if(!empty($this->session->userdata('id'))){
+			
+			$postdata=$this->input->post();
+		
+
+			
+				$start_date = date("Y-m-d");
+			//	$class=0;
+				$true = 0;
+				$totalActive = 0;
+				$totalPresent = 0;
+				$totalAbsent = 0;
+				$days_array = array();
+				$new_array = array();
+			if ($this->session->userdata()['type'] == 'P') {
+				$loginId = $this->session->userdata('empCompany');
+				$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+				} else {
+				$loginId = $this->web->session->userdata('login_id');
+				}
+				
+				$cmpName = $this->web->getBusinessById($loginId);
+				$action="active";
+				if(isset($postdata['start_date']) && isset($postdata['dept']) ){
+				$start_date = $postdata['start_date'];
+				$dept = $postdata['dept'];
+				$semester = $postdata['semester'];
+				$section = $postdata['section'];
+				$true= 1;
+				$action = $postdata['action'];
+			
+				}
+				//$totalMispunch = 0;
+
+				// echo "loginId: $loginId, dept: $dept, semester: $semester, section: $section";
+				// die();
+				$users_data = $this->web->getSchoolStudentListbysection_new($loginId,$dept,$semester,$section);
+
+				echo json_encode($users_data);
+				
+				
+				// echo '<pre>';
+				// print_r($users_data);
+				// echo '</pre>';
+				// die();
+				$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+				$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date)));
+				if(!empty($users_data)){
+					$seconds = 0;
+					foreach($users_data as $user){
+					// if($user->hostel=="1"){
+				$days_array[]= date("d",$start_time);
+				$data = array();
+				$day_hrs = "00:00 Hr";
+				
+			if(($user->doj!="" || $start_time>=$user->doj) && ($user->left_date=="" || $start_time<$user->left_date)){
+
+				
+										$totalActive++;
+								$user_at = $this->web->getStudentAttendanceReportByDate($start_time, $end_time, $user->id, $loginId);
+					
+						
+				if(!empty($user_at)){
+											$totalPresent++;
+									
+											foreach($user_at as $at){
+											 
+											    
+												$data[] = array(
+														'mode'=>$at->student_status,
+														'time'=>$at->time,
+														'device'=>$at->device,
+														'class'=>$at->class_id,
+														'Att_status'=>"P"
+														
+													);    
+											    
+											    	$Attstatus="P";	   
+											    
+											}
+												
+											}
+											//userat
+											
+											else{
+											$totalAbsent++;
+											$data = array(
+											    	//'Att_status'=>"A"
+											    );
+										$Attstatus="A";	    
+										}
+				  if(($action=="active")||($action=="present" && count($data)>0)||($action=="absent" && empty($data))){
+				$new_array[] =array(
+												'user_id'=>$user->id,
+												//'mid'=>$user->mid,
+												'name'=>$user->name,
+												'Att_status'=>$Attstatus,
+												
+												//'image'=>$user->image,
+												//'comment'=>$comment,
+												//'workingHrs'=>$day_hrs,
+												'data'=>$data,
+												
+											);
+				  }
+				
+				}
+				//	}
+				}
+				}
+				
+				
+		
+				$data=array(
+					'start_date'=>$start_date,
+					//'end_date'=>$end_date,
+						'dept'=>$dept,
+							'semester'=>$semester,
+								'section'=>$section,
+					'load'=>$true,
+					'report'=>$new_array,
+				//	'days'=>$days_array,
+					'totalActive'=>$totalActive,
+					'class'=>$class,
+					'totalAbsent'=>$totalAbsent,
+					'totalPresent'=>$totalPresent,
+					'cmp_name'=>$cmpName['name']
+				);	
+				
+			
+			// $this->load->view('student/students_dailyreport',$data);
+		}
+		else{
+			redirect('user-login');
+		}
+	}	
+	
+	
+	
+	
+	
+	
+public function students_monthly_report(){
+		if(!empty($this->session->userdata('id'))){
+			
+			$postdata=$this->input->post();
+				$start_date = date("Y-m-d");
+				$end_date = date("Y-m-d");
+				$dept=0;
+				$session=0;
+				$section=0;
+				$semester=0; // Adding semester parameter
+				$subject=0; // Adding subject parameter
+				$true = 0;
+				$days_array = array();
+				$new_array = array();
+				$subject_wise_data = array(); // Added for subject-wise attendance
+			if ($this->session->userdata()['type'] == 'P') {
+				$loginId = $this->session->userdata('empCompany');
+				$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+				} else {
+				$loginId = $this->web->session->userdata('login_id');
+				}
+				
+				$cmpName = $this->web->getBusinessById($loginId);
+				//$action="active";
+				if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+			$start_date = $postdata['start_date'];
+			$end_date = $postdata['end_date'];
+				//$action = $postdata['action'];
+					$dept = $postdata['dept'];
+				$session = $postdata['session'];
+				$section = $postdata['section'];
+				$semester = isset($postdata['semester']) ? $postdata['semester'] : 0; // Get semester if available
+				$subject = isset($postdata['subject']) ? $postdata['subject'] : 0; // Get subject if available
+				
+				$true= 1;
+				
+			//	$users_data = $this->web->getSchoolStudentList($loginId);
+					$users_data = $this->web->getSchoolStudentListbysection($loginId,$dept,$session,$section);
+					
+			$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+			$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($end_date)));
+				// Get subject-wise attendance data
+				$subject_data = $this->web->getSubjectWiseAttendance($start_time, $end_time, $dept, $session, $section, $subject);
+				
+				// Get the list of all subjects for this department/section
+				$all_subjects = $this->web->getallsubjectbyid($loginId);
+
+				if(!empty($users_data)){
+					//$seconds = 0;
+					foreach($users_data as $user){
+					//	if($user->hostel=="1"){
+						
+					$date1=date_create(date("Y-m-d",strtotime($start_date)));
+								$date2=date_create(date("Y-m-d",strtotime($end_date)));
+								$diff=date_diff($date1,$date2);
+								$num_month = $diff->format("%a");
+
+								$num_month++;
+								if($num_month>31){
+									$num_month=31;
+								}	
+						
+						$months_array = array();
+						$days_array = array();
+					//	
+		 // $monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($mid->checkon->datefrom)));
+		//  $monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($mid->checkon->datefrom))." +".$num_month." days");
+							   $monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+								$monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$num_month." days");
+								
+							//	$monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$loginId,1);
+									$monthUserAt= $this->web->getStudentAttendanceReportByDate($monthStartTime,$monthEndTime,$user->id,$loginId);
+									
+									// If subject filter is applied, filter attendance records by subject
+									if($subject > 0 && !empty($monthUserAt)) {
+										$monthUserAt = array_filter($monthUserAt, function($val) use($subject) {
+											return (isset($val->subject_id) && $val->subject_id == $subject);
+										});
+									}
+										
+					   // $monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$check['id'],1);
+		  for($d=0; $d<$num_month;$d++){
+		   $new_start_time = strtotime(date("d-m-Y 10:00:00",strtotime($start_date))." +".$d." days");
+			$new_end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$d." days");
+			$days_array[]= date("d",$new_start_time);
+			$data = array();
+			
+			
+		//	if(($user->doj!="" || strtotime($start_date)>=$user->doj) && ($user->left_date=="" || strtotime($start_date)<$user->left_date)){
+										$user_at = array_filter($monthUserAt, function($val) use($new_start_time, $new_end_time){
+											return ($val->time>=$new_start_time and $val->time<=$new_end_time);
+										});
+										$user_at = array_reverse($user_at);
+										
+										
+				if(!empty($user_at)){
+				  foreach($user_at as $at){
+				//	if($at->hostel=="1"){
+					  $data[] = array(
+					//	'mode'=>$at->mode,
+						'time'=>$at->time,
+						'subject_id' => isset($at->subject_id) ? $at->subject_id : 0,
+						'student_status' => isset($at->student_status) ? $at->student_status : ''
+					//	'comment'=>$at->comment
+					  );
+					  
+					  // Track subject attendance for this day if available
+					  if(isset($at->subject_id) && $at->subject_id > 0) {
+					      $day_key = date("Y-m-d", $new_start_time);
+					      if(!isset($subject_wise_data[$day_key])) {
+					          $subject_wise_data[$day_key] = array();
+					      }
+					      if(!isset($subject_wise_data[$day_key][$at->subject_id])) {
+					          $subject_wise_data[$day_key][$at->subject_id] = 0;
+					      }
+					      $subject_wise_data[$day_key][$at->subject_id]++;
+					  }
+				//	}
+				  }
+				}else{
+				  $data = array();
+				}
+			
+			$months_array[] = array(
+				  'date'=>date("j",$new_start_time),
+				  'day'=>date("l",$new_start_time),
+				  'data'=>$data
+				);
+		//	}
+		  }
+		  
+		  
+		  
+		  if(count($months_array)>0){
+				$new_array[] =array(
+				'user_id'=>$user->id,
+			//	'mid'=>$user->mid,
+			//	'emp_code'=>$user->emp_code,
+				'name'=>$user->name,
+			//	'image'=>$user->image,
+			////	'user_status'=>$user->user_status,
+				'data'=> $months_array
+			  );
+		  }
+			
+		  
+				
+			// close users and post		
+			//	}
+				}}
+				}
+				
+				// Get branch, batch, and semester information
+				$branch_info = $this->web->getBusinessDepByUserId($dept);
+				$branch_name = !empty($branch_info) ? $branch_info[0]->name : '';
+				
+				$batch_info = $this->web->getbatchById($session);
+				$batch_name = !empty($batch_info) ? $batch_info[0]->session_name : '';
+				
+				$semester_info = $this->web->getSemesterById($postdata['semester'] ?? 0);
+				$semester_name = !empty($semester_info) ? $semester_info[0]->semestar_name : '';
+				
+				$section_info = $this->web->getsectionById($section);
+				$section_name = !empty($section_info) ? $section_info[0]->name : '';
+				
+				// Get subject information if subject is selected
+				$subject_name = '';
+				if($subject > 0) {
+					$subject_info = $this->web->getsubjectnamebyid($subject);
+					$subject_name = !empty($subject_info) ? $subject_info->name : '';
+				}
+				
+		$data = array(
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'dept' => $dept,
+			'session' => $session,
+			'section' => $section,
+			'semester' => $semester,
+			'subject' => $subject,
+			'load' => $true,
+			'report' => $new_array,
+			'days' => $days_array,
+			'subject_wise_data' => $subject_wise_data,
+			'all_subjects' => $all_subjects,
+			'branch_name' => $branch_name,
+			'batch_name' => $batch_name,
+			'semester_name' => $semester_name,
+			'section_name' => $section_name,
+			'subject_name' => $subject_name,
+			'cmp_name' => $cmpName['name']
+		);
+			
+			$this->load->view('student/students_monthly_report',$data);
+		}
+		else{
+			redirect('user-login');
+		}
+	}	
+		
+	public function students_report(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata=$this->input->post();
+			$start_date = date("Y-m-d");
+			$end_date = date("Y-m-d");
+			$true = 0;
+			$option= "all";
+			$days_array = array();
+			$new_array = array();
+			// $loginId = $this->session->userdata('login_id');
+			// if($this->session->userdata('type')=="P"){
+			// 	$userCmp = $this->app->getUserCompany($loginId);
+			// 	if(isset($userCmp) && ($userCmp['left_date']=="" || $userCmp['left_date']>time())){
+			// 		$loginId = $userCmp['business_id'];
+			// 	}
+			// }
+			if ($this->session->userdata()['type'] == 'P') {
+				$loginId = $this->session->userdata('empCompany');
+				$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+			} else {
+				$loginId = $this->web->session->userdata('login_id');
+			}					
+			$cmpName = $this->web->getBusinessById($loginId);
+
+			if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+				$start_date = $postdata['start_date'];
+				$end_date = $postdata['end_date'];
+				$empId = $postdata['emp'];
+				$option = $postdata['option'];
+				$true= 1;
+				$users_data = $this->web->getSchoolStudentList($loginId);
+				$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+				$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($end_date)));
+
+				$holidays = $this->app->getHoliday($loginId);
+				$holiday_array = array();
+				if($holidays){
+					foreach($holidays as $holiday){
+						$holiday_array[] = array(
+							'date'=>date('d.m.Y',$holiday->date),
+						);
+					}
+				}
+
+			
+
+				if(!empty($users_data)){
+					foreach($users_data as $user){
+						if($user->user_id==$empId || $empId=="0"){
+							$date1=date_create(date("Y-m-d",strtotime($start_date)));
+							$date2=date_create(date("Y-m-d",strtotime($end_date)));
+							$diff=date_diff($date1,$date2);
+							$num_month = $diff->format("%a");
+
+							$num_month++;
+							if($num_month>31){
+								//$num_month=31;
+							}
+
+							$groups = $this->app->getUserGroup($user->business_group);
+							$grp = array();
+							$day_shift_start = array();
+							$day_shift_end = array();
+
+							if($groups){
+								$weekly_off = explode(",",$groups->weekly_off);
+								$day_shift_start = explode(",",$groups->day_start_time);
+								$day_shift_end = explode(",",$groups->day_end_time);
+								$shift_start = $groups->shift_start;
+								$shift_end = $groups->shift_end;
+								$group_name = $groups->name;
+								foreach($weekly_off as $key=>$off){
+									if($off==1){
+										$grp[] = array(
+											'day_off'=>$key+1
+										);
+									}
+								}
+							}else{
+								$shift_start = "";
+								$shift_end = "";
+								$group_name = "";
+							}
+
+							$leaves = $this->app->getEmpLeaves($user->user_id);
+							$leaves_array = array();
+							if($leaves){
+								foreach($leaves as $leave){
+									$from_date_leave=date_create(date("Y-m-d",$leave->from_date));
+									$to_date_leave=date_create(date("Y-m-d",$leave->to_date));
+									$leave_diff=date_diff($from_date_leave,$to_date_leave);
+									$leave_days = $leave_diff->format("%a");
+									$leave_days++;
+									for($l=0;$l<$leave_days;$l++){
+										$leave_start_date = strtotime(date("d-m-Y",$leave->from_date)." +".$l." days");
+										$leaves_array[] = array(
+											'date'=>date('d.m.Y',$leave_start_date),
+										);
+									}
+								}
+							}
+
+							$rules = $this->web->getRule($loginId,$user->rule_id);
+							$mispunch = "0";
+							$ca_wo_lofi = "0";
+							$mark_ab_week = "0";
+							$ov_shift = "0";
+							$sl_late_on = "0";
+							$sl_early_on = "0";
+							$halfday_on = "0";
+							$absent_on = "0";
+							$overtime_wh_on = "0";
+							$sl_late_time = 0;
+							$sl_early_time = 0;
+							$half_wo_time = 0;
+							$ab_wo_time = 0;
+							$ov_out_time = 0;
+							$ov_wo_time = 0;
+							if($rules){
+								$mispunch = $rules['mispunch'];
+								$sl_late_time = $rules['sl_late'];
+								$sl_early_time = $rules['sl_early'];
+								$half_wo_time = $rules['halfday'];
+								$ab_wo_time = $rules['absent'];
+								$ov_out_time = $rules['overtime_shiftout'];
+								$ov_wo_time = $rules['overtime_wh'];
+								$ca_wo_lofi = $rules['wh_cal'];
+								$mark_ab_week = $rules['wo_absent'];
+								$ov_shift = $rules['overtime_shift'];
+								$sl_late_on = $rules['sl_late_on'];
+								$sl_early_on = $rules['sl_early_on'];
+								$halfday_on = $rules['halfday_on'];
+								$absent_on = $rules['absent_on'];
+								$overtime_wh_on = $rules['overtime_wh_on'];
+							}
+							$months_array = array();
+							$totalPresent = 0;
+							$totalAbsent = 0;
+							$totalWeekOff = 0;
+							$totalHoliday = 0;
+							$totalLeaves = 0;
+							$totalWorkingHrs = "00:00 Hr";
+							$totalLate = "00:00 Hr";
+							$totalEarly = "00:00 Hr";
+							$days_array = array();
+							$seconds = 0;
+							$monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+							$monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$num_month." days");
+							$monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$loginId,1);
+							for($d=0; $d<$num_month;$d++){
+								$new_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date))." +".$d." days");
+								$new_end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$d." days");
+								$days_array[]= date("d",$new_start_time);
+								$data = array();
+								$day_seconds=0;
+								$late_seconds=0;
+								$early_seconds=0;
+								$ot_seconds=0;
+								$day_hrs = "00:00 Hr";
+								$late_hrs = "00:00 Hr";
+								$early_hrs = "00:00 Hr";
+								$ot_hrs = "00:00 Hr";
+								$halfday = "0";
+								$absentWo = "0";
+								$sl = "s";
+								$unverified = "0";
+								$fieldDuty = "0";
+								if(($user->doj!="" || $start_time>=$user->doj) && ($user->left_date=="" || $start_time<$user->left_date)){
+									$user_at = array_filter($monthUserAt, function($val) use($new_start_time, $new_end_time){
+										return ($val->io_time>=$new_start_time and $val->io_time<=$new_end_time);
+									});
+
+									$off = array_search(date('N',$new_start_time),array_column($grp,'day_off'));
+									$holi = array_search(date('d.m.Y',$new_start_time),array_column($holiday_array,'date'));
+									$lv = array_search(date('d.m.Y',$new_start_time),array_column($leaves_array,'date'));
+									if(!empty($day_shift_start)){
+										$shift_start = $day_shift_start[date('N',$new_start_time)-1];
+									}
+									if(!empty($day_shift_end)){
+										$shift_end = $day_shift_end[date('N',$new_start_time)-1];
+									}
+
+									if(!is_bool($off)){
+										$weekOff = "1";
+										$totalWeekOff++;
+									}else{
+										$weekOff = "0";
+									}
+
+									if(!is_bool($holi)){
+										$holiday="1";
+										$totalHoliday++;
+									}else{
+										$holiday="0";
+									}
+
+									if(!is_bool($lv)){
+										$totalLeaves++;
+										$day_leave="1";
+									}else{
+										$day_leave="0";
+									}
+
+									if(!empty($user_at)){
+										$totalPresent++;
+										$ins_array = array();
+										$outs_array = array();
+										$user_at = array_reverse($user_at);
+										foreach($user_at as $at){
+											$data[] = array(
+												'mode'=>$at->mode,
+												'time'=>$at->io_time,
+												'comment'=>$at->comment."\n".$at->emp_comment,
+												'manual'=>$at->manual,
+												'location'=>$at->location
+											);
+											if($at->mode=='in' && !in_array($at->io_time,$ins_array)){
+														$ins_array[]=$at->io_time;
+													}
+													if($at->mode=='out' && !in_array($at->io_time,$outs_array)){
+														$outs_array[]=$at->io_time;
+													}
+											if($at->manual=="2"){
+												$fieldDuty="1";
+											}
+											if($at->verified=="0"){
+												$unverified="1";
+											}
+											$day_seconds2 = $data[count($data)-1]['time']-$data[0]['time'];
+										}//at
+										$io_end = count($ins_array)-count($outs_array);
+										if(count($outs_array)<count($ins_array)){
+											for($io=0; $io<$io_end;$io++){
+												$outs_array[]="0";
+											}
+										}
+										foreach($ins_array as $k => $ins){
+											if($outs_array[$k]!="0"){
+												if($outs_array[$k]>$ins_array[$k]){
+													$seconds += $outs_array[$k]-$ins_array[$k];
+												}
+												$day_seconds += $outs_array[$k]-$ins_array[$k];
+											}
+										}
+										if($ca_wo_lofi=="1"){
+											$day_out = "0";
+											for($o=count($outs_array)-1;$o>=0;$o--){
+												if($outs_array[count($outs_array)-1]!="0"){
+													$day_out = $outs_array[$o];
+													break;
+												}
+											}
+											if($day_out=="0"){
+												$day_seconds = 0;
+											}else{
+												if(count($ins_array)>0){
+													$day_seconds = $day_out-$ins_array[0];
+												}else{
+													$day_seconds = 0;
+												}
+											}
+										}
+                                        
+										$hours = floor($day_seconds2 / 3600);
+										$minutes = floor($day_seconds2 / 60%60);
+										$day_hrs = "$hours:$minutes Hr";
+
+										if($day_seconds>0 && $halfday_on=="1" &&($day_seconds<$half_wo_time)){
+													$halfday="1";
+												}
+
+												if($day_seconds>0 && $absent_on=="1" &&($day_seconds<$ab_wo_time)){
+													$absentWo="1";
+												}
+
+										if($shift_start!=""){
+											$in_start = strtotime(date("d-m-Y h:i A",strtotime(date("h:i A",$ins_array[0]))));
+											$sh_start = strtotime(date("d-m-Y h:i A",strtotime($shift_start)));
+											$sh_end = strtotime(date("d-m-Y h:i A",strtotime($shift_end)));
+											if($in_start>$sh_start){
+												$late_seconds = $in_start-$sh_start;
+												$hours = floor($late_seconds / 3600);
+												$minutes = floor($late_seconds / 60%60);
+												$late_hrs = "$hours:$minutes Hr";
+												$late_seconds." ".$sl_late_time;
+												if($sl_late_on=="1" && ($late_seconds > $sl_late_time)){
+													$sl ="SL";
+												}
+											}
+											if($outs_array[count($outs_array)-1]!="0"){
+														$out_end = strtotime(date("d-m-Y h:i A",strtotime(date("h:i A",$outs_array[count($outs_array)-1]))));
+														if($sh_end>$out_end && $out_end!=0){
+															$early_seconds = $sh_end-$out_end;
+															$hours = floor($early_seconds / 3600);
+															$minutes = floor($early_seconds / 60%60);
+															$early_hrs = "EL $hours:$minutes Hr";
+															if($sl_early_on=="1" && ($early_seconds > $sl_early_time) && $halfday=="0"){
+																$sl = "SL";
+															}
+														}
+													}
+
+											if($outs_array[count($outs_array)-1]!="0"){
+												$out_end = strtotime(date("d-m-Y h:i A",strtotime(date("h:i A",$outs_array[count($outs_array)-1]))));
+												$ot_seconds = $out_end-$sh_end;
+												if($ot_seconds>0 && $ov_shift=="1" && ($ot_seconds > $ov_out_time)){
+													$hours = floor($ot_seconds / 3600);
+													$minutes = floor($ot_seconds / 60%60);
+													$ot_hrs = "$hours:$minutes Hr";
+												}
+											}
+										} //shift
+
+										if($overtime_wh_on=="1" &&($day_seconds>$ov_wo_time)){
+											$ot_seconds = $day_seconds-$ov_wo_time;
+											if($ot_seconds>0){
+												$hours = floor($ot_seconds / 3600);
+												$minutes = floor($ot_seconds / 60%60);
+												$ot_hrs = "$hours:$minutes Hr";
+											}
+										}
+									}//user at
+									else{
+										$totalAbsent++;
+										$data = array();
+									}
+									$msOut = "1";
+									foreach($data as $day_data){
+										if($day_data['mode']=="out"){
+											$msOut = "0";
+										}
+									}
+									$mhsStatus="";
+									if(!empty($data)){
+										if($mispunch=="1" && $msOut=="1"){
+											$mhsStatus="ms";
+										}else if($halfday=="1"){
+											$mhsStatus="hf";
+										}else if($sl=="SL"){
+											$mhsStatus="sl";
+										}
+									}
+									if($option=="all" || ($option=="present" && !empty($data)) || ($option=="absent" && empty($data)) || ($option=="mispunch" && $mhsStatus=="ms")||($option=="halfday" && $mhsStatus=="hf") ||($option=="late" && $late_seconds>0)||($option=="early" && $early_seconds>0)||($option=="shortLeave" && $mhsStatus=="sl")||($option=="unverified" && $unverified=="1")||($option=="fieldDuty" && $fieldDuty=="1")){
+										$months_array[] = array(
+											'date'=>date("d-M",$new_start_time),
+											'day'=>date("l",$new_start_time),
+											'weekly_off'=>$weekOff,
+											'holiday'=>$holiday,
+											'leave'=>$day_leave,
+											'data'=>$data,
+											'workingHrs'=>$day_hrs,
+											'late_hrs'=>$late_hrs,
+											'early_hrs'=>$early_hrs,
+											'ot_hrs'=>$ot_hrs,
+											'mispunch'=>$mispunch,
+											'sl_late'=>$sl_late_time,
+											'sl_early'=>$sl_early_time,
+											'halfday'=>$halfday,
+											'absent'=>$absentWo,
+											'overtime_shiftout'=>$ov_out_time,
+											'overtime_wh'=>$ov_wo_time,
+											'wh_cal'=>$ca_wo_lofi,
+											'wo_absent'=>$mark_ab_week,
+											'overtime_shift'=>$ov_shift,
+											'sl'=>$sl
+										);
+									}
+								}//   days
+							}// user
+							if($seconds>0){
+								$hours = floor($seconds / 3600);
+								$minutes = floor($seconds / 60%60);
+								$totalWorkingHrs = "$hours:$minutes Hr";
+							}
+							if(count($months_array)>=1){
+								$new_array[] =array(
+									'user_id'=>$user->user_id,
+									'mid'=>$user->mid,
+									'emp_code'=>$user->emp_code,
+									'name'=>$user->name,
+									'image'=>$user->image,
+									'user_status'=>$user->user_status,
+								//	'shift_start'=>$shift_start,
+								//	'shift_end'=>$shift_end,
+								//	'group_name'=>$group_name,
+									'designation'=>$user->designation,
+									'totalAbsent'=>$totalAbsent,
+									'totalPresent'=>$totalPresent,
+									'totalWeekOff'=>$totalWeekOff,
+									'totalHoliday'=>$totalHoliday,
+								//	'totalLeaves'=>$totalLeaves,
+									'totalWorkingHrs'=>$totalWorkingHrs,
+									'totalLate'=>$totalLate,
+									//'totalEarly'=>$totalEarly,
+									'data'=> $months_array
+								);
+							}
+						}
+					}
+				}
+			}
+
+
+			$data=array(
+				'start_date'=>$start_date,
+				'end_date'=>$end_date,
+				'load'=>$true,
+				'report'=>$new_array,
+				'days'=>$days_array,
+				'option'=>$option,
+				
+				'cmp_name'=>$cmpName['name']
+			);
+			//print_r($new_array);
+			$this->load->view('student/student_report',$data);
+		}else{
+			redirect('user-login');
+		}
+	}
+
+
+
+
+
+	public function student_device(){
+	if(!empty($this->session->userdata('id'))){
+		$this->load->view('student/device_list');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+
+	
+
+
+
+
+public function stu_device_access(){
+	if(!empty($this->session->userdata('id'))){
+		$this->load->view('student/device_access');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+
+public function studentsPass(){
+	if (!empty($this->session->userdata('id'))) {
+		$this->load->view('student/pass');
+	}else{
+		redirect('user-login');
+	}
+}
+
+function import_school_student()
+		{
+			if(!empty($this->session->userdata('id'))){
+				
+			
+			$data=$this->web->import_school_student();
+			$this->load->view('student/students_list',$data);
+			
+				
+			}
+			else{
+				redirect('user-login');
+			}
+		  }
+	
+	
+public function add_class(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('student/add_class');
+		}
+		else{
+			redirect('user-login');
+		}
+	}	
+
+
+
+	public function add_newclass(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata=$this->input->post();
+			$postdata=array(
+				'name'=>$postdata['class'],
+				'bid'=>$postdata['bid'],
+				'date_time'=>time()
+			);
+			$data=$this->db->insert('class',$postdata);
+			if($data > 0){
+			   
+			
+				$this->session->set_flashdata('msg','New Class Added!');
+				redirect('add_class');
+			}
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+public function delete_class(){
+		if (!empty($this->session->userdata('id'))) {
+			$id = $this->input->post('id');
+			$res= $this->web->delete_class($id);
+			if ($res) {
+			    
+				echo $id;
+				return($id);
+			}
+		} else {
+			redirect('user-login');
+		}
+		
+	}
+
+
+	public function editclass(){
+		if(!empty($this->session->userdata('id'))){
+			$check=$_REQUEST;
+			print_r($check);
+			echo $name = $_POST['name'];
+			echo $id = $_POST['id'];
+			$data = array(
+				'name' => $name
+			
+			);
+			print_r($data);
+			$this->db->where('id',$id);
+			$res = $this->db->update('class',$data);
+			echo $res;
+			return($res);
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+	
+	
+	
+	
+		public function canteen_summary(){
+		if(!empty($this->session->userdata('id'))){
+			
+			$postdata=$this->input->post();
+				$start_date = date("Y-m-d");
+				$true = 0;
+				$days_array = array();
+				$new_array = array();
+			if ($this->session->userdata()['type'] == 'P') {
+				$loginId = $this->session->userdata('empCompany');
+				$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+				} else {
+				$loginId = $this->web->session->userdata('login_id');
+				}
+				
+				$cmpName = $this->web->getBusinessById($loginId);
+				$action="active";
+				if(isset($postdata['start_date'])){
+				$start_date = $postdata['start_date'];
+				$action = $postdata['action'];
+				}
+				$true= 1;
+				$totalActive = 0;
+				$totalPresent = 0;
+				$totallog = 0;
+				$punchtime=0;
+				//$totalMispunch = 0;
+				$users_data = $this->app->getCompanyUsers($loginId);
+				$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+				$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date)));
+				$timedata=$this->web->getTimingByBusinessId($loginId);
+				foreach($timedata as $res2){ 
+				$start_times=strtotime (date(" h:i A" ,$res2->start_time));
+					  $end_times=strtotime (date(" h:i A" ,$res2->end_time));
+	                   	}
+				if(!empty($users_data)){
+					$seconds = 0;
+					foreach($users_data as $user){
+					 if($user->hostel=="1"){
+				$days_array[]= date("d",$start_time);
+				$data = array();
+				$day_hrs = "00:00 Hr";
+				
+			if(($user->doj!="" || $start_time>=$user->doj) && ($user->left_date=="" || $start_time<$user->left_date)){
+										$totalActive++;
+								$user_at = $this->app->getUserAttendanceReportByDate($start_time,$end_time,$user->user_id,$loginId,1);
+				
+				
+				
+				if(!empty($user_at)){
+											$totalPresent++;
+											$ins_array = array();
+											$outs_array = array();
+											$comment_array = array();
+											$user_at = array_reverse($user_at);
+											foreach($user_at as $at){
+											   $timeSearch = array_search($at->io_time,array_column($data,'time'));
+												if(is_bool($timeSearch)){
+													$data[] = array(
+														'mode'=>$at->mode,
+														'time'=>$at->io_time,
+														'comment'=>$at->comment,
+														'manual'=>$at->manual,
+														'location'=>$at->location
+													);
+													$totallog++;
+												
+												}}
+												
+											}
+											//userat
+											
+											else{
+											//$totalAbsent++;
+											$data = array();
+										}
+				
+				$new_array[] =array(
+												'user_id'=>$user->user_id,
+												'mid'=>$user->mid,
+												'name'=>$user->name,
+												'data'=>$data,
+												
+											);
+				
+				}
+					}
+				}
+				}
+				
+		$data=array(
+					'start_date'=>$start_date,
+					'res'=>$timedata,
+					'load'=>$true,
+					'report'=>$new_array,
+					'days'=>$days_array,
+					'totalActive'=>$totalActive,
+					'totallog'=>$totallog,
+					'totalPresent'=>$totalPresent,
+					'cmp_name'=>$cmpName['name']
+				);		
+				
+			
+			
+			$this->load->view('hostel/canteen_summary',$data);
+		}
+		else{
+			redirect('user-login');
+		}
+	}	
+	
+	
+	
+public function student_access_report(){
+			if(!empty($this->session->userdata('id'))){
+				
+				$postdata=$this->input->post();
+					$start_date = date("Y-m-d");
+					$end_date = date("Y-m-d");
+					$true = 0;
+				    $days_array = array();
+					$new_array = array();
+				if ($this->session->userdata()['type'] == 'P') {
+					$loginId = $this->session->userdata('empCompany');
+					$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+					} else {
+					$loginId = $this->web->session->userdata('login_id');
+					}
+					
+					$cmpName = $this->web->getBusinessById($loginId);
+					//$action="active";
+					if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+				$start_date = $postdata['start_date'];
+				$end_date = $postdata['end_date'];
+					//$action = $postdata['action'];
+					
+					$true= 1;
+					
+					//$totalMispunch = 0;
+					$users_data = $this->app->getCompanyUsers($loginId);
+				$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+				$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($end_date)));
+                $totalf=0;
+				$totalActive=0;
+					if(!empty($users_data)){
+						//$seconds = 0;
+						foreach($users_data as $user){
+							if($user->hostel=="1"){
+							
+						$date1=date_create(date("Y-m-d",strtotime($start_date)));
+									$date2=date_create(date("Y-m-d",strtotime($end_date)));
+									$diff=date_diff($date1,$date2);
+									$num_month = $diff->format("%a");
+
+									$num_month++;
+									if($num_month>31){
+										$num_month=31;
+									}	
+							
+							$months_array = array();
+							$days_array = array();
+							$total=0;
+							
+						//	
+             // $monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($mid->checkon->datefrom)));
+            //  $monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($mid->checkon->datefrom))." +".$num_month." days");
+		$monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+		$monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$num_month." days");
+		$monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$loginId,1);
+											
+			               // $monthUserAt = $this->app->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$check['id'],1);
+              for($d=0; $d<$num_month;$d++){
+               $new_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date))." +".$d." days");
+				$new_end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$d." days");
+                $days_array[]= date("d",$new_start_time);
+                $data = array();
+				
+	if(($user->doj!="" || strtotime($start_date)>=$user->doj) && ($user->left_date=="" || strtotime($start_date)<$user->left_date)){
+		
+											$user_at = array_filter($monthUserAt, function($val) use($new_start_time, $new_end_time){
+												return ($val->io_time>=$new_start_time and $val->io_time<=$new_end_time);
+											});
+											$user_at = array_reverse($user_at);
+											
+											
+                    if(!empty($user_at)){
+                      foreach($user_at as $at){
+                        if($at->hostel=="1"){
+                          $data[] = array(
+                            'mode'=>$at->mode,
+                            'time'=>$at->io_time,
+                            'comment'=>$at->comment
+                          );
+						  $total++;
+                        }
+                      }
+                    }else{
+                      $data = array();
+                    }
+				
+				 $months_array[] = array(
+                      'date'=>date("j",$new_start_time),
+                      'day'=>date("l",$new_start_time),
+					 
+                      'data'=>$data
+                    );
+                }
+              }
+			  $totalf=$totalf+$total;
+			  $totalActive++;
+			  
+			  if(count($months_array)>0){
+                    $new_array[] =array(
+                    'user_id'=>$user->user_id,
+                    'mid'=>$user->mid,
+                    'emp_code'=>$user->emp_code,
+					'total'=>$total,
+                    'name'=>$user->name,
+                    'image'=>$user->image,
+                    'user_status'=>$user->user_status,
+                    'data'=> $months_array
+                  );
+              }
+				
+			  
+			 	
+				// close users and post		
+					}
+					//
+				}
+					
+				
+				}
+					
+					}
+					
+			$data=array(
+						'start_date'=>$start_date,
+						'end_date'=>$end_date,
+						'totalf'=>$totalf,
+						'totalActive'=>$totalActive,
+						'load'=>$true,
+						'report'=>$new_array,
+						'days'=>$days_array,
+						'cmp_name'=>$cmpName['name']
+					);	
+					
+			
+				
+				$this->load->view('hostel/student_access_report',$data);
+			}
+			else{
+				redirect('user-login');
+			}
+		}	
+			
+
+
+
+public function access_report2(){
+		if(!empty($this->session->userdata('id'))){
+				
+if (isset($_POST['submit'])) {
+    // Handle file upload
+    $file = $_FILES['file']['tmp_name'];
+    $from_date = $_POST['from_date'];
+    $to_date = $_POST['to_date'];
+	 $dev_id= $_POST['device'];
+    $uname = $this->web->getbidbydeviceid($dev_id);
+       $buid=$uname[0]->bid;
+  
+    $device=$uname[0]->deviceid;
+    
+
+    if (is_uploaded_file($file)) {
+        // Convert the from_date and to_date to timestamps using strtotime
+        $from_timestamp = strtotime($from_date);
+        $to_timestamp = strtotime($to_date);
+
+        // Read the file and parse the contents
+        $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $filtered_data = [];
+		//$insert_data=[];
+         
+        // Loop through each line in the text file
+        foreach ($lines as $line) {
+            // Split the line by one or more spaces
+           $columns = preg_split('/\s+/', $line); // Split by one or more spaces
+		 $countcol=count($columns) ;
+	   $dates = $columns[ $countcol -3]; // Second to last column
+    $times = $columns[count($columns) - '2']; // Last column
+//$countdata=count($columns);
+    // Combine date and time into a single string
+    $date2 = $dates . ' ' . $times;
+	//var_dump($date2);
+	$dateTime = preg_replace('/[\x00-\x1F\x7F]/', '', $date2);
+
+
+   $timest = strtotime($dateTime);
+
+    // Ensure there are at least 10 columns (check if we have a valid row)
+            if (count($columns) >= 10) {
+                
+
+                // Compare if the datetime in the file is between from_date and to_date
+               if ($timest >= $from_timestamp && $timest <= $to_timestamp ) {
+                    // Store the data in different variables
+                    $column1 = $columns[0];
+                    $column2 = $columns[1];
+                    $column3 = $columns[2];
+                    $column4 = $columns[3];
+                    $column9 =  $timest;
+					 //$column10 =$columns2[9];
+                    $column10 = $date2 ; // Date and time column
+					
+
+                    // Add the filtered data to the result array
+                    $filtered_data[] = [
+                        'column1' => $column1,
+                        'column2' => $column2,
+                        'Enrllno' => $column3,
+                        'column4' => $column4,
+						'timestamp' => $column9,
+                        'Datetime' => $column10
+						
+                    ];
+						
+					
+					
+               }
+            }
+        }
+
+        // Display the filtered data
+        if (count($filtered_data) > 0) {
+           
+            echo "<h3>Filtered Results:</h3>";
+           // echo "<table border='1'>";
+            //echo "<tr><th>S/No</th><th>Enroll No</th><th>Emp Id</th><th>Name</th><th>DateTime</th><th>DateTime</th></tr>";
+			$countsn=0;
+			$count=0;
+            foreach ($filtered_data as $row) {
+                
+                 $new_id=$row['Enrllno'];
+                 $new_time=$row['timestamp'];
+                 $name=$row['column4'];
+                 
+                 $number = preg_replace('/[\x00-\x1F\x7F]/', '', $row['Enrllno']);
+                $new_id2=ltrim($number, '0');
+                $getUserByBioId = $this->app->getUserByBioId( $new_id2,$buid);
+              
+               
+              if(isset($getUserByBioId)){
+                
+				$countsn++;
+              
+                 $userCmp = $this->app->getUserCompany($getUserByBioId['id']);
+               // $uname = $this->web->getNameByUserId($getUserByBioId['id']);
+               // $name=$uname[0]->name;
+                 
+               if( !empty($userCmp['business_id']) && $userCmp['business_id']==$buid){
+                 $checkOffline = $this->app->checkIoTime($getUserByBioId['id'],$buid,$new_time);
+                 $dateTimes=date("d-M-y h:m:s" ,$new_time);
+                 echo " Found Data: ".$countsn." Enroll Id: ". $new_id2." Name: ". $name." Time: ". $dateTimes ."<br>";
+                  
+                  if(empty($checkOffline)){
+                      echo "(New Data Found) <br> " ; 
+                    $start_time = strtotime(date("d-m-Y 00:00:00",$new_time));
+                   $end_time = strtotime(date("d-m-Y 23:59:59",$new_time));
+                   $offline_at = $this->app->checkOfflineAt($getUserByBioId['id'],$buid,$start_time,$end_time);
+                    $mode = "in";
+                  if(!empty($offline_at)){
+                     if($offline_at['mode']=="in"){
+                      $mode = "out";
+                      }else{
+                       $mode = "in";
+                      }
+                  }
+                
+               $insertData2 = array(
+                      'bussiness_id'=>$buid,
+                      'user_id'=>$getUserByBioId['id'],
+                      'mode'=>$mode,
+                      'device'=>$device,
+                      'manual'=>"4",
+                      'io_time'=>$new_time,
+                      'date'=>time()
+                    );
+                   
+                 
+		$res = $this->db->insert('attendance', $insertData2);
+                
+                
+                
+                
+                
+                
+             $count++;
+                 echo " New Data: ".$count." Enroll Id: ". $new_id2."  Name: ".$name." Time: ".$dateTimes."(Updated) <br>"; 
+                } 
+                else{
+                  echo "(Already Added) <br>" ; 
+                  }
+                }
+              } //$count2++;   
+                
+                
+                
+            }
+            
+         echo $countsn ." Data Found <br> ";
+        echo $count ." New data Added ";
+            
+            
+           // echo "</table>";
+			
+			
+			
+        } else {
+            echo "No data found within the selected date range.";
+        }
+    } else {
+        echo "Error uploading file.";
+    }
+}
+
+
+
+
+}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+	
+	
+	
+	public function import_txtlog(){
+		if(!empty($this->session->userdata('id'))){
+				
+if (isset($_POST['submit'])) {
+    // Handle file upload
+    $file = $_FILES['file']['tmp_name'];
+    $from_date = $_POST['from_date'];
+    $to_date = $_POST['to_date'];
+	 $dev_id= $_POST['device'];
+    $uname = $this->web->getbidbydeviceid($dev_id);
+     
+    $device=$uname[0]->deviceid;
+    if($this->session->userdata()['type']=='P'){
+      
+      $buid = $this->session->userdata('empCompany');
+      $role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$buid);
+  
+    } else {
+      $buid=$this->web->session->userdata('login_id');
+    }
+    
+
+    if (is_uploaded_file($file)) {
+        // Convert the from_date and to_date to timestamps using strtotime
+        $from_timestamp = strtotime($from_date);
+        $to_timestamp = strtotime($to_date);
+
+        // Read the file and parse the contents
+        $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $filtered_data = [];
+		//$insert_data=[];
+         
+        // Loop through each line in the text file
+        foreach ($lines as $line) {
+            // Split the line by one or more spaces
+           $columns = preg_split('/\s+/', $line); // Split by one or more spaces
+		 $countcol=count($columns) ;
+	   $dates = $columns[ $countcol -3]; // Second to last column
+    $times = $columns[count($columns) - '2']; // Last column
+//$countdata=count($columns);
+    // Combine date and time into a single string
+    $date2 = $dates . ' ' . $times;
+	//var_dump($date2);
+	$dateTime = preg_replace('/[\x00-\x1F\x7F]/', '', $date2);
+
+
+   $timest = strtotime($dateTime);
+
+    // Ensure there are at least 10 columns (check if we have a valid row)
+            if (count($columns) >= 10) {
+                
+
+                // Compare if the datetime in the file is between from_date and to_date
+               if ($timest >= $from_timestamp && $timest <= $to_timestamp ) {
+                    // Store the data in different variables
+                    $column1 = $columns[0];
+                    $column2 = $columns[1];
+                    $column3 = $columns[2];
+                    $column4 = $columns[3];
+                    $column9 =  $timest;
+					 //$column10 =$columns2[9];
+                    $column10 = $date2 ; // Date and time column
+					
+
+                    // Add the filtered data to the result array
+                    $filtered_data[] = [
+                        'column1' => $column1,
+                        'column2' => $column2,
+                        'Enrllno' => $column3,
+                        'column4' => $column4,
+						'timestamp' => $column9,
+                        'Datetime' => $column10
+						
+                    ];
+						
+					
+					
+               }
+            }
+        }
+
+        // Display the filtered data
+        if (count($filtered_data) > 0) {
+           
+            echo "<h3>Filtered Results:</h3>";
+           // echo "<table border='1'>";
+            //echo "<tr><th>S/No</th><th>Enroll No</th><th>Emp Id</th><th>Name</th><th>DateTime</th><th>DateTime</th></tr>";
+			$countsn=0;
+			$count=0;
+            foreach ($filtered_data as $row) {
+                
+                 $new_id=$row['Enrllno'];
+                 $new_time=$row['timestamp'];
+                 $name=$row['column4'];
+                 
+                 $number = preg_replace('/[\x00-\x1F\x7F]/', '', $row['Enrllno']);
+                $new_id2=ltrim($number, '0');
+                $getUserByBioId = $this->app->getUserByBioId( $new_id2,$buid);
+              
+               
+              if(isset($getUserByBioId)){
+                
+				$countsn++;
+              
+                 $userCmp = $this->app->getUserCompany($getUserByBioId['id']);
+               // $uname = $this->web->getNameByUserId($getUserByBioId['id']);
+               // $name=$uname[0]->name;
+                 
+               if( !empty($userCmp['business_id']) && $userCmp['business_id']==$buid){
+                 $checkOffline = $this->app->checkIoTime($getUserByBioId['id'],$buid,$new_time);
+                 $dateTimes=date("d-M-y h:m:s" ,$new_time);
+                 echo " Found Data: ".$countsn." Enroll Id: ". $new_id2." Name: ". $name." Time: ". $dateTimes ."<br>";
+                  
+                  if(empty($checkOffline)){
+                      echo "(New Data Found) <br> " ; 
+                    $start_time = strtotime(date("d-m-Y 00:00:00",$new_time));
+                   $end_time = strtotime(date("d-m-Y 23:59:59",$new_time));
+                   $offline_at = $this->app->checkOfflineAt($getUserByBioId['id'],$buid,$start_time,$end_time);
+                    $mode = "in";
+                  if(!empty($offline_at)){
+                     if($offline_at['mode']=="in"){
+                      $mode = "out";
+                      }else{
+                       $mode = "in";
+                      }
+                  }
+                
+               $insertData2 = array(
+                      'bussiness_id'=>$buid,
+                      'user_id'=>$getUserByBioId['id'],
+                      'mode'=>$mode,
+                      'device'=>$device,
+                      'manual'=>"4",
+                      'io_time'=>$new_time,
+                      'date'=>time()
+                    );
+                   
+                 
+		$res = $this->db->insert('attendance', $insertData2);
+                
+                
+                
+                
+                
+                
+             $count++;
+                 echo " New Data: ".$count." Enroll Id: ". $new_id2."  Name: ".$name." Time: ".$dateTimes."(Updated) <br>"; 
+                } 
+                else{
+                  echo "(Already Added) <br>" ; 
+                  }
+                }
+              } //$count2++;   
+                
+                
+                
+            }
+            
+         echo $countsn ." Data Found <br> ";
+        echo $count ." New data Added ";
+            
+            
+           // echo "</table>";
+			
+			
+			
+        } else {
+            echo "No data found within the selected date range.";
+        }
+    } else {
+        echo "Error uploading file.";
+    }
+}
+
+
+
+
+}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+
+
+
+	
+	
+	//school new
+	
+	
+	
+	public function add_branch(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('student/add_branch');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+	public function add_s_section(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('student/add_section');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	public function add_period(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('student/add_period');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+	public function add_subject(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('student/add_subject');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+	public function add_teachers(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('student/addteacher');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+		
+		
+		
+	public function addnewteachers(){
+				if(!empty($this->session->userdata('id'))){
+					if($this->session->userdata()['type']=='P'){
+						$uid = $this->session->userdata('empCompany');
+					} else {
+						$uid=$this->web->session->userdata('login_id');
+					}
+				
+					// if($this->session->userdata('type')=="P"){
+					// 	$userCmp = $this->app->getUserCompany($loginId);
+					// 	if(isset($userCmp) && ($userCmp['left_date']=="" || $userCmp['left_date']>time())){
+					// 		$uid = $userCmp['business_id'];
+					// 	}
+					// }
+					$omid = $this->web->getMaxMid()['m_id'];
+					$temp_ = "MI";
+					if($omid == ''){
+						$nmid = $temp_.'00000';
+					}else{
+						$str1 = substr($omid,4);
+						$str1 = $str1 + 1;
+						$str2 = str_pad($str1 , 5 , 0 , STR_PAD_LEFT);
+						$nmid = $temp_.$str2;
+					}
+
+					$postdata=$this->input->post();
+					 $doj=strtotime($_POST['doj']);
+					$otp=rand(1000,9999);
+					$i='upload/nextpng.png';
+                   //  $class_ids=$postdata['class'];
+                    // $class_room=$postdata['class_room'];
+					$subject=$postdata['subject'];
+				 //  $semester=$postdata['semester'];
+				   //  $session=$postdata['session'];
+					$department=$postdata['department'];
+				//	 $section=$postdata['section'];
+                     
+                     
+                     
+                     
+                     
+					$postdata=array(
+						'name'=>$postdata['name'],
+						'mobile'=>trim($postdata['mobile']),
+						'address'=>$postdata['address'],
+						'user_group'=>"2",
+						'email'=>$postdata['email'],
+						'emp_code'=>$postdata['empcode'],
+						'dob'=>$postdata['dob'],
+						'bio_id'=>$postdata['devcode'],
+						'gender'=>$postdata['gender'],
+					//	'designation'=>$postdata['desig'],
+					//	'business_group'=>$postdata['class'],
+						'department'=>$postdata['department'],
+					//	'manager'=>$postdata['post'],
+						'doj'=>strtotime($postdata['doj']),
+						'active'=>0,
+						'date'=>time(),
+						'baseurl'=>base_url().'User/profile/'.$nmid,
+						'login'=>md5($mobile),
+						'image'=>$i,
+						'company'=>$uid,
+						'm_id'=>$nmid,
+						'otp'=>$otp
+
+					);
+					$data=$this->db->insert('login',$postdata);
+					$id = $this->db->insert_id();
+
+					if($data > 0){
+						if($id){
+						   
+							$cmpInData = array(
+								'bid'=>$uid,
+								'uid'=>$id,
+							//	'class_id'=>$class_ids,
+						//	'section'=>$section,
+					     // 'class_room'=>$class_room,
+					    //  'batch'=>$batch,
+				 // 	'semester'=>$semester,
+				 'subject'=>$subject,
+					'department'=>$department,
+						'date_time'=>time(),
+						'update_date'=>time(),
+						'status'=>"1"
+							);
+							$data2=$this->db->insert('class_teacher',$cmpInData);
+						}
+                      //$uname = $this->web->getNameByUserId($id);
+                                     //echo $uname[0]->name;	
+						//	$actdata=array(
+			                          //  'bid'=>$uid,
+				                      //  'uid'=>$this->web->session->userdata('login_id'),
+				                      //  'activity'=>"New Employee ".$uname[0]->name. " added",
+				                      //  'date_time'=>time()
+				
+			                          //   );
+			                //  $data=$this->db->insert('activity',$actdata);	
+				
+						}
+                       
+						$this->session->set_flashdata('msg','New Teacher Added!');
+						redirect('teachers_list');
+					
+				}
+				else{
+					redirect('user-login');
+				}
+			}
+	
+		
+			public function editTeachers(){
+			if(!empty($this->session->userdata('id'))){
+				$id = $this->input->post("id");
+				
+				$this->load->view('student/editTeachers');
+			}
+
+			else{
+				redirect('user-login');
+			}
+		}
+		
+		
+		public function updateTeacher(){
+		if(!empty($this->session->userdata('id'))){
+			echo $id=$_POST['id'];
+			echo $bid=$_POST['bid'];
+			//echo $id = $_POST['id'];
+			echo $name = $_POST['name'];
+			
+			
+		
+			echo $father_name = $_POST['father_name'];
+		    echo $blood_group = $_POST['blood_group'];
+			echo $experience = $_POST['experience'];
+		
+		
+			
+			echo $email = $_POST['email'];
+			echo $address = $_POST['address'];
+			echo $empcode = $_POST['empcode'];
+			echo $bio_id = $_POST['bio_id'];
+			echo $class = $_POST['class'];
+			echo $dob = $_POST['dob'];
+			echo $gender = $_POST['gender'];
+			echo $desig = $_POST['desig'];
+			echo $edu = $_POST['edu'];
+			echo $post = $_POST['post'];
+			echo $department = $_POST['department'];
+			
+			echo $doj = strtotime($_POST['doj']);
+		//	echo $dol = strtotime($_POST['dol']);
+		
+			$data=array(
+						'name' => $name,
+						'email' => $email,
+						'address' => $address,
+						'emp_code' => $empcode,
+						'bio_id' => $bio_id,
+						'gender' => $gender,
+						'designation' => $desig,
+						'education' => $edu,
+						'manager' => $post,
+						'doj' => $doj,
+						'dob' => $dob,
+						'company' => $bid,
+						
+						'father_name' => $father_name,
+						'blood_group' => $blood_group,
+						'experience' => $experience,
+						//'start_date' => $doreg,
+						
+					//	'business_group' => $group,
+						'department' => $department
+				
+					);
+			//$data=$this->db->update('login',$postdata);
+			$this->db->where('id',$id);
+			$data= $this->db->update('login',$data);
+			
+		//	$uname = $this->web->getNameByUserId($id);
+		
+			                 // $data=$this->db->insert('activity',$actdata);	
+			if($class!=''){
+			
+			$jdata=array('class_id' => $class,
+					'update_date'=>time()
+						
+						);
+			$this->db->where('uid',$id);
+			$data= $this->db->update('class_teacher',$jdata);
+			}
+			
+		
+			
+		
+			
+				$this->session->set_flashdata('msg','Teacher Updated Successfully!');
+				redirect('teachers_list');
+			
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+public function add_sdepartment(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata=$this->input->post();
+			$postdata=array(
+			             'bid'=>$postdata['bid'],
+						'name'=>$postdata['name'],
+						 'date_time'=>time(),
+						 'status'=> 1
+						 
+					);
+			$data=$this->db->insert('department_section',$postdata);
+			if($data > 0){
+			   // $uname = $this->web->getNameByUserId($id);
+				 if ($this->session->userdata()['type'] == 'P') {
+          
+          $loginId = $this->session->userdata('empCompany');
+         // $role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+        } else {
+          $loginId = $this->web->session->userdata('login_id');
+        }
+			
+				$this->session->set_flashdata('msg','New Department Added!');
+				redirect('add_branch');
+			}
+		}
+		else{
+			redirect('user-login');
+		}
+	}		
+	
+	
+	
+	
+	
+
+
+
+
+public function delete_S_Section(){
+		if (!empty($this->session->userdata('id'))) {
+			$id = $this->input->post('id');
+			$res= $this->web->delete_S_section($id);
+			if ($res) {
+			    
+				echo $id;
+				return($id);
+			}
+		} else {
+			redirect('user-login');
+		}
+		
+	}
+
+
+	
+	
+	
+public function upload_image() {
+    if (!empty($this->session->userdata('id'))) {
+
+        $postdata = $this->input->post();
+        $id = $_POST['id'];
+
+        if (isset($_FILES["image"]) && $_FILES["image"]["error"] == 0) {
+            $target_dir = "upload/hostel_student/"; // Ensure this directory exists and has write permissions
+            $file_name = basename($_FILES["image"]["name"]);
+            $unique_name = uniqid() . "_" . $file_name; // Add unique prefix
+            $target_file = $target_dir . $unique_name;
+            $imageFileType = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+
+            // Check if the file is a JPEG image
+            if ($imageFileType != "jpg" && $imageFileType != "jpeg") {
+                $this->session->set_flashdata('msg', 'Only JPEG files are allowed.');
+                redirect('student_list');
+                return;
+            }
+
+            // Validate if it's actually a JPEG image
+            $check = getimagesize($_FILES["image"]["tmp_name"]);
+            if ($check === false || $check["mime"] !== "image/jpeg") {
+                $this->session->set_flashdata('msg', 'File is not a valid JPEG image.');
+                redirect('student_list');
+                return;
+            }
+
+            // **Move the uploaded file to the target directory**
+            if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
+                // Update the database with the image path
+                $data = array(
+                    'image' => $target_file
+                );
+
+                $this->db->where('id', $id);
+                $res = $this->db->update('login', $data);
+
+                if ($res) {
+                    $this->session->set_flashdata('msg', 'Photo uploaded successfully!');
+                } else {
+                    $this->session->set_flashdata('msg', 'Database update failed.');
+                }
+            } else {
+                $this->session->set_flashdata('msg', 'Error moving uploaded file.');
+            }
+        } else {
+            $this->session->set_flashdata('msg', 'No file uploaded or error occurred.');
+        }
+
+        redirect('student_list');
+    }
+}
+
+
+///new scholl code
+
+
+	public function add_newperiod(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata=$this->input->post();
+			$postdata=array(
+				'name'=>$postdata['name'],
+				'bid'=>$postdata['bid'],
+			//	'class_id'=>$postdata['class'],
+			//	'subject'=>$postdata['subject'],
+				'start_time'=> date("h:i A",strtotime($postdata['start'])),
+				'end_time'=> date("h:i A",strtotime($postdata['end'])),
+				'date_time'=>time()
+			);
+			$data=$this->db->insert('S_period',$postdata);
+			if($data > 0){
+			   
+			
+				$this->session->set_flashdata('msg','New Period Added!');
+				redirect('add_period');
+			}
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+public function delete_period(){
+		if (!empty($this->session->userdata('id'))) {
+			$id = $this->input->post('id');
+			$res= $this->web->delete_period($id);
+			if ($res) {
+			    
+				echo $id;
+				return($id);
+			}
+		} else {
+			redirect('user-login');
+		}
+		
+	}
+
+
+	public function editperiod(){
+		if(!empty($this->session->userdata('id'))){
+			$check=$_REQUEST;
+			print_r($check);
+			echo $name = $_POST['name'];
+			echo $id = $_POST['id'];
+			$data = array(
+				'name' => $name
+			
+			);
+			print_r($data);
+			$this->db->where('id',$id);
+			$res = $this->db->update('S_period',$data);
+			echo $res;
+			return($res);
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+
+
+
+	public function add_newsubject(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata=$this->input->post();
+			$postdata=array(
+			    'dep_id'=>$postdata['dept'],
+			    'Subject_code'=>$postdata['subcode'],
+				'name'=>$postdata['name'],
+				'bid'=>$postdata['bid'],
+				'date_time'=>time()
+			);
+			$data=$this->db->insert('subject',$postdata);
+			if($data > 0){
+			   
+			
+				$this->session->set_flashdata('msg','New Subject Added!');
+				redirect('add_subject');
+			}
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+public function delete_subject(){
+		if (!empty($this->session->userdata('id'))) {
+			$id = $this->input->post('id');
+			$res= $this->web->delete_subject($id);
+			if ($res) {
+			    
+				echo $id;
+				return($id);
+			}
+		} else {
+			redirect('user-login');
+		}
+		
+	}
+
+
+
+	public function editsubject(){
+		if(!empty($this->session->userdata('id'))){
+			$check=$_REQUEST;
+			print_r($check);
+			echo $name = $_POST['name'];
+			echo $id = $_POST['id'];
+			$data = array(
+				'name' => $name
+			
+			);
+			print_r($data);
+			$this->db->where('id',$id);
+			$res = $this->db->update('subject',$data);
+			echo $res;
+			return($res);
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+
+
+public function add_session(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('student/add_session');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+	
+	public function add_batch(){
+		if(!empty($this->session->userdata('id'))){
+			$this->load->view('student/add_batch');
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+
+// New Controller by Nursid 
+public function students_monthly_report_new(){
+
+	$user_data = $this->session->userdata();
+
+
+	if(!empty($this->session->userdata('id'))){
+		
+		$postdata=$this->input->post();
+			$start_date = date("Y-m-d");
+			$end_date = date("Y-m-d");
+			$dept=0;
+			$session=0;
+			$section=0;
+			$semester=0; // Adding semester parameter
+			$subject=0; // Adding subject parameter
+			$true = 0;
+			$days_array = array();
+			$new_array = array();
+			$subject_wise_data = array(); // Added for subject-wise attendance
+		if ($this->session->userdata()['type'] == 'P') {
+			$loginId = $this->session->userdata('empCompany');
+			$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+			} else {
+			$loginId = $this->web->session->userdata('login_id');
+			}
+			
+			$cmpName = $this->web->getBusinessById($loginId);
+			//$action="active";
+			if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+		$start_date = $postdata['start_date'];
+		$end_date = $postdata['end_date'];
+			//$action = $postdata['action'];
+				$dept = $postdata['dept'];
+			$session = $postdata['session'];
+			$section = $postdata['section'];
+			$semester = isset($postdata['semester']) ? $postdata['semester'] : 0; // Get semester if available
+			$subject = isset($postdata['subject']) ? $postdata['subject'] : 0; // Get subject if available
+			
+			$true= 1;
+			
+			$data2 = array();
+			// get all student by branches -> batch -> semester - > section 
+			$users_data = $this->web->getSchoolStudentListbysection_new($loginId,$dept,$semester,$section);
+			
+			// Calculate date range info
+			$date1 = date_create(date("Y-m-d",strtotime($start_date)));
+			$date2 = date_create(date("Y-m-d",strtotime($end_date)));
+			$diff = date_diff($date1,$date2);
+			$num_month = $diff->format("%a");
+			$num_month++;
+			if($num_month > 31){
+				$num_month = 31;
+			}
+			
+			// First collect all days that have periods assigned
+			$period_days = array();
+			$sequential_index = 1; // Start numbering from 1
+			
+			for($d=0; $d<$num_month; $d++){
+				$new_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date))." +".$d." days");
+				$day_number = date('w', $new_start_time);
+				$calendar_day = date("d", $new_start_time);
+				$day_name = date("l", $new_start_time);
+
+				
+				
+				// Check if this day has a period
+				$getperiodTime = $this->web->getperiodTime($subject, $day_number);
+				if(!empty($getperiodTime)) {
+					// Get teacher name
+					$teacher_name = '';
+					if(!empty($getperiodTime->teacher)) {
+						$teacher_name = $this->web->getTeacherNameById($getperiodTime->teacher, $loginId);
+					}
+					
+					$period_days[] = array(
+						'sequential_day' => $sequential_index++, // Use numbered sequence
+						'original_index' => $d,
+						'calendar_day' => $calendar_day,
+						'day_name' => $day_name,
+						'timestamp' => $new_start_time,
+						'day_number' => $day_number,
+						'period_info' => $getperiodTime,
+						'teacher_name' => $teacher_name
+					);
+					
+					// Add to days array for the view (sequential numbering)
+					$days_array[] = $sequential_index - 1; // Sequential day number
+				}
+			}
+	  
+			if(!empty($users_data)){
+				foreach($users_data as $user){
+					$months_array = array();
+					
+					foreach($period_days as $day_info){
+						$d = $day_info['original_index'];
+						$new_start_time = $day_info['timestamp'];
+						$day_number = $day_info['day_number'];
+						$getperiodTime = $day_info['period_info'];
+						
+						$start_time_period = $getperiodTime->start_time;
+						$end_time_period = $getperiodTime->end_time;
+						
+						$start_time_stamp = strtotime(date("Y-m-d", strtotime($start_date)) . " " . $start_time_period . " +".$d." days");
+						$end_time_stamp = strtotime(date("Y-m-d", strtotime($start_date)) . " " . $end_time_period . " +".$d." days");
+						
+						
+
+						$holiday_name = $this->web->getHolidayByBusinessId_new($loginId, $new_start_time);
+        
+						if ($holiday_name) {
+							$data = array(
+								'status' => 'Holiday: ' . $holiday_name,
+								'time' => ''
+							);
+						} else {
+							$dayUserAt = $this->web->getStudentAttendanceReportByDate($start_time_stamp, $end_time_stamp, $user->id, $loginId);
+							
+							$data = array(
+								'status' => 'A',
+								'time' => ''
+							);
+							
+							if(!empty($dayUserAt)) {
+								$data = array(
+									'status' => 'P',
+									'time' => date('H:i', $dayUserAt[0]->time)
+								);
+							}
+						}
+						
+						$months_array[] = array(
+							'date' => $day_info['sequential_day'], // Use sequential day number
+							'calendar_day' => $day_info['calendar_day'], // Keep original calendar day too
+							'day' => $day_info['day_name'],
+							'teacher_name' => $day_info['teacher_name'],
+							'data' => $data
+						);
+					}
+					
+					if(count($months_array) > 0){
+						$new_array[] = array(
+							'user_id' => $user->id,
+							'name' => $user->name,
+							'data' => $months_array
+						);
+					}
+				}
+			}
+			
+			// Get branch, batch, and semester information
+			$branch_info = $this->web->getBusinessDepByUserId($dept);
+			$branch_name = !empty($branch_info) ? $branch_info[0]->name : '';
+			
+			$batch_info = $this->web->getbatchById($session);
+			$batch_name = !empty($batch_info) ? $batch_info[0]->session_name : '';
+			
+			$semester_info = $this->web->getSemesterById($postdata['semester'] ?? 0);
+			$semester_name = !empty($semester_info) ? $semester_info[0]->semestar_name : '';
+			
+			$section_info = $this->web->getsectionById($section);
+			$section_name = !empty($section_info) ? $section_info[0]->name : '';
+			
+			// Get subject information if subject is selected
+			$subject_name = '';
+			if($subject > 0) {
+				$subject_info = $this->web->getsubjectnamebyid($subject);
+				$subject_name = !empty($subject_info) ? $subject_info->name : '';
+			}
+			
+			$data = array(
+				'start_date' => $start_date,
+				'end_date' => $end_date,
+				'dept' => $dept,
+				'session' => $session,
+				'section' => $section,
+				'semester' => $semester,
+				'subject' => $subject,
+				'load' => $true,
+				'report' => $new_array,
+				'days' => $days_array,
+				'period_days' => $period_days,
+				'branch_name' => $branch_name,
+				'batch_name' => $batch_name,
+				'semester_name' => $semester_name,
+				'section_name' => $section_name,
+				'subject_name' => $subject_name,
+				'cmp_name' => $cmpName['name']
+			);
+			
+			// Count days with time periods
+			$days_with_time_periods = count($period_days);
+			$data['days_with_time_periods'] = $days_with_time_periods;
+			
+			$this->load->view('student/students_monthly_report',$data);
+		}
+		else{
+			redirect('user-login');
+		}
+	}
+}
+
+public function add_newtimetable(){
+	if(!empty($this->session->userdata('id'))){
+		$postdata=$this->input->post();
+
+		// Handle multi-select arrays by converting to comma-separated strings
+		$branch_ids = is_array($postdata['branch_id']) ? implode(',', $postdata['branch_id']) : $postdata['branch_id'];
+		$semester_ids = is_array($postdata['semester_id']) ? implode(',', $postdata['semester_id']) : $postdata['semester_id'];
+		$section_ids = is_array($postdata['section_id']) ? implode(',', $postdata['section_id']) : $postdata['section_id'];
+		
+		$timetable_data=array(
+			'name'=>$postdata['name'],
+			'start_date'=>strtotime($postdata['start']),
+			'end_date'=>strtotime($postdata['end']),
+			'dept'=>$branch_ids,
+			'session'=>$postdata['batch_id'], // batch_id remains single value
+			'semester_id'=>$semester_ids,
+			'section'=>$section_ids,
+			'bid'=>$postdata['bid']
+		);
+
+
+		$data=$this->db->insert('time_table_name',$timetable_data);
+		$timetable_id = $this->db->insert_id(); // Get the ID of the newly inserted timetable
+		
+		if($data > 0){
+			// Get all periods for this bid
+			$periods = $this->web->getallperiodbyid($timetable_data['bid']);
+			
+			// Add entries for all days and periods
+			if(!empty($periods)){
+				foreach($periods as $period){
+					// Add for all days (0=Sunday, 1=Monday, 2=Tuesday, etc.)
+					for($day = 0; $day <= 6; $day++){
+						$period_data = array(
+							'bid' => $timetable_data['bid'],
+							'days' => $day,
+							'period' => $period->id,
+							'subject' => '',
+							'class_room' => '',
+							'teacher' => '',
+							'timetable_id' => $timetable_id
+						);
+						$this->db->insert('time_table', $period_data);
+					}
+				}
+			}
+			
+			$this->session->set_flashdata('msg','New Time Table Added!');
+			redirect('time_table');
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function get_semester_by_branch() {
+    if(!empty($this->session->userdata('id'))) {
+        $branch_id = $this->input->post('branch_id');
+        $bid = $this->session->userdata('login_id');
+        
+        $semesters = $this->web->getallSemesters($bid);
+        $filtered_semesters = array();
+        
+        foreach($semesters as $semester) {
+            $dep_ids = explode(',', $semester->dep_id);
+            if(in_array($branch_id, $dep_ids)) {
+                $filtered_semesters[] = $semester;
+            }
+        }
+        
+        echo json_encode($filtered_semesters);
+    }
+}
+
+public function get_sections_by_batch_semester() {
+    if(!empty($this->session->userdata('id'))) {
+        $batch_id = $this->input->post('batch_id');
+        $semester_id = $this->input->post('semester_id');
+        $bid = $this->session->userdata('login_id');
+        
+        $sections = $this->web->getall_S_sectionbyid($bid);
+        $filtered_sections = array();
+        
+        foreach($sections as $section) {
+            if($section->session_id == $batch_id) {
+                $filtered_sections[] = $section;
+            }
+        }
+        
+        echo json_encode($filtered_sections);
+    }
+}
+
+public function time_table(){
+	if(!empty($this->session->userdata('id'))){
+		$this->load->view('student/add_timetable');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function get_sections_by_session(){
+	if(!empty($this->session->userdata('id'))){
+		$session_id = $this->input->post('id');
+		$result = $this->web->getSectionBySessionId($session_id);
+		
+		echo '<option value="" disabled selected>Select Section</option>';
+		if(!empty($result)){
+			foreach($result as $section):
+				echo "<option value=".$section->id.">".$section->name."</option>";
+			endforeach;
+		} else {
+			echo '<option value="" disabled>No sections found</option>';
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function period_timetable($timetable_id = null) {
+
+	if(!empty($this->session->userdata('id'))){
+		if($timetable_id) {
+			$data['timetable'] = $this->web->get_timetable_by_id($timetable_id);
+			
+			$data['timetable_entries'] = $this->web->get_timetable_entries($timetable_id);
+			
+			$data['teachers'] = $this->web->get_all_teachers($this->session->userdata('login_id'));
+
+			
+			$data['subjects'] = $this->web->get_all_subjects($this->session->userdata('login_id'));
+			
+			$this->load->view('student/period_timetable', $data);
+		} else {
+			redirect('time_table');
+		}
+	} else {
+		redirect('user-login');
+	}
+}
+
+public function save_timetable_entry() {
+	if(!empty($this->session->userdata('id'))){
+		$postdata = $this->input->post();
+	
+		// Check if entry already exists
+		$existing = null;
+		if(!empty($postdata['entry_id'])) {
+			$existing = $this->db->where('id', $postdata['entry_id'])->get('time_table')->row();
+		}
+
+		$entry = array(
+			'bid' => $this->session->userdata('login_id'),
+			'timetable_id' => $postdata['timetable_id'],
+			'days' => $postdata['days'],
+			'period' => $postdata['period'],
+			'subject' => $postdata['subject'],
+			'class_room' => $postdata['class_room'],
+			'teacher' => $postdata['teacher']
+		);
+		
+		if($existing) {
+			// Update existing entry
+			$this->db->where('id', $existing->id);
+			$result = $this->db->update('time_table', $entry);
+		} else {
+			// Insert new entry
+			$result = $this->db->insert('time_table', $entry);
+		}
+		
+		if($result) {
+			echo json_encode(['status' => 'success']);
+		} else {
+			echo json_encode(['status' => 'error']);
+		}
+	} else {
+		redirect('user-login');
+	}
+}
+
+public function update_day_timetable() {
+	if(!empty($this->session->userdata('id'))){
+		// Get POST data - expecting JSON array of entries
+		$entries = json_decode($this->input->post('entries'), true);
+		$timetable_id = $this->input->post('timetable_id');
+		$day = $this->input->post('day');
+		
+		// Validate input
+		if(empty($entries) || !is_array($entries) || empty($timetable_id) || !isset($day)) {
+			echo json_encode([
+				'status' => 'error', 
+				'message' => 'Invalid input data'
+			]);
+			return;
+		}
+		
+		// Process each entry
+		$success_count = 0;
+		$error_count = 0;
+		$bid = $this->session->userdata('login_id');
+		
+		foreach($entries as $entry_data) {
+			// Validate entry has required fields
+			if(empty($entry_data['entry_id'])) {
+				$error_count++;
+				continue;
+			}
+			
+			// Prepare data for update
+			$entry = array(
+				'bid' => $bid,
+				'timetable_id' => $timetable_id,
+				'days' => $day
+			);
+			
+			// Add optional fields if present
+			if(isset($entry_data['subject']) && !empty($entry_data['subject'])) {
+				$entry['subject'] = $entry_data['subject'];
+			}
+			
+			if(isset($entry_data['teacher']) && !empty($entry_data['teacher'])) {
+				$entry['teacher'] = $entry_data['teacher'];
+			}
+			
+			if(isset($entry_data['class_room']) && !empty($entry_data['class_room'])) {
+				$entry['class_room'] = $entry_data['class_room'];
+			}
+			
+			// Update entry
+			$this->db->where('id', $entry_data['entry_id']);
+			$result = $this->db->update('time_table', $entry);
+			
+			if($result) {
+				$success_count++;
+			} else {
+				$error_count++;
+			}
+		}
+		
+		// Return results
+		echo json_encode([
+			'status' => 'success',
+			'message' => "Updated $success_count entries successfully. $error_count entries failed.",
+			'success_count' => $success_count,
+			'error_count' => $error_count
+		]);
+	} else {
+		redirect('user-login');
+	}
+}
+
+public function getallsubjectbyid() {
+    if(!empty($this->session->userdata('id'))) {
+        if ($this->input->is_ajax_request()) {
+            $bid = $this->input->post('bid');
+            $subjects = $this->web->getallsubjectbybranchid($bid);
+            echo json_encode($subjects);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid request']);
+        }
+    } else {
+        redirect('user-login');
+    }
+}
+
+public function get_batch_by_id(){
+	if(!empty($this->session->userdata('id'))){
+		$id = $this->input->post('id');
+		$batch = $this->web->getSessionById($id);
+		echo json_encode($batch[0]);
+	}
+}
+
+
+public function update_batch(){
+	if(!empty($this->session->userdata('id'))){
+		$postdata = $this->input->post();
+		$id = $postdata['batch_id'];
+		
+		// Handle multiple branches
+		$branches = '';
+		if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+			$branches = implode(',', $postdata['dept']); 
+		}
+		
+		// Update data in database
+		$data = array(
+			'dep_id' => $branches,
+			'session_name' => $postdata['session']
+		);
+		
+		$this->db->where('id', $id);
+		$result = $this->db->update('S_Session', $data);
+		
+		if($result){
+			$this->session->set_flashdata('msg', 'Batch Updated Successfully!');
+		}
+		redirect('add_batch');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function add_newsession(){
+	if(!empty($this->session->userdata('id'))){
+		$postdata=$this->input->post();
+		
+		
+		// Handle multiple branches
+		$branches = '';
+		if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+			$branches = implode(',', $postdata['dept']); 
+		}
+		
+		
+		// Create array with session data
+		$postdata=array(
+			'dep_id'=>$branches,
+			'session_name'=>$postdata['session'], 
+			'bid'=>$postdata['bid'],
+			'date_time'=>time()
+		);
+		
+		
+		// Insert into database
+		$data=$this->db->insert('S_Session',$postdata);
+		if($data > 0){
+			$this->session->set_flashdata('msg','New Session Added!');
+			redirect('add_batch');
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+
+public function editsession(){
+	if(!empty($this->session->userdata('id'))){
+		$check=$_REQUEST;
+		print_r($check);
+		
+		$name = $_POST['name'];
+		$id = $_POST['id'];
+		$branches = '';
+		
+		if(isset($_POST['dept']) && is_array($_POST['dept'])) {
+			$branches = implode(',', $_POST['dept']);
+		}
+		
+		$data = array(
+			'session_name' => $name,
+			'dep_id' => $branches
+		);
+		
+		print_r($data);
+		$this->db->where('id',$id);
+		$res = $this->db->update('S_Session',$data);
+		echo $res;
+		return($res);
+	}
+	else{
+		redirect('user-login');
+	}
+}
+public function delete_S_session(){
+	if (!empty($this->session->userdata('id'))) {
+		$id = $this->input->post('id');
+		
+		// Get current status
+		$session = $this->web->getSessionById($id);
+		$current_status = $session[0]->status;
+		
+		// Toggle status between 0 and 1
+		$new_status = ($current_status == 1) ? 0 : 1;
+		
+		$res = $this->web->delete_S_session($id, $new_status);
+		
+		if ($res) {
+			echo $id;
+			return($id);
+		}
+	} else {
+		redirect('user-login');
+	}
+}
+
+public function add_newsection() {
+    if (!empty($this->session->userdata('id'))) {
+        $postdata = $this->input->post();
+
+        // Decode the structured branch-semester data
+        $structuredData = [];
+        if (isset($postdata['structured_data']) && !empty($postdata['structured_data'])) {
+            $structuredData = json_decode($postdata['structured_data'], true);
+        }
+
+        // Store section details (name, bid, etc.)
+        $data = array(
+            'name' => $postdata['name'],
+            'bid' => $postdata['bid'],
+            'date_time' => time()
+        );
+
+        // Insert into S_section
+        $result = $this->db->insert('S_section', $data);
+
+        if ($result) {
+            $section_id = $this->db->insert_id(); // Get newly created section ID
+
+            // Insert branch-semester combinations
+            foreach ($structuredData as $branchId => $semesters) {
+                foreach ($semesters as $semesterId) {
+                    $this->db->insert('section_semesters', [
+                        'section_id' => $section_id,
+                        'branch_id' => $branchId,
+                        'semester_id' => $semesterId
+                    ]);
+                }
+            }
+
+            $this->session->set_flashdata('msg', 'New Section Added!');
+            redirect('add_s_section');
+        } else {
+            $this->session->set_flashdata('msg', 'Something went wrong.');
+            redirect('add_s_section');
+        }
+    } else {
+        redirect('user-login');
+    }
+}
+public function edit_S_Section(){
+	if(!empty($this->session->userdata('id'))){
+		$id = $this->input->post('id');
+		$name = $this->input->post('name');
+		$structuredData = json_decode($this->input->post('structured_data'), true);
+		
+		// Update section name
+		$data = array(
+			'name' => $name
+		);
+		
+		$this->db->where('id', $id);
+		$res = $this->db->update('S_section', $data);
+		
+		if($res) {
+			// Delete existing branch-semester relationships
+			$this->db->where('section_id', $id);
+			$this->db->delete('section_semesters');
+			
+			// Insert new branch-semester combinations
+			foreach($structuredData as $branchId => $semesters) {
+				foreach($semesters as $semesterId) {
+					$this->db->insert('section_semesters', [
+						'section_id' => $id,
+						'branch_id' => $branchId,
+						'semester_id' => $semesterId
+					]);
+				}
+			}
+		}
+		
+		echo $res;
+		return($res);
+	} else {
+		redirect('user-login');
+	}
+}
+
+public function add_semester(){
+	if(!empty($this->session->userdata('id'))){
+		$this->load->view('student/add_semester');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function get_semester_by_id(){
+	if(!empty($this->session->userdata('id'))){
+		$id = $this->input->post('id');
+		$semester = $this->web->getSemesterById($id);
+		echo json_encode($semester[0]);
+	}
+}
+
+public function update_semester(){
+	if(!empty($this->session->userdata('id'))){
+		$postdata = $this->input->post();
+		$id = $postdata['semester_id'];
+		
+		// Update data in database
+		$data = array(
+			'session_id' => $postdata['session_id'],
+			'semester_name' => $postdata['semester_name']
+		);
+		
+		$this->db->where('id', $id);
+		$result = $this->db->update('S_Semester', $data);
+		
+		if($result){
+			$this->session->set_flashdata('msg', 'Semester Updated Successfully!');
+		}
+		redirect('add_semester');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function add_newsemester(){
+	if(!empty($this->session->userdata('id'))){
+		$postdata = $this->input->post();
+		
+		$branches = '';
+		if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+			$branches = implode(',', $postdata['dept']); 
+		}
+		// Create array with semester data
+		$data = array(
+			'semestar_name' => $postdata['semestar_name'],
+			'bid' => $this->session->userdata('login_id'),
+			'status' => 1,
+			'year' => $postdata['year'],
+			'dep_id' => $branches
+		);
+	
+		// Insert into database
+		$result = $this->db->insert('s_semester', $data);
+		
+		if($result){
+			$this->session->set_flashdata('msg', 'New Semester Added!');
+			redirect('add_semester');
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function update_newsemester(){
+	if(!empty($this->session->userdata('id'))){
+		$postdata = $this->input->post();
+		
+		$branches = '';
+		if(isset($postdata['dept']) && is_array($postdata['dept'])) {
+			$branches = implode(',', $postdata['dept']); 
+		}
+
+		// Create array with updated semester data
+		$data = array(
+			'semestar_name' => $postdata['semestar_name'],
+			'year' => $postdata['year'],
+			'dep_id' => $branches
+		);
+
+		// Update database
+		$this->db->where('id', $postdata['id']);
+		$result = $this->db->update('s_semester', $data);
+		
+		if($result){
+			$this->session->set_flashdata('msg', 'Semester Updated Successfully!');
+			redirect('add_semester');
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
+public function delete_semester(){
+	if(!empty($this->session->userdata('id'))){
+		$id = $this->input->post('id');
+		
+		// Get current status
+		$semester = $this->web->getSemesterById($id);
+		$current_status = $semester[0]->status;
+		
+		// Toggle status between 0 and 1
+		$new_status = ($current_status == 1) ? 0 : 1;
+		
+		$res = $this->web->delete_semester($id, $new_status);
+		
+		if($res){
+			echo $id;
+			return($id);
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function get_batches_by_dept(){
+	if(!empty($this->session->userdata('id'))){
+		$dept_id = $this->input->post('dept_id');
+		$bid = $this->session->userdata('login_id');
+		
+		$batches = $this->web->getBatchesByDeptId($dept_id, $bid);
+		
+		echo json_encode($batches);
+	}
+}
+
+
+// 13-04-2025 by nursid
+
+public function get_section_by_branch_semester() {
+    $branchId = $this->input->post('branch_id');
+    $semesterId = $this->input->post('semester_id');
+
+    // Fetch sections based on branch and semester
+    $sections = $this->web->getSectionsByBranchAndSemester($branchId, $semesterId);
+
+    // Return the sections as a JSON response
+    echo json_encode($sections);
+}
+
+public function get_batch_by_branch() {
+    $branchId = $this->input->post('branch_id');
+
+    // Fetch batches based on branch
+    $batches = $this->web->getBatchesByDeptId($branchId, $this->session->userdata('login_id'));
+
+    // Return the batches as a JSON response
+    echo json_encode($batches);
+}
+
+
+public function update_subject() {
+    if (!empty($this->session->userdata('id'))) {
+        $postdata = $this->input->post();
+        $this->db->where('id', $postdata['id']);
+        $this->db->update('subject', [
+            'name' => $postdata['name'],
+            'Subject_code' => $postdata['subcode'],
+            'dep_id' => $postdata['dept'],
+        ]);
+        $this->session->set_flashdata('msg', 'Subject Updated!');
+        redirect('add_subject');
+    } else {
+        redirect('user-login');
+    }
+}
+
+public function student_dashboard_api() {
+
+	if(!empty($this->session->userdata('id'))){
+    // Validate request
+    if (!$this->input->is_ajax_request()) {
+        echo json_encode(['status' => 'error', 'message' => 'Direct access not allowed']);
+        return;
+    }
+
+	$bid = $this->session->userdata('login_id');
+
+    $action = $this->input->post('action');
+    
+	
+    switch ($action) {
+        case 'get_dashboard_data':
+            $branch_id = $this->input->post('branch_id');
+            $semester_id = $this->input->post('semester_id');
+            $section_id = $this->input->post('section_id');
+            	
+            // Allow branch-only filtering
+            if (!$branch_id) {
+                echo json_encode(['status' => 'error', 'message' => 'Branch ID is required']);
+                return;
+            }
+            
+            // Get current date
+            $current_date = date('Y-m-d');
+            $start_time = strtotime(date('Y-m-d 00:00:00'));
+            $end_time = strtotime(date('Y-m-d 23:59:59'));
+            
+            // Build where conditions for students
+            $student_conditions = ['student.department' => $branch_id, 'student.status' => 1];
+            if ($semester_id) {
+                $student_conditions['student.semester'] = $semester_id;
+            }
+            if ($section_id) {
+                $student_conditions['student.section'] = $section_id;
+            }
+            
+            // Get all students in this section/branch
+            $this->db->select('student.*');
+            $this->db->from('student');
+            $this->db->where($student_conditions);
+            $query = $this->db->get();
+            $students = $query->result();
+            $total_students = count($students);
+            
+            // Get periods for the day
+            $dayOfWeek = date('w'); // 0 (for Sunday) through 6 (for Saturday)
+            $periods = $this->db->get_where('S_period', ['bid' => $bid, 'status' => 1])->result();
+            
+            // Get subjects for this branch and semester
+            $subject_conditions = [
+                'subject.bid' => $bid, 
+                'subject.dep_id' => $branch_id, 
+                'subject.status' => 1
+            ];
+            $this->db->select('subject.*');
+            $this->db->from('subject');
+            $this->db->where($subject_conditions);
+            $query = $this->db->get();
+            $subjects = $query->result();
+            
+            // Process student attendance
+            $student_data = [];
+            $present_count = 0;
+            $absent_count = 0;
+            
+            foreach ($students as $student) {
+                // Get attendance logs for this student today
+                $this->db->select('*');
+                $this->db->from('student_attendance');
+                $this->db->where('student_id', $student->id);
+                $this->db->where('bid', $bid);
+                $this->db->where('status', 1);
+                $this->db->where('time >=', $start_time);
+                $this->db->where('time <=', $end_time);
+                $this->db->order_by('time', 'ASC');
+                $attendance_query = $this->db->get();
+                $attendance_logs = $attendance_query->result();
+                
+                $student_attendance = [];
+                $is_present = false;
+                
+                if (!empty($attendance_logs)) {
+                    $is_present = true;
+                    $present_count++;
+                    
+                    foreach ($attendance_logs as $log) {
+                        $student_attendance[] = [
+                            'time' => $log->time,
+                            'formatted_time' => date('h:i A', $log->time),
+                            'student_status' => $log->student_status
+                        ];
+                    }
+                } else {
+                    $absent_count++;
+                }
+                
+                // Get class name
+                $class_name = "";
+                if (!empty($student->class_id)) {
+                    $class_info = $this->db->get_where('class', ['id' => $student->class_id])->row();
+                    if ($class_info) {
+                        $class_name = $class_info->name;
+                    }
+                }
+                
+                // Get semester name
+                $semester_name = $student->semester;
+                
+                // Get period attendance for this student
+                $period_attendance = [];
+                foreach ($periods as $period) {
+                    $period_start = strtotime(date('Y-m-d ') . $period->start_time);
+                    $period_end = strtotime(date('Y-m-d ') . $period->end_time);
+                    
+                    // Get subject for this period and day
+                    $subject_name = "";
+                    $subject_info = $this->web->getSubjectByPeriodAndDay($period->id, $dayOfWeek);
+                    if ($subject_info) {
+                        $subject_name = $subject_info->name;
+                    }
+                    
+                    $is_present_in_period = false;
+                    foreach ($attendance_logs as $log) {
+                        $log_time = $log->time;
+                        if ($log_time >= $period_start && $log_time <= $period_end) {
+                            $is_present_in_period = true;
+                            break;
+                        }
+                    }
+                    
+                    $period_attendance[] = [
+                        'period_id' => $period->id,
+                        'period_name' => $period->name,
+                        'start_time' => $period->start_time,
+                        'end_time' => $period->end_time,
+                        'subject' => $subject_name,
+                        'status' => $is_present_in_period ? 'P' : 'A'
+                    ];
+                }
+                
+                // Get roll number
+                $roll_no = !empty($student->roll_no) ? $student->roll_no : $student->student_code;
+                
+                $student_data[] = [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'roll_no' => $roll_no,
+                    'class' => $class_name,
+                    'semester' => $semester_name,
+                    'attendance_status' => $is_present ? 'P' : 'A',
+                    'attendance_logs' => $student_attendance,
+                    'period_attendance' => $period_attendance
+                ];
+            }
+            
+            // Get period headers for the UI
+            $period_headers = [];
+            foreach ($periods as $period) {
+                $subject_info = $this->web->getSubjectByPeriodAndDay($period->id, $dayOfWeek);
+                $subject_name = $subject_info ? $subject_info->name : "N/A";
+                
+                $period_headers[] = [
+                    'id' => $period->id,
+                    'name' => $period->name,
+                    'time' => $period->start_time . '-' . $period->end_time,
+                    'subject' => $subject_name
+                ];
+            }
+            
+            // Process subjects attendance data
+            $subject_attendance = [];
+            foreach ($subjects as $subject) {
+                $subject_present = 0;
+                $subject_absent = 0;
+                
+                // Count present students for this subject
+                foreach ($student_data as $student) {
+                    $found_in_period = false;
+                    foreach ($student['period_attendance'] as $period) {
+                        if ($period['subject'] == $subject->name && $period['status'] == 'P') {
+                            $found_in_period = true;
+                            break;
+                        }
+                    }
+                    
+                    if ($found_in_period) {
+                        $subject_present++;
+                    } else {
+                        $subject_absent++;
+                    }
+                }
+                
+                $subject_attendance[] = [
+                    'id' => $subject->id,
+                    'name' => $subject->name,
+                    'code' => $subject->subject_code ?? 'N/A',
+                    'present' => $subject_present,
+                    'absent' => $subject_absent
+                ];
+            }
+            
+            // Get class attendance data
+            $class_attendance = [];
+            $classes = $this->db->get_where('class', ['bid' => $branch_id, 'status' => 1])->result();
+            
+            foreach ($classes as $class) {
+                $class_students_count = 0;
+                $class_present_count = 0;
+                
+                foreach ($student_data as $student) {
+                    if ($student['class'] == $class->name) {
+                        $class_students_count++;
+                        if ($student['attendance_status'] == 'P') {
+                            $class_present_count++;
+                        }
+                    }
+                }
+                
+                $percentage = $class_students_count > 0 ? round(($class_present_count / $class_students_count) * 100) : 0;
+                
+                $class_attendance[] = [
+                    'id' => $class->id,
+                    'name' => $class->name,
+                    'total' => $class_students_count,
+                    'present' => $class_present_count,
+                    'absent' => $class_students_count - $class_present_count,
+                    'percentage' => $percentage
+                ];
+            }
+            
+            // Summary data
+            $summary = [
+                'total_students' => $total_students,
+                'present_students' => $present_count,
+                'absent_students' => $absent_count,
+                'attendance_date' => $current_date,
+                'total_staff' => $this->web->getTotalStaff($branch_id),
+                'total_branches' => $this->web->getTotalBranches($bid),
+                'total_subjects' => $this->web->getTotalSubjects($branch_id)
+            ];
+            
+            // Get attendance trend for last 7 days
+            $days = [];
+            $present_by_day = [];
+            $absent_by_day = [];
+            
+            for ($i = 6; $i >= 0; $i--) {
+                $day_date = date('Y-m-d', strtotime("-$i days"));
+                $day_start = strtotime("$day_date 00:00:00");
+                $day_end = strtotime("$day_date 23:59:59");
+                $days[] = date('D', strtotime($day_date));
+                
+                $day_present = 0;
+                $day_absent = 0;
+                
+                foreach ($students as $student) {
+                    $this->db->select('*');
+                    $this->db->from('student_attendance');
+                    $this->db->where('student_id', $student->id);
+                    $this->db->where('bid', $branch_id);
+                    $this->db->where('status', 1);
+                    $this->db->where('time >=', $day_start);
+                    $this->db->where('time <=', $day_end);
+                    $attendance_count = $this->db->count_all_results();
+                    
+                    if ($attendance_count > 0) {
+                        $day_present++;
+                    } else {
+                        $day_absent++;
+                    }
+                }
+                
+                $present_by_day[] = $day_present;
+                $absent_by_day[] = $day_absent;
+            }
+            
+            // Get student counts by branch for the branch chart
+            $branches_data = [];
+            $all_branches = $this->web->getBusinessDepByBusinessId($bid);
+            $total_branch_count = count($all_branches); // Count total branches
+            
+            foreach ($all_branches as $branch) {
+                $this->db->where('department', $branch->id);
+                $this->db->where('status', 1);
+                $student_count = $this->db->count_all_results('student');
+                
+                $branches_data[] = [
+                    'id' => $branch->id,
+                    'name' => $branch->name,
+                    'student_count' => $student_count
+                ];
+            }
+            
+            // Count total students across all branches
+            $this->db->where('bid', $bid);
+            $this->db->where('status', 1);
+            $total_all_students = $this->db->count_all_results('student');
+            
+            // Count total staff
+            $this->db->where('company', $bid);
+            $this->db->where('deleted', 1);
+            $total_staff_count = $this->db->count_all_results('login');
+            
+            // Count total subjects/courses
+            $this->db->where('bid', $bid);
+            $this->db->where('status', 1);
+            $total_subject_count = $this->db->count_all_results('subject');
+            
+            // Update summary with correct counts
+            $summary['total_branches'] = $total_branch_count;
+            $summary['total_staff'] = $total_staff_count;
+            $summary['total_subjects'] = $total_subject_count;
+            $summary['total_students'] = $total_all_students; // Total students across all branches
+            
+            // Prepare response data
+            $data = [
+                'summary' => $summary,
+                'students' => $student_data,
+                'period_headers' => $period_headers,
+                'days' => $days,
+                'present_by_day' => $present_by_day,
+                'absent_by_day' => $absent_by_day,
+                'class_attendance' => $class_attendance,
+                'subject_attendance' => $subject_attendance,
+                'branches_data' => $branches_data,
+                'overall' => [
+                    'present' => $present_count,
+                    'absent' => $absent_count,
+                    'total' => $total_students
+                ]
+            ];
+
+            echo json_encode(['status' => 'success', 'data' => $data]);
+            break;
+        
+        default:
+            echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
+            break;
+    }
+}
+}
+
+public function student_dashboard() {
+    if(!empty($this->session->userdata('id'))){
+        if($this->session->userdata('login_type')!='S'){
+            $data['bid'] = $this->session->userdata('login_id');
+        } else {
+            $data['bid'] = $this->session->userdata('company');
+        }
+        
+        // Get all branches for initial dropdown
+        $data['branches'] = $this->web->getBusinessDepByBusinessId($data['bid']);
+        
+        $data['total_branches'] = $this->web->getTotalBranches($data['bid']);
+        $data['total_students'] = $this->web->getTotalStudents($data['bid']);
+        $data['total_staff'] = $this->web->getTotalStaff($data['bid']);
+        $data['total_subjects'] = $this->web->getTotalSubjects($data['bid']);
+
+		$data['total_branches'] = $this->web->getTotalBranches($bid);
+			
+			$data['total_students'] = $this->web->getTotalStudents($bid);
+
+			
+			$data['total_staff'] = $this->web->getTotalStaff($bid);
+
+			
+			$data['total_subjects'] = $this->web->getTotalSubjects($bid);
+
+	
+        $this->load->view('student/student_dashboard', $data);
+    } else {
+        redirect(base_url().'user/login');
+    }
+}
+
+
+public function addnew_S_student(){
+	if(!empty($this->session->userdata('id'))){
+		if($this->session->userdata()['type']=='P'){
+			$uid = $this->session->userdata('empCompany');
+		} else {
+			$uid=$this->web->session->userdata('login_id');
+		}
+	
+		$postdata=$this->input->post();
+		
+		$i = !empty($postdata['image']) ? $postdata['image'] : 'upload/nextpng.png';
+		
+		// Format DOJ properly if it exists
+		$doj = !empty($postdata['doj']) ? strtotime($postdata['doj']) : time();
+
+		$student_data = array(
+			'bid' => isset($postdata['bid']) ? $postdata['bid'] : null,
+			'name' => isset($postdata['name']) ? $postdata['name'] : null,
+			'enroll_id' => isset($postdata['mobile']) ? trim($postdata['mobile']) : null,
+			'address' => isset($postdata['address']) ? $postdata['address'] : null,
+			'roll_no' => isset($postdata['rollno']) ? $postdata['rollno'] : null,
+			'student_code' => isset($postdata['stuid']) ? $postdata['stuid'] : null,
+			'dob' => isset($postdata['dob']) ? $postdata['dob'] : null,
+			'bio_id' => isset($postdata['devcode']) ? $postdata['devcode'] : null,
+			'rfid' => isset($postdata['rfid']) ? $postdata['rfid'] : null,
+			'blood_group' => isset($postdata['blood']) ? $postdata['blood'] : null,
+			'image' => $i,
+			'gender' => isset($postdata['gender']) ? $postdata['gender'] : null,
+			'class_id' => isset($postdata['class']) ? $postdata['class'] : null,
+			'section' => isset($postdata['section']) ? $postdata['section'] : null,
+			'batch' => isset($postdata['batch']) ? $postdata['batch'] : null,
+			'semester' => isset($postdata['semester']) ? $postdata['semester'] : null,
+			'session' => isset($postdata['session']) ? $postdata['session'] : null,
+			'department' => isset($postdata['department']) ? $postdata['department'] : null,
+			'email' => isset($postdata['email']) ? $postdata['email'] : null,
+			'doj' => $doj,
+			'parent_name' => isset($postdata['par_name']) ? $postdata['par_name'] : null,
+			'parent_mobile' => isset($postdata['par_mobile']) ? $postdata['par_mobile'] : null,
+			'parent_relation' => isset($postdata['relation']) ? $postdata['relation'] : null,
+			'status' => 1,
+			'date_time' => time()
+		);
+
+		// For debugging
+		// echo "<pre>"; print_r($student_data); exit;
+
+		$this->db->db_debug = TRUE; // Enable database error reporting
+		$data = $this->db->insert('student', $student_data);
+		
+		if($data) {
+			$this->session->set_flashdata('msg', 'New Student Added!');
+			redirect('Students_list');
+		} else {
+			$this->session->set_flashdata('error', 'Failed to add student: ' . $this->db->error()['message']);
+			redirect('Students_list');
+		}
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function School_holiday(){
+	if(!empty($this->session->userdata('id'))){
+		$this->load->view('student/holidays_list');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+public function add_holiday() {
+    if(!empty($this->session->userdata('id'))) {
+        $postdata = $this->input->post();
+        
+        // Extract data from POST
+        $name = $postdata['name'];
+        $business_id = $postdata['bid'];
+        $dates = explode(', ', $postdata['h_dates']);
+        
+        // Prepare data for insertion
+        $insert_data = array();
+        foreach ($dates as $date_str) {
+            // Convert date to Unix timestamp
+            $date_timestamp = strtotime($date_str);
+            
+            $insert_data[] = array(
+                'business_id' => $business_id,
+                'name' => $name,
+                'date' => $date_timestamp,
+                'status' => 1 // Assuming default status is 1
+            );
+        }
+        
+        // Insert into database
+        if (!empty($insert_data)) {
+            $this->db->insert_batch('holiday', $insert_data);
+        }
+        
+        // Redirect or load view as needed
+        $this->load->view('student/holidays_list');
+    } else {
+        redirect('user-login');
+    }
+}
+
+public function get_assigned_class_by_teacher() {
+    header('Content-Type: application/json');
+    // $json_input = json_decode(file_get_contents('php://input'), true);
+
+	$postdata = $this->input->post();
+        
+	// Extract data from POST
+	$teacher_mobile = $postdata['teacher_mobile'];
+
+	
+
+    $teacher_row = $this->db->query("SELECT id, company FROM login WHERE mobile = ?", [$teacher_mobile])->row();
+    if (!$teacher_row) {
+        echo json_encode(['status' => 'error', 'message' => 'Teacher not found']);
+        return;
+    }
+    $teacher_id = $teacher_row->id;
+
+    $assigned_classes = $this->web->getAllAssignedClassesByTeacher($teacher_id);
+    if (!$assigned_classes) {
+        echo json_encode(['status' => 'success', 'count' => 0, 'data' => [], 'message' => 'No assigned classes found for this teacher']);
+        return;
+    }
+
+    $days_map = [
+        0 => 'sunday',
+        1 => 'monday',
+        2 => 'tuesday',
+        3 => 'wednesday',
+        4 => 'thursday',
+        5 => 'friday',
+        6 => 'saturday'
+    ];
+
+    $result = [];
+    foreach ($assigned_classes as $class) {
+        $class_arr = (array)$class;
+        $day_name = isset($days_map[$class->days]) ? $days_map[$class->days] : $class->days;
+        $period_time = $class->start_time . ' - ' . $class->end_time;
+        $subject_display = $class->subject_name ? $class->subject_name : '';
+
+		$semester = $this->web->getSemesterById($class->semester_id);
+		$semester_name =$semester[0]->semestar_name;
+
+
+		$department = $this->web->getBusinessDepByUserId($class->dept);
+		$department_name =$department[0]->name;
+		
+
+		$class_room = $this->web->getClassRoomById($class->class_room);
+		$class_room_name =$class_room[0]->name;
+
+        $result[] = array_merge(
+            $class_arr,
+            [
+                'day' => $day_name,
+                'period' => $period_time,
+                'subject' => $subject_display,
+				'semester_name' => $semester_name,
+				'dept_name' => $department_name
+            ]
+        );
+    }
+
+    echo json_encode([
+        'status' => 'success',
+        'data' => $result
+    ]);
+}
+// Set response header as JSON
+	
+public function students_daily_report_by_teacher()
+{
+	header('Content-Type: application/json');
+
+	$json_input = json_decode(file_get_contents('php://input'), true);
+
+	if ($json_input === null || !isset($json_input['teacher_mobile'], $json_input['selected_date'])) {
+		echo json_encode(['status' => false, 'message' => 'Invalid input']);
+		return;
+	}
+
+	$teacher_mobile = $json_input['teacher_mobile'];
+	$selected_date = $json_input['selected_date'];
+	$period = $json_input['period'];
+
+	// Get login id (business ID)
+	$loginId = 0;
+	$teacher_id = 0;
+	$teacher_name = 0;
+	if (isset($json_input['teacher_mobile'])) {
+		$teacher_row = $this->db->query("SELECT id, company, name FROM login WHERE mobile = ?", [$json_input['teacher_mobile']])->row();
+		if ($teacher_row) {
+			$loginId = $teacher_row->company;
+			$teacher_id = $teacher_row->id;
+			$teacher_name = $teacher_row->name;
+		}
+	}
+
+
+
+	$cmpName = $this->web->getBusinessById($loginId);
+	
+
+	// Fetch timetable entries for this teacher on the specific day
+	$day_number = date('w', strtotime($selected_date));
+	$periods = $this->web->getperiodTimeByteacher($period, $day_number, $teacher_id);
+
+	
+
+	$period_name = $periods->start_time . ' - ' . $periods->end_time;
+	$section_id = (int)$periods->section;
+
+	
+
+	
+	if (empty($periods)) {
+		echo json_encode(['status' => true, 'message' => 'No periods found for the teacher on this day', 'data' => []]);
+		return;
+	}
+
+	// Get students of the section
+	$students = $this->web->getSchoolStudentListbysection_new_api($section_id);
+
+
+	$response_data = [];
+
+	foreach ($students as $student) {
+		$student_data = [];
+
+	//    foreach ($periods as $period) {
+
+
+			$start_time = strtotime("{$selected_date} {$periods->start_time}");
+			$end_time = strtotime("{$selected_date} {$periods->end_time}");
+
+			$holiday = $this->web->getHolidayByBusinessId_new($loginId, strtotime($selected_date));
+
+			if ($holiday) {
+				$student_data[] = [
+					'period' => $periods->period,
+					'status' => "Holiday: $holiday",
+					'time' => '',
+				];
+			} else {
+				$attendance = $this->web->getStudentAttendanceReportByDate($start_time, $end_time, $student->id, $loginId);
+
+				if (!empty($attendance)) {
+					$student_data[] = [
+						'period' => $period_name,
+						'status' => 'P',
+						'time' => date('H:i', $attendance[0]->time),
+					];
+				} else {
+					$student_data[] = [
+						'period' => $period_name,
+						'status' => 'A',
+						'time' => '',
+					];
+				}
+			}
+		$response_data[] = [
+			'student_id' => $student->id,
+			'name' => $student->name,
+			'attendance' => $student_data,
+		];
+	}
+
+	echo json_encode([
+		'status' => true,
+		'selected_date' => $selected_date,
+		'teacher_id' => $teacher_id,
+		'teacher_name' => $teacher_name,
+		'report' => $response_data,
+		'cmp_name' => $cmpName['name']
+	]);
+}	
+
+public function get_all_periods_api() {
+    header('Content-Type: application/json');
+    $json_input = json_decode(file_get_contents('php://input'), true);
+    if (!$json_input || !isset($json_input['teacher_mobile'])) {
+        echo json_encode(['status' => 'error', 'message' => 'teacher_mobile required']);
+        return;
+    }
+    $teacher_mobile = $json_input['teacher_mobile'];
+    $teacher_row = $this->db->query("SELECT id, company FROM login WHERE mobile = ?", [$teacher_mobile])->row();
+    if (!$teacher_row) {
+        echo json_encode(['status' => 'error', 'message' => 'Teacher not found']);
+        return;
+    }
+    $bid = $teacher_row->company;
+    try {
+        $periods = $this->web->getAllPeriods($bid);
+        if (!is_array($periods)) {
+            echo json_encode(['status' => false, 'message' => 'Failed to fetch periods']);
+            return;
+        }
+
+        echo json_encode(['status' => true, 'data' => $periods]);
+    } catch (Exception $e) {
+        echo json_encode(['status' => false, 'message' => 'Internal server error', 'error' => $e->getMessage()]);
+    }
+}
+
+
+public function getteacher_class(){
+	if(!empty($this->session->userdata('id'))){
+		if ($this->session->userdata()['type'] == 'P') {
+			$loginId = $this->session->userdata('empCompany');
+		} else {
+			$loginId = $this->web->session->userdata('login_id');
+		}
+		
+		// Get all teachers with login details
+		$teachers_data = $this->web->getSchoolTeachersList_with_login($loginId);
+		
+		$data = array(
+			'teachers' => $teachers_data
+		);
+		
+		$this->load->view('student/getteacher_class', $data);
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function teachers_list(){
+	if(!empty($this->session->userdata('id'))){
+		$this->load->view('student/teachers');
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+public function teachers_attendance_list(){
+	if(!empty($this->session->userdata('id'))){
+		
+		$postdata = $this->input->post();
+		$start_date = date("Y-m-d");
+		$true = 0;
+		$action = "active";
+		
+		if ($this->session->userdata()['type'] == 'P') {
+			$loginId = $this->session->userdata('empCompany');
+			$role = $this->web->getRollbyid($this->web->session->userdata('login_id'), $loginId);
+		} else {
+			$loginId = $this->web->session->userdata('login_id');
+		}
+		
+		$cmpName = $this->web->getBusinessById($loginId);
+		
+		if(isset($postdata['start_date'])){
+			$start_date = $postdata['start_date'];
+			$true = 1;
+			$action = isset($postdata['action']) ? $postdata['action'] : 'active';
+		}
+		
+		// Use the optimized method
+		$report_result = $this->web->getTeachersAttendanceListOptimized($loginId, $start_date, $action);
+		
+		$data = array(
+			'start_date' => $start_date,	
+			'load' => $true,
+			'report' => $report_result['teachers'],	
+			'totalAbsent' => $report_result['totalAbsent'],
+			'totalPresent' => $report_result['totalPresent'],
+			'totalActive' => $report_result['totalActive']
+		);
+		
+		$this->load->view('student/teachers_attendance_list', $data);
+	}
+	else{
+		redirect('user-login');
+	}
+}
+
+
+public function teachers_monthly_report(){
+		if(!empty($this->session->userdata('id'))){
+			
+			$postdata = $this->input->post();
+			$start_date = date("Y-m-d");
+			$end_date = date("Y-m-d");
+			$true = 0;
+			
+			if ($this->session->userdata()['type'] == 'P') {
+				$loginId = $this->session->userdata('empCompany');
+				$role = $this->web->getRollbyid($this->web->session->userdata('login_id'), $loginId);
+			} else {
+				$loginId = $this->web->session->userdata('login_id');
+			}
+			
+			$cmpName = $this->web->getBusinessById($loginId);
+			
+			if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+				$start_date = $postdata['start_date'];
+				$end_date = $postdata['end_date'];
+				$true = 1;
+				
+				// Use the optimized method
+				$report_result = $this->web->getTeachersMonthlyReportOptimized($loginId, $start_date, $end_date);
+				
+				$data = array(
+					'start_date' => $start_date,
+					'end_date' => $end_date,
+					'load' => $true,
+					'report' => $report_result['teachers'],
+					'period_days' => $report_result['period_days'],
+					'cmp_name' => $cmpName['name']
+				);
+				
+				$this->load->view('student/teachers_monthly_report', $data);
+			} else {
+				$data = array(
+					'start_date' => $start_date,
+					'end_date' => $end_date,
+					'load' => false,
+					'report' => array(),
+					'period_days' => array(),
+					'cmp_name' => $cmpName['name']
+				);
+				$this->load->view('student/teachers_monthly_report', $data);
+			}
+		} else {
+			redirect('user-login');
+		}
+	}
+
+	// API endpoint for optimized teachers monthly report
+	public function teachers_monthly_report_api(){
+		if(!empty($this->session->userdata('id'))){
+			
+			$start_date = $this->input->post('start_date');
+			$end_date = $this->input->post('end_date');
+			
+			if(empty($start_date) || empty($end_date)){
+				$response = array(
+					'status' => 'error',
+					'message' => 'Start date and end date are required'
+				);
+				echo json_encode($response);
+				return;
+			}
+			
+			if ($this->session->userdata()['type'] == 'P') {
+				$loginId = $this->session->userdata('empCompany');
+			} else {
+				$loginId = $this->web->session->userdata('login_id');
+			}
+			
+			// Use the optimized method
+			$report_result = $this->web->getTeachersMonthlyReportOptimized($loginId, $start_date, $end_date);
+			$cmpName = $this->web->getBusinessById($loginId);
+			
+			$response = array(
+				'status' => 'success',
+				'data' => array(
+					'start_date' => $start_date,
+					'end_date' => $end_date,
+					'teachers' => $report_result['teachers'],
+					'period_days' => $report_result['period_days'],
+					'company_name' => $cmpName['name']
+				)
+			);
+			
+			echo json_encode($response);
+		} else {
+			$response = array(
+				'status' => 'error',
+				'message' => 'Unauthorized access'
+			);
+			echo json_encode($response);
+		}
+	}
+
+	// API endpoint for optimized teachers attendance list
+	public function teachers_attendance_list_api(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata = $this->input->post();
+			$bid = $this->session->userdata('login_id');
+			
+			$date = $postdata['date'];
+			$action = isset($postdata['action']) ? $postdata['action'] : 'active';
+			
+			$result = $this->web->getTeachersAttendanceListOptimized($bid, $date, $action);
+			
+			echo json_encode([
+				'status' => 'success',
+				'data' => $result
+			]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+	}
+
+	// Multi-select methods for timetable functionality
+	public function get_batches_by_multiple_dept(){
+		if(!empty($this->session->userdata('id'))){
+			$dept_ids = $this->input->post('dept_ids');
+			$bid = $this->session->userdata('login_id');
+			
+			if(empty($dept_ids) || !is_array($dept_ids)) {
+				echo json_encode([]);
+				return;
+			}
+			
+			$batches = $this->web->getBatchesByMultipleDeptIds($dept_ids, $bid);
+			
+			echo json_encode($batches);
+		}
+	}
+
+	public function get_semester_by_multiple_branch() {
+		if(!empty($this->session->userdata('id'))) {
+			$branch_ids = $this->input->post('branch_ids');
+			$bid = $this->session->userdata('login_id');
+			
+			if(empty($branch_ids) || !is_array($branch_ids)) {
+				echo json_encode([]);
+				return;
+			}
+			
+			$semesters = $this->web->getSemestersByMultipleBranches($branch_ids, $bid);
+			
+			echo json_encode($semesters);
+		}
+	}
+
+	public function get_section_by_multiple_branch_semester() {
+		if(!empty($this->session->userdata('id'))) {
+			$branch_ids = $this->input->post('branch_ids');
+			$semester_ids = $this->input->post('semester_ids');
+			$bid = $this->session->userdata('login_id');
+			
+			if(empty($branch_ids) || !is_array($branch_ids)) {
+				echo json_encode([]);
+				return;
+			}
+			
+			$sections = $this->web->getSectionsByMultipleBranchesAndSemesters($branch_ids, $semester_ids, $bid);
+			
+			echo json_encode($sections);
+		}
+	}
+
+	public function monthly_report(){
+		if(!empty($this->session->userdata('id'))){
+			$postdata=$this->input->post();
+			$start_date = date("Y-m-d");
+			$end_date = date("Y-m-d");
+			$true = 0;
+			$days_array = array();
+			$daysn_array = array();
+			$new_array = array();
+			// $loginId = $this->session->userdata('login_id');
+			// if($this->session->userdata('type')=="P"){
+			// 	$userCmp = $this->app->getUserCompany($loginId);
+
+			// 	if(isset($userCmp) && ($userCmp['left_date']=="" || $userCmp['left_date']>time())){
+			// 		$loginId = $userCmp['business_id'];
+			// 	}
+			// }
+			if ($this->session->userdata()['type'] == 'P') {
+				$loginId = $this->session->userdata('empCompany');
+				$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+			} else {
+				$loginId = $this->web->session->userdata('login_id');
+			}
+			$cmpName = $this->web->getBusinessById($loginId);
+			$sections = $this->app->getSections($loginId);
+			$departments = $depart = $this->app->getDepartmentSections($loginId);
+			$shifts = $this->app->getBusinessGroups($loginId);
+			$depart="all";
+			$section="all";
+			$shift="all";
+			$status_check = 1;
+			$working_check = 0;
+			$totals_check = 1;
+			$all_check = 1;
+			$two_check = 0;
+			$late_check = 0;
+			$early_check = 0;
+			$recalc_check = 0;
+			$action = 0;
+			if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+				$start_date = $postdata['start_date'];
+				$end_date = $postdata['end_date'];
+				$depart = $postdata['depart'];
+				$section = $postdata['section'];
+				$shift = $postdata['shift'];
+				$action = $postdata['action'];
+				if(isset($postdata['status_check'])){
+					$status_check=1;
+				}else{
+					$status_check=0;
+				}
+				if(isset($postdata['working_check'])){
+					$working_check=1;
+				}else{
+					$working_check=0;
+				}
+				if(isset($postdata['totals_check'])){
+					$totals_check=1;
+				}else{
+					$totals_check=0;
+				}
+				if(isset($postdata['all_check'])){
+					$all_check=1;
+				}else{
+					$all_check=0;
+				}
+				if(isset($postdata['two_check'])){
+					$two_check=1;
+				}else{
+					$two_check=0;
+				}
+				if(isset($postdata['late_check'])){
+					$late_check=1;
+				}else{
+					$late_check=0;
+				}
+				if(isset($postdata['early_check'])){
+					$early_check=1;
+				}else{
+					$early_check=0;
+				}
+				if(isset($postdata['recalculate_check'])){
+					$recalc_check=1;
+				}else{
+					$recalc_check=0;
+				}
+				$true= 1;
+				
+				if($action==1){
+					$status_check = 1;
+					$working_check = 0;
+					$totals_check = 1;
+					$all_check = 0;
+					$two_check = 0;
+					$late_check = 0;
+					$early_check = 0;
+				}else if($action==2){
+					$status_check = 0;
+					$working_check = 1;
+					$totals_check = 1;
+					$all_check = 0;
+					$two_check = 1;
+					$late_check = 0;
+					$early_check = 0;
+				}else if($action==3){
+					$status_check = 1;
+					$working_check = 1;
+					$totals_check = 1;
+					$all_check = 0;
+					$two_check = 1;
+					$late_check = 0;
+					$early_check = 0;
+				}else if($action==4){
+					$status_check = 0;
+					$working_check = 0;
+					$totals_check = 0;
+					$all_check = 1;
+					$two_check = 0;
+					$late_check = 0;
+					$early_check = 0;
+				}else if($action==5){
+					$status_check = 0;
+					$working_check = 0;
+					$totals_check = 0;
+					$all_check = 0;
+					$two_check = 0;
+					$late_check = 1;
+					$early_check = 1;
+				}
+
+				$users_data = $this->app->getCompanyUsers($loginId);
+				$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+				$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($end_date)));
+
+				$holidays = $this->app->getHoliday($loginId);
+				$holiday_array = array();
+				if($holidays){
+					foreach($holidays as $holiday){
+						$holiday_array[] = array(
+							'date'=>date('d.m.Y',$holiday->date),
+						);
+					}
+				}
+                $news_start_date=$start_date;
+				if($this->session->userdata()['type']=='P'){
+					//$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginId);
+					if($role[0]->type!=1){
+						$roleDepartments = explode(",",$role[0]->department);
+						$roleSections = explode(",",$role[0]->section);
+						$team = explode(",",$role[0]->team);
+
+						foreach($departments as $dK=> $dp){
+							$checkDp = array_search($dp->id,$roleDepartments);
+							if(!is_bool($checkDp)){
+
+							}else{
+								unset($departments[$dK]);
+							}
+						}
+
+						foreach($sections as $sK=> $se){
+							$checkSe = array_search($se->type,$roleSections);
+							if(!is_bool($checkSe)){
+
+							}else{
+								unset($sections[$sK]);
+							}
+						}
+
+						if(!empty($roleDepartments[0]) || !empty($roleSections[0]) || !empty($team[0])){
+							foreach ($users_data as $key => $dataVal) {
+							$uname = $this->web->getNameByUserId($dataVal->user_id);
+							$roleDp = array_search($uname[0]->department,$roleDepartments);
+							$roleSection = array_search($uname[0]->section,$roleSections);
+							 $roleTeam = array_search($dataVal->user_id,$team);
+							if(!is_bool($roleTeam) ||!is_bool($roleDp) || !is_bool($roleSection)){
+								
+							}else{
+								unset($users_data[$key]);
+							}
+							} 
+						} 
+					}
+				}
+
+				if(!empty($users_data)){
+					foreach($users_data as $user){
+						if($section=="all" || $user->section==$section){
+							if($depart=="all" || $user->department==$depart){
+								if($shift=="all" || $user->business_group==$shift){
+								    	if($user->doj>=strtotime($start_date)){
+											$news_start_date=date("Y-m-d",$user->doj);
+									    	}else{
+									    	$news_start_date=$start_date;
+									    	}
+									    //	$news_start_date=$start_date;
+									    
+									$date1=date_create(date("Y-m-d",strtotime($start_date)));
+									$date2=date_create(date("Y-m-d",strtotime($end_date)));
+									$diff=date_diff($date1,$date2);
+									$num_month = $diff->format("%a");
+
+									$num_month++;
+									if($num_month>31){
+										$num_month=31;
+									}
+
+									$groups = $this->app->getUserGroup($user->business_group);
+									$grp = array();
+									$day_shift_start = array();
+									$day_shift_end = array();
+
+									if($groups){
+										$weekly_off = explode(",",$groups->weekly_off);
+										$month_weekly_off = explode(",",$groups->month_weekly_off);
+										$day_shift_start = explode(",",$groups->day_start_time);
+										$day_shift_end = explode(",",$groups->day_end_time);
+										$shift_start = $groups->shift_start;
+										$shift_end = $groups->shift_end;
+										$group_name = $groups->name;
+										if($month_weekly_off!=0){
+										 
+										foreach($month_weekly_off as $key=>$off){
+		                            	if($off==1){	
+		                            	$N=date('N',$start_time);
+		                              	$key2=$key-$N+1;
+		                            	$week_start_date = strtotime(date("d-m-Y",$start_time)." +".$key2." days");
+		                             	$grp[] = array('day_off'=>date('d.m.Y',$week_start_date),);
+											}} 
+										    
+										}else{
+										foreach($weekly_off as $key=>$off){
+											if($off==1){
+												$grp[] = array(
+													'day_off'=>$key+1
+												);
+											}
+										}
+									}
+									}else{
+										$shift_start = "";
+										$shift_end = "";
+										$group_name = "";
+									}
+
+									$leaves = $this->app->getEmpLeaves($user->user_id);
+									$leaves_array = array();
+									$leave_days=0;
+									if($leaves){
+										foreach($leaves as $leave){
+											$from_date_leave=date_create(date("Y-m-d",$leave->from_date));
+											$to_date_leave=date_create(date("Y-m-d",$leave->to_date));
+											$leave_diff=date_diff($from_date_leave,$to_date_leave);
+										//	$leave_days = $leave_diff->format("%a");
+										$half_day=$leave->half_day;
+											$leave_days=$half_day;
+											for($l=0;$l<$leave_days;$l++){
+												$leave_start_date = strtotime(date("d-m-Y",$leave->from_date)." +".$l." days");
+												$leaves_array[] = array(
+													'date'=>date('d.m.Y',$leave_start_date),
+												);
+											}
+										}
+									}
+									
+					$onduty =$this->web->getUserOTbyID($user->user_id);
+						$od_array = array();
+			//	$od_days =0;
+				if($onduty){
+					
+					foreach($onduty as $onduty){
+				 
+							  $from_date_od=date_create(date("Y-m-d",$onduty->date));
+							  $to_date_od=date_create(date("Y-m-d",$onduty->end_date));
+							  $od_diff=date_diff($from_date_od,$to_date_od);
+							  $od_days = $od_diff->format("%a");
+							  $od_days++;
+							  for($c=0;$c<$od_days;$c++){
+												$od_start_date = strtotime(date("d-m-Y",$onduty->date)." +".$c." days");
+												$od_array[] = array(
+													'date'=>date('d.m.Y',$od_start_date),
+												);
+											}
+                      }
+                 }
+                 
+                 	$wfh =$this->web->getUserbywfhbyID($user->user_id);
+						$wfh_array = array();
+			//	$od_days =0;
+				if($wfh){
+					
+					foreach($wfh as $wfh){
+				 
+							  $from_date_wfh=date_create(date("Y-m-d",$wfh->date));
+							  $to_date_wfh=date_create(date("Y-m-d",$wfh->end_date));
+							  $wfh_diff=date_diff($from_date_wfh,$to_date_wfh);
+							  $wfh_days = $wfh_diff->format("%a");
+							  $wfh_days++;
+							  for($c=0;$c<$wfh_days;$c++){
+												$wfh_start_date = strtotime(date("d-m-Y",$wfh->date)." +".$c." days");
+												$wfh_array[] = array(
+													'date'=>date('d.m.Y',$wfh_start_date),
+												);
+											}
+                      }
+                 }
+                 
+                 
+                 
+                 
+                 
+				// $od_dayst=$od_days;	
+									
+							
+
+									$rules = $this->web->getRule($loginId,$user->rule_id);
+									$mispunch = "0";
+									$ca_wo_lofi = "0";
+									$mark_ab_week = "0";
+									$ov_shift = "0";
+									$sl_late_on = "0";
+									$sl_early_on = "0";
+									$halfday_on = "0";
+									$absent_on = "0";
+									$overtime_wh_on = "0";
+									$sl_late_time = 0;
+									$sl_early_time = 0;
+									$half_wo_time = 0;
+									$ab_wo_time = 0;
+									$ov_out_time = 0;
+									$ov_wo_time = 0;
+                                    $auto_wo_on = 0;
+									$auto_wo = 0;
+									if($rules){
+										$mispunch = $rules['mispunch'];
+										$sl_late_time = $rules['sl_late'];
+										$sl_early_time = $rules['sl_early'];
+										$half_wo_time = $rules['halfday'];
+										$ab_wo_time = $rules['absent'];
+										$ov_out_time = $rules['overtime_shiftout'];
+										$ov_wo_time = $rules['overtime_wh'];
+										$ca_wo_lofi = $rules['wh_cal'];
+										$mark_ab_week = $rules['wo_absent'];
+										$ov_shift = $rules['overtime_shift'];
+										$sl_late_on = $rules['sl_late_on'];
+										$sl_early_on = $rules['sl_early_on'];
+										$halfday_on = $rules['halfday_on'];
+										$absent_on = $rules['absent_on'];
+										$overtime_wh_on = $rules['overtime_wh_on'];
+										$auto_wo_on = $rules['auto_wo_on'];
+										$auto_wo = $rules['auto_wo'];
+									}
+									$months_array = array();
+									$totalPresent = 0;
+									$totalAbsent = 0;
+									$totalWeekOff = 0;
+										$totalWeekOffs = 0;
+									$totalHoliday = 0;
+									$totalLeaves = 0;
+									$totalOD = 0;
+									$totalwfh = 0;
+									$totalShortLeave = 0;
+									$totalP2 = 0;
+									$totalOT = 0;
+									$totalWorkingHrs = "00:00 Hr";
+									$totalLate = "00:00 Hr";
+									$totalEarly = "00:00 Hr";
+									$days_array = array();
+									$daysn_array = array();
+									$seconds = 0;
+									$previousAt = array();
+									$nextAt = array();
+									$monthStartTime = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+									$monthEndTime = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$num_month." days");
+									$old_time = strtotime(date("31-12-2023 23:59:00"));
+									$old_time2 = strtotime(date("30-06-2024 23:59:00"));
+								    if($monthStartTime<$old_time){
+								    $monthUserAt = $this->web->getUserAttendanceOldReportByDate($monthStartTime,$monthEndTime,$user->user_id,$loginId,1);    
+								    }else if($monthStartTime<$old_time2){
+								    $monthUserAt = $this->web->getUserAttendanceOld2ReportByDate($monthStartTime,$monthEndTime,$user->user_id,$loginId,1);    
+								    }else{
+								        
+									$monthUserAt = $this->web->getUserAttendanceReportByDate($monthStartTime,$monthEndTime,$user->user_id,$loginId,1);
+								    }
+									for($d=0; $d<$num_month;$d++){
+									    
+									    
+										$new_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date))." +".$d." days");
+										$new_end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".$d." days");
+										$next_day_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date))." +".($d+1)." days");
+										$next_day_end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".($d+1)." days");
+
+										$pre_day_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date))." +".($d-1)." days");
+										$pre_day_end_time = strtotime(date("d-m-Y 23:59:59",strtotime($start_date))." +".($d-1)." days");
+									//	$days_array[]= date("d D",$new_start_time);
+										$days_array[]= date("d",$new_start_time);
+										$daysn_array[]= date("d D",$new_start_time);
+										$data = array();
+										$day_seconds=0;
+										$late_seconds=0;
+										$early_seconds=0;
+										$ot_seconds=0;
+										$day_hrs = "W.H 00:00 Hr";
+										$late_hrs = "00:00";
+										$early_hrs = "00:00";
+										$ot_hrs = "00:00";
+										$halfday = "0";
+										$absentWo = "0";
+										$sl = "s";
+										$day_status="";
+										$day_sub_status="";
+										 if(($user->doj=="" || strtotime($end_date)>=$user->doj) && ($user->left_date=="" || strtotime($start_date)<$user->left_date)){
+
+											//if(($user->doj!="" || $new_start_time >=$user->doj)){
+											if(($user->doj =="" || $new_start_time >=$user->doj) && ($user->left_date=="" || $new_start_time < $user->left_date)){
+												$news_start_time =$new_start_time;
+											}
+
+
+											$user_at = array_filter($monthUserAt, function($val) use($new_start_time, $new_end_time){
+												return ($val->io_time>=$new_start_time and $val->io_time<=$new_end_time);
+											});
+											$user_at = array_reverse($user_at);
+											$nextAt = array_filter($monthUserAt, function($val) use($next_day_start_time, $next_day_end_time){
+												return ($val->io_time>=$next_day_start_time and $val->io_time<=$next_day_end_time);
+											});
+											$nextAt = array_reverse($nextAt);
+											if($d==0){
+												$previousAt = array_filter($monthUserAt, function($val) use($pre_day_start_time, $pre_day_end_time){
+													return ($val->io_time>=$pre_day_start_time and $val->io_time<=$pre_day_end_time);
+												});
+												$previousAt = array_reverse($previousAt);
+											}
+											
+											
+							//$news_start_time = strtotime(date("d-m-Y 00:00:00",strtotime($news_start_date))." +".$d." days");
+											
+											
+											
+											
+											
+											
+					if($month_weekly_off!=0){	$off = array_search(date('d.m.Y',$news_start_time),array_column($grp,'day_off'));
+												}else{
+					                       $off = array_search(date('N',$news_start_time),array_column($grp,'day_off'));}
+										
+					                        $holi = array_search(date('d.m.Y',$news_start_time),array_column($holiday_array,'date'));
+					                        $lv = array_search(date('d.m.Y',$new_start_time),array_column($leaves_array,'date'));
+					                         $ods = array_search(date('d.m.Y',$new_start_time),array_column($od_array,'date'));
+				                               $wfhs = array_search(date('d.m.Y',$new_start_time),array_column($wfh_array,'date'));
+
+	                                        $prevWeekOff = array_search(date('N',$pre_day_start_time),array_column($grp,'day_off'));
+		                                   $nextWeekOff = array_search(date('N',$next_day_start_time),array_column($grp,'day_off'));
+											$prevHoliOff = array_search(date('d.m.Y',$pre_day_start_time),array_column($holiday_array,'date'));
+											$nextHoliOff = array_search(date('d.m.Y',$next_day_start_time),array_column($holiday_array,'date'));
+											
+											if(!empty($day_shift_start)){
+												if($day_shift_start[date('N',$new_start_time)-1]!=null){
+													$shift_start = $day_shift_start[date('N',$new_start_time)-1];
+												}
+											}
+											if(!empty($day_shift_end)){
+												if($day_shift_end[date('N',$new_start_time)-1]!=null){
+													$shift_end = $day_shift_end[date('N',$new_start_time)-1];
+												}
+											}
+
+											$prevPresent = false;
+											$nextPresent = false;
+											if($mark_ab_week==1){
+											    if(!empty($previousAt) || !is_bool($prevWeekOff) || !is_bool($prevHoliOff)){
+												$prevPresent = true;
+    											}
+    
+    											if(!empty($nextAt) || !is_bool($nextWeekOff) || !is_bool($nextHoliOff)){
+    												$nextPresent = true;
+    											}
+											}else{
+											    $prevPresent = true;
+											}
+											
+											if($d==0){
+											    $prevPresent = true;
+											}
+
+											//if(!is_bool($off) && ($prevPresent || $nextPresent)){
+												if(!is_bool($off)){
+												$weekOff = "1";
+												$totalWeekOff++;
+											}else{
+												$weekOff = "0";
+											}
+
+											if(!is_bool($holi) && ($prevPresent || $nextPresent)){
+												$holiday="1";
+												$totalHoliday++;
+											}else{
+												$holiday="0";
+											}
+
+											if(!is_bool($lv)){
+												$totalLeaves++;
+												$day_leave="1";
+											}else{
+												$day_leave="0";
+											}
+											if(!is_bool($ods)){
+												$totalOD++;
+												$day_OD="1";
+											}else{
+												$day_OD="0";
+											}
+											if(!is_bool($wfhs)){
+												$totalwfh++;
+												$day_wfh="1";
+											}else{
+												$day_wfh="0";
+											}
+											$previousAt = $user_at;
+											$nextAt = array();
+											if(!empty($user_at)){
+												$ins_array = array();
+												$outs_array = array();
+												
+												foreach($user_at as $at){
+													$timeSearch = array_search($at->io_time,array_column($data,'time'));
+													if(is_bool($timeSearch)){
+														$data[] = array(
+															'mode'=>$at->mode,
+															'time'=>$at->io_time,
+															'io_time'=>$at->io_time,
+															'comment'=>$at->comment,
+															'manual'=>$at->manual,
+															'location'=>$at->location
+														);
+														if($at->mode=='in' && !in_array($at->io_time,$ins_array)){
+															$ins_array[]=$at->io_time;
+														}
+														if($at->mode=='out' && !in_array($at->io_time,$outs_array)){
+															$outs_array[]=$at->io_time;
+														}
+													}
+												}
+												$io_end = count($ins_array)-count($outs_array);
+												if(count($outs_array)<count($ins_array)){
+													for($io=0; $io<$io_end;$io++){
+														$outs_array[]="0";
+													}
+												}
+												foreach($ins_array as $k => $ins){
+													if($outs_array[$k]!="0"){
+														if($outs_array[$k]>$ins_array[$k]){
+															$seconds += $outs_array[$k]-$ins_array[$k];
+														}
+														$day_seconds += $outs_array[$k]-$ins_array[$k];
+													}
+												}
+												// if($ca_wo_lofi=="1"){
+												// 	$day_out = "0";
+												// 	for($o=count($outs_array)-1;$o>=0;$o--){
+												// 		if($outs_array[count($outs_array)-1]!="0"){
+												// 			$day_out = $outs_array[$o];
+												// 			break;
+												// 		}
+												// 	}
+												// 	if($day_out=="0"){
+												// 		$day_seconds = 0;
+												// 	}else{
+												// 		if(count($ins_array)>0){
+												// 			$day_seconds = $day_out-$ins_array[0];
+												// 		}else{
+												// 			$day_seconds = 0;
+												// 		}
+												// 	}
+												// }
+												if($ca_wo_lofi=="1"){
+													$day_seconds = $data[count($data)-1]['time']-$data[0]['time'];
+												}
+
+
+												$hours = floor($day_seconds / 3600);
+												$minutes = floor($day_seconds / 60%60);
+												$day_hrs = "W.H $hours:$minutes Hr";
+												
+												if($day_seconds>0 && $absent_on=="1" &&($day_seconds<$ab_wo_time)){
+													$absentWo="1";
+												}
+
+												if($day_seconds>0 && $absentWo=="0" && $halfday_on=="1" &&($day_seconds<$half_wo_time)){
+													$halfday="1";
+													$totalP2++;
+												}
+
+												if($shift_start!="" && !empty($ins_array)){
+													$in_start = strtotime(date("d-m-Y h:i A",strtotime(date("h:i A",$ins_array[0]))));
+													$sh_start = strtotime(date("d-m-Y h:i A",strtotime($shift_start)));
+													$sh_end = strtotime(date("d-m-Y h:i A",strtotime($shift_end)));
+													if($in_start>$sh_start){
+														$late_seconds = $in_start-$sh_start;
+														$hours = floor($late_seconds / 3600);
+														$minutes = floor($late_seconds / 60%60);
+														$late_hrs = "$hours:$minutes";
+														if($sl_late_on=="1" && ($late_seconds > $sl_late_time) && $halfday=="0"){
+															$sl ="SL";
+														}
+													}
+													if($outs_array[count($outs_array)-1]!="0"){
+														$out_end = strtotime(date("d-m-Y h:i A",strtotime(date("h:i A",$outs_array[count($outs_array)-1]))));
+														if($sh_end>$out_end && $out_end!=0){
+															$early_seconds = $sh_end-$out_end;
+															$hours = floor($early_seconds / 3600);
+															$minutes = floor($early_seconds / 60%60);
+															$early_hrs = "$hours:$minutes";
+															if($sl_early_on=="1" && ($early_seconds > $sl_early_time) && $halfday=="0"){
+																$sl = "SL";
+															}
+														}
+													}
+													// if($day_seconds!=0 && $day_seconds<($sh_end-$sh_start)){
+													// 	$early_seconds = ($sh_end-$sh_start)-$day_seconds;
+													// 	$hours = floor($early_seconds / 3600);
+													// 	$minutes = floor($early_seconds / 60%60);
+													// 	$early_hrs = "EL $hours:$minutes Hr";
+													// 	if($sl_early_on=="1" && ($early_seconds > $sl_early_time) && $halfday=="0"){
+													// 		$sl = "SL";
+													//
+													// 	}
+													// }
+
+													if($outs_array[count($outs_array)-1]!="0"){
+														if($ot_seconds>0 && $ov_shift=="1" && ($ot_seconds > $ov_out_time)){
+															$out_end = strtotime(date("d-m-Y h:i A",strtotime(date("h:i A",$outs_array[count($outs_array)-1]))));
+															$ot_seconds = $out_end-$sh_end;
+															$hours = floor($ot_seconds / 3600);
+															$minutes = floor($ot_seconds / 60%60);
+															$ot_hrs = "$hours:$minutes";
+														}
+													}
+												}
+
+												if($overtime_wh_on=="1" &&($day_seconds>$ov_wo_time)){
+													$ot_seconds = $day_seconds-$ov_wo_time;
+													if($ot_seconds>0){
+														$hours = floor($ot_seconds / 3600);
+														$minutes = floor($ot_seconds / 60%60);
+														$ot_hrs = "$hours:$minutes";
+													}
+												}
+												if($absentWo=="1"){
+													$totalAbsent++;
+												}else{
+													if($sl!="SL"){
+												// 		if($weekOff=="1" || $holiday=="1"){
+												// 			$totalOT++;
+												// 		}else{
+															
+												// 		}
+														if($halfday=="0"){
+															$totalPresent++;																	
+														}
+													}else{
+														$totalShortLeave++;
+													}
+												}
+												
+											}else{
+										 // 		if($weekOff=="1"){
+										 // 			$totalWeekOff++;
+										 // 		}
+										 // 		if($holiday=="1"){
+										 // 			$totalHoliday++;
+										  // 		}
+												if($weekOff=="0" && $holiday=="0" && $day_leave=="0" && $day_OD=="0" && $day_wfh=="0" ){
+													$totalAbsent++;
+												}
+												$data = array();
+											}
+
+											$day_status = "A";
+
+											if($day_leave=="1"){
+												$day_status = "L";
+											}
+												if($day_OD=="1"){
+												$day_status = "OD";
+											}
+											
+												if($day_wfh=="1"){
+												$day_status = "WFH";
+											}
+
+											if($holiday=="1"){
+												$day_status = "H";
+											}
+
+											if($weekOff=="1"){
+												$day_status = "W";
+											}
+
+											if(!empty($data)){
+												if($absentWo=="1"){
+													$day_status="A";
+												}else{
+													$day_status = "P";
+												if($halfday=="1"){
+													$day_status="P/2";
+												}
+												$msOut = true;
+												foreach($data as $day_data){
+													if($day_data['mode']=="out"){
+													$msOut = false;
+													}
+												}
+												if($mispunch=="1" && $msOut){
+													$day_status="MS";
+												}
+												if($weekOff=="1"){
+													$day_status="WP";
+													if($mispunch=="1" && $msOut){
+														$day_status="W MS";
+													}
+													if($halfday=="1"){
+														$day_status="WP/2";
+													}
+												}
+												if($holiday=="1"){
+													$day_status="HP";
+													if($mispunch=="1" && $msOut){
+														$day_status="H MS";
+													}
+													if($halfday=="1"){
+														$day_status="HP/2";
+													}
+												}
+
+												if($sl=="SL"){
+													if(strlen($day_sub_status)==0){
+														$day_sub_status.="SL";
+													}else{
+														$day_sub_status.=",SL";
+													}
+												}
+												if($ot_seconds>0){
+													if(strlen($day_sub_status)==0){
+														$day_sub_status.="OT";
+													}else{
+														$day_sub_status.=",OT";
+													}
+												}
+												}
+											}
+											// if($late_seconds>0){
+											// 	if(strlen($day_sub_status)==0){
+											// 		$day_sub_status.="L";
+											// 	}else{
+											// 		$day_sub_status.=",L";
+											// 	}
+											// }
+
+											// if($early_seconds>0){
+											// 	if(strlen($day_sub_status)==0){
+											// 		$day_sub_status.="E";
+											// 	}else{
+											// 		$day_sub_status.=",E";
+											// 	}
+											// }
+											
+											$months_array[] = array(
+												'date'=>date("j",$new_start_time),
+												'day'=>date("l",$new_start_time),
+												'weekly_off'=>$weekOff,
+												'holiday'=>$holiday,
+												'leave'=>$day_leave,
+												'onduty'=>$day_OD,
+												'wfhduty'=>$day_wfh,
+												'data'=>$data,
+												'workingHrs'=>$day_hrs,
+												'late_hrs'=>$late_hrs,
+												'early_hrs'=>$early_hrs,
+												'ot_hrs'=>$ot_hrs,
+												'mispunch'=>$mispunch,
+												'sl_late'=>$sl_late_time,
+												'sl_early'=>$sl_early_time,
+												'halfday'=>$halfday,
+												'absent'=>$absentWo,
+												'overtime_shiftout'=>$ov_out_time,
+												'overtime_wh'=>$ov_wo_time,
+												'wh_cal'=>$ca_wo_lofi,
+												'wo_absent'=>$mark_ab_week,
+												'overtime_shift'=>$ov_shift,
+												'ot_seconds'=>$ot_seconds,
+												'day_status'=>$day_status,
+												'day_sub_status'=>$day_sub_status,
+												'sl'=>$sl
+											);
+										}
+									}
+									if($seconds>0){
+										$hours = floor($seconds / 3600);
+										$minutes = floor($seconds / 60%60);
+										$totalWorkingHrs = "$hours:$minutes Hr";
+									}
+									if(count($months_array)>0){
+										if($auto_wo_on=1){
+											$totalWeekOffs=intval(($auto_wo/22)*$totalPresent);
+											if($totalWeekOffs>$auto_wo){
+											 $totalWeekOffs=$auto_wo;  
+											}
+											$totalAbsent=$totalAbsent-$totalWeekOffs;
+											if($totalAbsent<0){
+											    
+											    $totalAbsent=0;
+											    
+											}
+											 }
+										if($totalWeekOffs>0){
+										   $totalWeekOff= $totalWeekOffs;
+										}	     
+											 
+										$nwd = $totalPresent+($totalP2/2)+$totalWeekOff+$totalHoliday+$totalLeaves+$totalOD+$totalwfh+$totalShortLeave;
+										
+										$new_array[] =array(
+											'user_id'=>$user->user_id,
+											'mid'=>$user->mid,
+											'emp_code'=>$user->emp_code,
+											'name'=>$user->name,
+											'dep'=>$user->department,
+											'section'=>$user->section,
+											'image'=>$user->image,
+											'user_status'=>$user->user_status,
+											'shift_start'=>$shift_start,
+											'shift_end'=>$shift_end,
+											'group_name'=>$group_name,
+											'designation'=>$user->designation,
+											'totalAbsent'=>$totalAbsent,
+											'totalPresent'=>$totalPresent,
+											'totalWeekOff'=>$totalWeekOff,
+											'totalHoliday'=>$totalHoliday,
+											'totalLeaves'=>$totalLeaves,
+											'totalOD'=>$totalOD+$totalwfh,
+											'totalShortLeave'=>$totalShortLeave,
+											'totalWorkingHrs'=>$totalWorkingHrs,
+											'totalLate'=>$totalLate,
+											'totalEarly'=>$totalEarly,
+											'totalP2'=>$totalP2,
+											'totalOT'=>$totalOT,
+											'nwd'=>$nwd,
+											'data'=> $months_array
+										);
+										usort($new_array, function($a, $b) {
+										    if(empty($a['emp_code'])){
+										        return -1;
+										    }elseif ($a['emp_code'] > $b['emp_code']) {
+                                                return 1;
+                                            } elseif ($a['emp_code'] < $b['emp_code']) {
+                                                return -1;
+                                            }
+                                            return 0;
+                                        });
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			$data=array(
+				'start_date'=>$start_date,
+				'end_date'=>$end_date,
+				'load'=>$true,
+				'report'=>$new_array,
+				'days'=>$days_array,
+				'daysweek'=>$daysn_array,
+				'departments'=>$departments,
+				'sections'=>$sections,
+				'shifts'=>$shifts,
+				'depart'=>$depart,
+				'section'=>$section,
+				'status_check'=>$status_check,
+				'working_check'=>$working_check,
+				'totals_check'=>$totals_check,
+				'all_check'=>$all_check,
+				'two_check'=>$two_check,
+				'late_check'=>$late_check,
+				'early_check'=>$early_check,
+				'shift'=>$shift,
+				'action'=>$action,
+				'cmp_name'=>$cmpName['name']
+			);
+			$this->load->view('attendance/monthly',$data);
+		}else{
+			redirect('user-login');
+		}
+	}
+	
+
+	public function promote_student()
+	{
+		$student_id = $this->input->post('student_id');
+
+		// Get student info
+		$student = $this->web->getStudentById($student_id);
+
+		if (!$student) {
+			echo json_encode(['success' => false, 'msg' => 'Student not found']);
+			return;
+		}
+
+		$current_sem = $student->semester;
+		$department = $student->department;
+		$max_semester = 6;   // You can also fetch dynamically if stored
+
+		// If NOT last semester → Promote
+		if ($current_sem < $max_semester) {
+
+			$new_semester = $current_sem + 1;
+
+			// Find new section from mapping table
+			$newSection = $this->web->getSectionByDeptAndSemester($department, $new_semester);
+
+			$updateData = [
+				'semester' => $new_semester,
+				// 'section'  => $newSection ? $newSection->section_id : $student->section
+			];
+
+			$updated = $this->web->updateStudent($student_id, $updateData);
+
+			if ($updated) {
+				echo json_encode([
+					'success' => true, 
+					'msg' => "Student promoted to Semester $new_semester"
+				]);
+			}
+
+		} else {
+
+			// Last Semester → Passout
+			$updated = $this->web->updateStudent($student_id, ['status' => 'Passout']);
+
+			if ($updated) {
+				echo json_encode([
+					'success' => true, 
+					'msg' => 'Student successfully Passout'
+				]);
+			}
+		}
+	}
+
+
+public function update_student_promotion()
+{
+    $id = $this->input->post('student_id');
+    $semester = $this->input->post('semester');
+    $section = $this->input->post('section');
+
+    if ($semester == "passout") {
+		$year = date("Y"); // current year
+        $today = date("Y-m-d");
+
+        $this->db->where('id', $id)->update('student', [
+			'semester' => null,   // optional
+            'section' => null,   // optional
+			'is_passout' => 1,
+            'passout_year' => date("Y"),
+            'passout_date' => date("Y-m-d"),
+            // status ko 1 hi rehne do so that cancel aur passout me fark rahe
+            'status' => 1 
+        ]);
+        echo json_encode(['msg' => 'Student Successfully Passout']);
+        return;
+    }
+
+    // Update Regular Promotion
+    $this->db->where('id', $id)->update('student', [
+        'semester' => $semester,
+        'section'  => $section
+    ]);
+
+    echo json_encode(['msg' => 'Student Promoted Successfully']);
+}
+
+public function bulk_update_student_promotion()
+{
+    $ids = $this->input->post('student_ids');
+    $semester = $this->input->post('semester');
+    $section = $this->input->post('section');
+
+    if ($semester == "passout") {
+		$year = date("Y"); // current year
+        $today = date("Y-m-d");
+        $data = [
+            'semester' => null,   // optional
+            'section' => null,   // optional
+			'is_passout' => 1,
+            'passout_year' => date("Y"),
+            'passout_date' => date("Y-m-d"),
+            // status ko 1 hi rehne do so that cancel aur passout me fark rahe
+            'status' => 1 
+        ];
+        $this->db->where_in('id', $ids)->update('student', $data);
+        // $this->db->where_in('id', $ids)->update('student', [
+        //     'status' => 'Passout'
+        // ]);
+        echo json_encode(['msg' => 'All Students Passed Out']);
+        return;
+    }
+
+    $this->db->where_in('id', $ids)->update('student', [
+        'semester' => $semester,
+        'section' => $section
+    ]);
+
+    echo json_encode(['msg' => 'Students Bulk Promoted Successfully']);
+}
+
+
+
+	
+
+}
+?>
