@@ -1,2 +1,3 @@
 # /adminassets
 # .qodo
+scp "C:\xampp\htdocs\attendence\adminassets.zip" root@31.97.230.189:/var/www/attendance/

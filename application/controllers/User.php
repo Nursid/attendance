@@ -1305,8 +1305,16 @@ class User extends CI_Controller {
 
 		public function dailyreport(){
 			if(!empty($this->session->userdata('id'))){
-
-				$this->load->view('attendance/dailyreport');
+				$loginId = $this->web->session->userdata('login_id');
+				$sections = $this->app->getSections($loginId);
+				$departments = $depart = $this->app->getDepartmentSections($loginId);
+				$shifts = $this->app->getBusinessGroups($loginId);
+				$data=array(
+					'sections'=>$sections,
+					'departments'=>$departments,
+					'shifts'=>$shifts,
+				);
+				$this->load->view('attendance/dailyreport',$data);
 			}
 			else{
 				redirect('user-login');

@@ -110,7 +110,11 @@ date_default_timezone_set('Asia/Kolkata');
                     <h5> Select Date</h5>
                     <div class="row">
                       <div class="col-lg-12 float-left">
-                        <form action="<?php echo base_url('User/daily_report')?>" method="POST">
+                        <!-- <form action="<?php 
+                        // echo base_url('User/daily_report')
+                        ?>" method="POST"> -->
+                        <!-- <form onsubmit="loadDailyReport()"> -->
+                        <form onsubmit="#">
                           <div class="row">
                             <div class="col-sm-2">
 
@@ -153,7 +157,7 @@ date_default_timezone_set('Asia/Kolkata');
                               </select>
                             </div>
                             <div class="col-1">
-                              <button type="submit" id="actionSubmit" class="btn btn-success btn-fill btn-block" onclick="showLoader()">Show</button>
+                              <button type="button" id="actionSubmit" class="btn btn-success btn-fill btn-block" onclick="loadDailyReport()">Show</button>
                             </div>
                           </div>
                           <br>
@@ -207,8 +211,8 @@ date_default_timezone_set('Asia/Kolkata');
                     </div>
                     <br>
                     <?php
-                    if($load) {
-                      $stdate=strtotime($start_date);
+                    // if($load) {
+                    //   $stdate=strtotime($start_date);
                       ?>
                       <h5>Attendance for Date new:-<?php echo date("d-M-Y ",$stdate)?>  </h5>
                       <div align="right">
@@ -237,7 +241,9 @@ date_default_timezone_set('Asia/Kolkata');
                             <th>Early Out</th>
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="reportBody">
+                              </tbody>
+                        <!-- <tbody>
                           <?php
                           $count=1;
                           foreach($report as $user){
@@ -343,8 +349,9 @@ date_default_timezone_set('Asia/Kolkata');
                             <tfoot>
                             </tfoot>
                           </table>
-                        </div>
-                      <?php }
+                        </div> -->
+                      <?php
+                      //  }
                       ?>
                     </div>
                     <!-- /.card-body -->
@@ -423,9 +430,172 @@ date_default_timezone_set('Asia/Kolkata');
       <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-   
 
       <script>
+
+function mapAction(action){
+  const map = {
+    active: "ALL",
+    present: "P",
+    absent: "A",
+    mispunch: "MS",
+    halfday: "HF",
+    late: "L",
+    early: "E",
+    shortLeave: "SL",
+    unverified: "UV",
+    fieldDuty: "FD",
+    manual: "M",
+    gps: "G"
+  };
+  return map[action] || "ALL";
+}
+
+function loadDailyReport(){
+  $(".loading").show();
+
+  const date = $("#start_date").val();
+  const department = $("select[name='depart']").val();
+  const section = $("select[name='section']").val();
+  const shift = $("select[name='shift']").val();
+  const actionUI = $("#action").val();
+
+  const action = mapAction(actionUI);
+
+  const url =
+    `http://localhost:3000/api/attendance/daily` +
+    `?date=${date}` +
+    `&department=${department}` +
+    `&section=${section}` +
+    `&shift=${shift}` +
+    `&action=${action}`;
+
+  $.ajax({
+    url,
+    method: "POST",
+    contentType: "application/json",
+    data: JSON.stringify({
+    companyId: <?= $this->session->userdata('login_id') ?>
+    }),
+    success: function(res){
+      $(".loading").hide();
+
+      if(!res.success){
+        alert("Failed to load report");
+        return;
+      }
+
+      renderReportTable(res.data.report);
+      updateSummary(res.data.summary);
+    },
+    error: function(err){
+      $(".loading").hide();
+      console.error(err);
+      alert("Node API Error");
+    }
+  });
+}
+</script>
+
+
+<script>
+function renderReportTable(report) {
+  let html = "";
+  let count = 1;
+
+  report.forEach(user => {
+
+    /* ---------- IN / OUT COLUMN ---------- */
+    let insHtml = "";
+    let outsHtml = "";
+
+    if (user.data && user.data.length) {
+      user.data.forEach(d => {
+        let tag = "QR";
+        let spanClass = "";
+
+        if (d.manual === "1") {
+          tag = "M";
+          spanClass = "text-danger";
+        }
+        if (d.location) {
+          tag = "G";
+          spanClass = "text-primary";
+        }
+
+        let time = new Date(d.time * 1000)
+          .toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+
+        if (d.mode === "in") {
+          insHtml += `<span class="${spanClass}">${time} ${tag}</span><br>`;
+        }
+        if (d.mode === "out") {
+          outsHtml += `<span class="${spanClass}">${time} ${tag}</span><br>`;
+        }
+      });
+    }
+
+    /* ---------- STATUS LOGIC (PHP SAME) ---------- */
+    let status = "P";
+
+    if (user.absent === "1") status = "A";
+    if (user.weekly_off === "1") status = "W";
+    if (user.holiday === "1") status = "H";
+    if (user.leave === "1") status = "L";
+
+    const hasOut = user.data?.some(d => d.mode === "out");
+
+    if (user.mispunch === "1" && !hasOut) {
+      status = "MS";
+    } else if (user.halfday === "1") {
+      status = "P/2";
+    } else if (user.sl === "SL") {
+      status = "SL";
+    }
+
+    /* ---------- FINAL ROW ---------- */
+    html += `
+      <tr>
+        <td>${count++}</td>
+        <td>${user.name}</td>
+        <td>${user.designation || ""}</td>
+        <td>
+          ${user.group_name}<br>
+          ${user.shift_start}<br>
+          ${user.shift_end}
+        </td>
+        <td>${insHtml || "-"}</td>
+        <td>${outsHtml || "-"}</td>
+        <td>${status}</td>
+        <td>${user.workingHrs}</td>
+        <td>${user.late_hrs}</td>
+        <td>${user.early_hrs}</td>
+      </tr>
+    `;
+  });
+
+  $("#reportBody").html(html);
+}
+</script>
+
+
+<script>
+function updateSummary(summary) {
+  $("button:contains('Active')").text(`Active : ${summary.totalActive}`);
+  $("button:contains('Present')").text(`Present : ${summary.totalPresent}`);
+  $("button:contains('Absent')").text(`Absent : ${summary.totalAbsent}`);
+  $("button:contains('Late')").text(`Late : ${summary.totalLate}`);
+}
+</script>
+
+
+
+
+      <script>
+
+
+
+
       $(function () {
         var table = $('#example1').DataTable({
           "responsive": true,
@@ -710,6 +880,7 @@ date_default_timezone_set('Asia/Kolkata');
     doc.table(3, 5, result, headers, { autoSize: false,fontSize:10,padding:1,margins:{left:0,top:3,bottom:3, right:0} });
     doc.save("Daily-Report.pdf");
   }
+
 </script>
 </body>
 </html>
