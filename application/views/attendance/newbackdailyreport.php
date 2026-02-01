@@ -463,7 +463,7 @@ function loadDailyReport(){
   const action = mapAction(actionUI);
 
   const url =
-    `http://localhost:3000/api/attendance/daily` +
+    `http://31.97.230.189:3000/api/attendance/daily` +
     `?date=${date}` +
     `&department=${department}` +
     `&section=${section}` +

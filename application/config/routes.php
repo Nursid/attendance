@@ -81,8 +81,8 @@ $route['business-users'] = 'User/businessUsers';
 /////////////
 $route['employees'] = 'User/employees';
 $route['addemployee'] = 'User/addemployee';
-$route['dailyreport'] = 'User/dailyreport';
-$route['monthly_report'] = 'User/monthly_report';
+$route['dailyreport'] = 'User/daily_report2';
+$route['monthly_report'] = 'User/monthlyreport2';
 $route['employee_report'] = 'User/employee_report';
 $route['leave'] = 'User/leave';
 $route['leave_report'] = 'User/leave_report';

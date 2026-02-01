@@ -156,12 +156,20 @@
                           <?php } ?>
                         </div>
                         <?php 
-                          $totalPaid = 0;
-                          $totalNetPayable = 0;
-                          foreach ($salEmpList as $item) {
-                              $totalPaid += $item->getTotalPaid;
-                              $totalNetPayable += $item->netPayable;
-                          }
+                          // $totalPaid = 0;
+                          // $totalNetPayable = 0;
+                          // foreach ($salEmpList as $item) {
+                          //     $totalPaid += $item->getTotalPaid;
+                          //     $totalNetPayable += $item->netPayable;
+                          // }
+                              $totalPaid = 0;
+                              $totalNetPayable = 0;
+
+                              foreach ($salEmpList as $item) {
+                                  $totalPaid       += isset($item->getTotalPaid) ? $item->getTotalPaid : 0;
+                                  $totalNetPayable += isset($item->netPayable) ? $item->netPayable : 0;
+                              }
+
                         ?>
                      <!---  <div class="col-sm-6">
                           <div class="row">
@@ -356,7 +364,15 @@
                                               ->get()
                                               ->row();
 
-                            $total_salary = $salary ? round((($salary->basic_value+$deduction->total+$allowance->total)/$number_of_days)*$empData->nwd) : 0;
+    //                        $total_salary = ($salary && $number_of_days > 0)
+    // ? round((($salary->basic_value + $deduction + $allowance) / $number_of_days) * ($empData->nwd ?? 0))
+    // : 0;
+
+    $total_salary = ($salary && $number_of_days > 0)
+    ? round((($salary->basic_value + $deduction + $allowance) / $number_of_days) * ($empData->nwd ?? 0))
+    : 0;
+
+
 
                             $total_pf = isset($pf->amount) ?  ($pf->header_type=="Manual" ? $pf->amount : round((((($salary->basic_value)/$number_of_days)*$empData->nwd)*$pf->header_value))/100) : 0;
                             $total_esi = isset($esi->amount) ?  ($esi->header_type=="Manual" ? $esi->amount : round((((($salary->basic_value)/$number_of_days)*$empData->nwd)*$esi->header_value))/100) : 0;

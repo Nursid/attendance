@@ -110,7 +110,7 @@ date_default_timezone_set('Asia/Kolkata');
                     <h5> Select Date</h5>
                     <div class="row">
                       <div class="col-lg-12 float-left">
-                        <form action="<?php echo base_url('User/daily_report')?>" method="POST">
+                        <form action="<?php echo base_url('User/daily_report2')?>" method="POST">
                           <div class="row">
                             <div class="col-sm-2">
 

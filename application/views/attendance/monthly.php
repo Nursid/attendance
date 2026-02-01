@@ -107,7 +107,7 @@ date_default_timezone_set('Asia/Kolkata');
                     <h5> Select Date Range</h5>
                     <div class="row">
                       <div class="col-lg-12 float-left">
-                        <form action="<?php echo base_url('User/monthly_report')?>" method="POST" id="monthlyReport">
+                        <form action="<?php echo base_url('User/monthly_report2')?>" method="POST" id="monthlyReport">
                           <div class="row">
                             <div class="col-sm-2">
                               <input type="date" name="start_date" id="start_date"  value="<?php echo $start_date; ?>" class="form-control" max="<?php echo $end_date; ?>" onchange="startChange(event);">

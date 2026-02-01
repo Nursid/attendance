@@ -166,6 +166,55 @@
                           
                         </div>-->
                         <br>
+
+                        <?php
+$selectedMonth = isset($_GET['getDate']) ? $_GET['getDate'] : date('Y-m');
+
+/*
+  For each employee:
+  Get latest salary record whose date <= selected month
+*/
+$salaryRows = $this->db->query("
+    SELECT s1.*
+    FROM salary s1
+    INNER JOIN (
+        SELECT uid, MAX(date) AS max_date
+        FROM salary
+        WHERE DATE_FORMAT(date,'%Y-%m') <= ?
+        GROUP BY uid
+    ) s2 ON s1.uid = s2.uid AND s1.date = s2.max_date
+", [$selectedMonth])->result();
+
+/* Map salary by uid */
+$salaryMap = [];
+$salaryIds = [];
+foreach ($salaryRows as $s) {
+    $salaryMap[$s->uid] = $s;
+    $salaryIds[] = $s->id;
+}
+
+/* Get salary breakup (Allowance / Deduction / PF / ESI / TDS) */
+$breakups = [];
+if (!empty($salaryIds)) {
+    $rows = $this->db->select("
+            sb.sid,
+            ch.type,
+            ch.name,
+            SUM(sb.amount) AS total
+        ")
+        ->from('salary_basic sb')
+        ->join('ctc_head ch','ch.id = sb.header_id','left')
+        ->where_in('sb.sid', $salaryIds)
+        ->group_by(['sb.sid','ch.type','ch.name'])
+        ->get()
+        ->result();
+
+    foreach ($rows as $r) {
+        $breakups[$r->sid][$r->type][$r->name] = $r->total;
+    }
+}
+?>
+
                 <table id="newsalaryReport" class="table table-bordered table-striped">
                   <thead>
                     <tr>
@@ -184,114 +233,67 @@
                     </tr>
                   </thead>
                   <tbody>
- 
-                    <?php
-                $this->db->order_by("id", "asc");
-                    if (!empty($salEmpList)) {
-                      $sr = 1;
-                        usort($salEmpList, function($a, $b) {
-                            if(empty($a->emp_code)){
-                                return -1;
-                            }elseif ($a->emp_code > $b->emp_code) {
-                                return 1;
-                            } elseif ($a->emp_code < $b->emp_code) {
-                                return -1;
-                            }
-                            return 0;
-                        });
-                        
-                      foreach ($salEmpList as $key => $empData) {
-                            $month = isset($_GET['getDate']) ? $_GET['getDate'] : date("Y-m");
-                          $salary_month = $this->db->select('DATE_FORMAT(date, "%Y-%m") as added_date')->from('salary')->where(['uid'=>$empData->emp_id])->where("DATE_FORMAT(salary.date,'%Y-%m') <=",$month)->order_by("date", "asc")->get()->result_array();
-                          if($salary_month){
-                              if(!in_array($month,array_column($salary_month, 'added_date'))){
-                                if(current(array_column($salary_month, 'added_date')) < $month){
-                                  unset($month);
-                                //   $month = end(array_column($salary_month, 'added_date'));
-                                $addedDates = array_column($salary_month, 'added_date');
-                                $month = "";
-                                if(!empty($addedDates)){
-                                    $month = $addedDates[count($addedDates)-1];
-                                }
-                                }
-                              }
-                          }
-                       $salary = $this->db->get_where('salary',['uid'=>$empData->emp_id,"DATE_FORMAT(salary.date,'%Y-%m')"=>$month])->row();
-                        $allowance = $this->db->select('SUM(salary_basic.amount) as total')
-                                          ->from('salary_basic')
-                                          ->join('ctc_head','ctc_head.id=salary_basic.header_id','left')
-                                          ->join('salary','salary.id=salary_basic.sid','left')
-                                          ->where(['salary.uid'=>$empData->emp_id])
-                                          ->where(['ctc_head.type'=>'Allowance'])
-                                          ->where("DATE_FORMAT(salary.date,'%Y-%m')", $month)
-                                          ->get()
-                                          ->row();
-                        // $deduction = $this->db->select('SUM(salary_basic.amount) as total,ctc_head.name,salary_basic.amount')
-                        $deduction = $this->db->select('SUM(salary_basic.amount) as total')
-                                          ->from('salary_basic')
-                                          ->join('ctc_head','ctc_head.id=salary_basic.header_id','left')
-                                          ->join('salary','salary.id=salary_basic.sid','left')
-                                          ->where(['salary.uid'=>$empData->emp_id])
-                                          ->where(['ctc_head.type'=>'Deduction'])
-                                          ->where(['ctc_head.name !='=>'TDS'])
-                                          ->where("DATE_FORMAT(salary.date,'%Y-%m')", $month)
-                                          ->get()
-                                          ->row();
-                        $pf = $this->db->select('salary_basic.amount')
-                                          ->from('salary_basic')
-                                          ->join('ctc_head','ctc_head.id=salary_basic.header_id','left')
-                                          ->join('salary','salary.id=salary_basic.sid','left')
-                                          ->where(['salary.uid'=>$empData->emp_id])
-                                          ->where(['ctc_head.type'=>'Deduction'])
-                                          ->where(['ctc_head.name'=>'PF'])
-                                          ->where("DATE_FORMAT(salary.date,'%Y-%m')", $month)
-                                          ->get()
-                                          ->row();
-                        $esi = $this->db->select('salary_basic.amount')
-                                          ->from('salary_basic')
-                                          ->join('ctc_head','ctc_head.id=salary_basic.header_id','left')
-                                          ->join('salary','salary.id=salary_basic.sid','left')
-                                          ->where(['salary.uid'=>$empData->emp_id])
-                                          ->where(['ctc_head.type'=>'Deduction'])
-                                          ->where(['ctc_head.name'=>'ESI'])
-                                          ->where("DATE_FORMAT(salary.date,'%Y-%m')", $month)
-                                          ->get()
-                                          ->row();
-                        $tds = $this->db->select('salary_basic.amount')
-                                            ->from('salary_basic')
-                                            ->join('ctc_head','ctc_head.id=salary_basic.header_id','left')
-                                            ->join('salary','salary.id=salary_basic.sid','left')
-                                            ->where(['salary.uid'=>$empData->emp_id])
-                                            ->where(['ctc_head.type'=>'Deduction'])
-                                            ->where(['ctc_head.name'=>'TDS'])
-                                            ->where("DATE_FORMAT(salary.date,'%Y-%m')", $month)
-                                            ->get()
-                                            ->row();
-                        ?>
-                        <tr>
-                          <td><?= $sr; ?></td>
-                          <td><?= $empData->emp_code; ?></td>
-                          <td><?= $empData->empName; ?></td> 
-                          <td><input type="hidden" id="totolCtc" value="<?= isset($allowance->total) ? $salary->basic_value+$deduction->total+$allowance->total : 0; ?>">
-                            <?= isset($allowance->total) ? $salary->basic_value+$deduction->total+$allowance->total : 0; ?></td>
-                          <td><?= $salary ? $salary->basic_value : 0; ?></td>
-                          <td><?= isset($allowance->total) ? $allowance->total : 0; ?></td>
-                          <td><?= isset($deduction->total) ? $deduction->total : 0; ?></td>
-                          <td><?= isset($pf->amount) ? $pf->amount : 0; ?></td>
-                          <td><?= isset($esi->amount) ? $esi->amount : 0; ?></td>
-                          <td><?= isset($tds->amount) ? $tds->amount : 0; ?></td>
-                          <td><?= (($salary ? $salary->basic_value : 0)+$allowance->total); ?></td>
-                          <td>
-                        <?php  if($this->session->userdata()['type']=='B' || $role[0]->add_salary=="1" || $role[0]->type=="1"){?>
-                          <a href="#" class="btn btn-xs mt-1 btn-primary" onclick="setModalUserID(<?= $empData->user_id; ?>);" data-toggle="modal" data-target="#salleryModal"> <i class="fa fa-life-ring"></i> Add Salary</a> 
-                         <?php } ?>
-                          
-                          </td>
-                        </tr>
-                    <?php $sr++;
-                      }
-                    }  ?>
-                  </tbody>
+<?php
+$sr = 1;
+
+foreach ($salEmpList as $empData):
+
+    $salary = $salaryMap[$empData->emp_id] ?? null;
+
+    $basic = $salary ? $salary->basic_value : 0;
+
+    $allowance = $salary
+        ? array_sum($breakups[$salary->id]['Allowance'] ?? [])
+        : 0;
+
+    $deduction = $salary
+        ? array_sum(array_diff_key(
+            $breakups[$salary->id]['Deduction'] ?? [],
+            ['TDS' => 0]
+        ))
+        : 0;
+
+    $pf  = $breakups[$salary->id]['Deduction']['PF']  ?? 0;
+    $esi = $breakups[$salary->id]['Deduction']['ESI'] ?? 0;
+    $tds = $breakups[$salary->id]['Deduction']['TDS'] ?? 0;
+
+    /* ✅ EXACT OLD FORMULA */
+    $ctc    = $basic + $deduction + $allowance;
+    $inhand = $basic + $allowance;
+?>
+<tr>
+    <td><?= $sr++; ?></td>
+    <td><?= $empData->emp_code; ?></td>
+    <td><?= $empData->empName; ?></td>
+
+    <td>
+        <input type="hidden" id="totolCtc" value="<?= $ctc; ?>">
+        <?= $ctc; ?>
+    </td>
+
+    <td><?= $basic; ?></td>
+    <td><?= $allowance; ?></td>
+    <td><?= $deduction; ?></td>
+    <td><?= $pf; ?></td>
+    <td><?= $esi; ?></td>
+    <td><?= $tds; ?></td>
+    <td><?= $inhand; ?></td>
+
+    <td>
+    <?php if($this->session->userdata()['type']=='B' || $role[0]->add_salary=="1" || $role[0]->type=="1"){ ?>
+        <a href="#"
+           class="btn btn-xs mt-1 btn-primary"
+           onclick="setModalUserID(<?= $empData->user_id; ?>);"
+           data-toggle="modal"
+           data-target="#salleryModal">
+           <i class="fa fa-life-ring"></i> Add Salary
+        </a>
+    <?php } ?>
+    </td>
+</tr>
+<?php endforeach; ?>
+</tbody>
+
 
                 </table>
                 <!-- MODAL START  -->
@@ -592,6 +594,29 @@
 <script src="<?php echo base_url('adminassets/plugins/jquery/jquery.min.js') ?>"></script>
 <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
 
+
+<script>
+$(document).ready(function () {
+
+    if ($.fn.DataTable.isDataTable('#newsalaryReport')) {
+        $('#newsalaryReport').DataTable().destroy();
+    }
+
+    $('#newsalaryReport').DataTable({
+        paging: true,
+        searching: true,   // ✅ SEARCH ENABLE
+        ordering: true,
+        info: true,
+        lengthChange: true,
+        pageLength: 25,
+        autoWidth: false,
+        responsive: true
+    });
+
+});
+</script>
+
+
 <script type="text/javascript">
   function calculateTotalAmount() {
 
@@ -654,6 +679,11 @@
     $("#ctcForm").submit(function(e) {
       e.preventDefault();
       var formData = new FormData(this);
+      console.log("---- FormData values ----");
+      for (let [key, value] of formData.entries()) {
+        console.log(key, ":", value);
+      }
+      
       $.ajax({
         type: 'POST',
         url: $(this).attr('action'),
@@ -669,10 +699,14 @@
           if (result.status > 0) {
             $('#ctcForm')[0].reset();
             swal("Success ", result.message, "success");
+            setTimeout(() => {
+              location.reload();
+            }, 1500);
             setTimeout(function() {
               $('button').prop('disabled', false);
               $('#salleryModal').modal('hide');
             }, 2500);
+
 
           } else {
             swal("Faild ", result.message, "error");
@@ -724,9 +758,9 @@
 
 
 
-    $(document).on('click', '[data-dismiss="modal"]', function() {
-      window.location.reload();
-    });
+    // $(document).on('click', '[data-dismiss="modal"]', function() {
+    //   window.location.reload();
+    // });
 
   });
 

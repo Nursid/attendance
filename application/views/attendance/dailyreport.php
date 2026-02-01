@@ -178,7 +178,7 @@ function loadDailyReport(){
   const date = $("#start_date").val();
 
   $.ajax({
-    url: "http://localhost:3000/api/attendance/daily",
+    url: "http://31.97.230.189:3000/api/attendance/daily",
     method: "POST",
     contentType: "application/json",
     data: JSON.stringify({

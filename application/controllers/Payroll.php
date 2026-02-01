@@ -288,7 +288,7 @@ public function edit_head(){
 			$data['date_from'] = date("Y-m");
 		}
 
-    $data['cmp_name']=$cmpName['name'];
+   		 $data['cmp_name']=$cmpName['name'];
 
 
 		$data['payrollList'] 	= $this->web->getData('payroll_master', array('status' => 1), '', 'ASC');

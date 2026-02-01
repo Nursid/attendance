@@ -23,12 +23,15 @@ class User extends CI_Controller {
 		// echo $getLogin;
 		// die();
 		$post = $this->input->post();
+		
 		$page = $post['page'];
 	
 		$getLogin = $this->web->login(
 			$post['username'],
 			md5($post['password'])
 		);
+
+		
 	
 	
 	
@@ -1303,6 +1306,70 @@ class User extends CI_Controller {
 		}
 
 
+		public function updateEmployeeDocuments()
+		{
+			$empId = $this->input->post('emp_id');
+
+			if (!$empId) {
+				$this->session->set_flashdata('msg', 'Invalid Employee');
+				redirect('employees');
+			}
+
+			$uploadPath = './uploads/employee_documents/' . $empId . '/';
+
+			if (!is_dir($uploadPath)) {
+				mkdir($uploadPath, 0777, true);
+			}
+
+			$config['upload_path']   = $uploadPath;
+			$config['allowed_types'] = 'jpg|jpeg|png|pdf';
+			$config['max_size']      = 500; // KB
+			$config['encrypt_name']  = true;
+
+			$this->load->library('upload');
+
+			$documents = [
+				'bank_proof',
+				'medical_certificate',
+				'adhar_doc',
+				'pan_doc',
+				'photo'
+			];
+
+			$data = [];
+
+			foreach ($documents as $doc) {
+
+				if (!empty($_FILES[$doc]['name'])) {
+
+					$config['file_name'] = $doc . '_' . time();
+					$this->upload->initialize($config);
+
+					if (!$this->upload->do_upload($doc)) {
+
+						$this->session->set_flashdata(
+							'msg',
+							$this->upload->display_errors()
+						);
+						redirect($_SERVER['HTTP_REFERER']);
+					}
+
+					$uploadData = $this->upload->data();
+					$data[$doc] = $uploadData['file_name'];
+				}
+			}
+
+			// 🔹 Save / Update in DB (example)
+			if (!empty($data)) {
+				$this->web->updateEmployeeDocuments($empId, $data);
+			}
+
+			$this->session->set_flashdata('msg', 'Documents updated successfully');
+			redirect($_SERVER['HTTP_REFERER']);
+		}
+
+
+
 		public function dailyreport(){
 			if(!empty($this->session->userdata('id'))){
 				$loginId = $this->web->session->userdata('login_id');
@@ -2322,6 +2389,7 @@ class User extends CI_Controller {
 			} else {
 				$loginId = $this->web->session->userdata('login_id');
 			}
+		
 			$cmpName = $this->web->getBusinessById($loginId);
 			$sections = $this->app->getSections($loginId);
 			$departments = $depart = $this->app->getDepartmentSections($loginId);
@@ -3200,11 +3268,323 @@ class User extends CI_Controller {
 				'action'=>$action,
 				'cmp_name'=>$cmpName['name']
 			);
+			
 			$this->load->view('attendance/monthly',$data);
 		}else{
 			redirect('user-login');
 		}
 	}
+
+	
+
+	public function monthlyreport2()
+	{
+		$this->load->view('attendance/monthly');
+	}
+
+	public function monthly_report2()
+	{
+		$start_date = $this->input->post('start_date');
+		$end_date   = $this->input->post('end_date');
+		$depart     = $this->input->post('depart');
+		$section    = $this->input->post('section');
+		$action     = $this->input->post('action');
+
+		// companyId resolve
+		if ($this->session->userdata()['type'] == 'P') {
+			$companyId = $this->session->userdata('empCompany');
+		} else {
+			$companyId = $this->session->userdata('login_id');
+		}
+
+		/* ================= NODE API CALL ================= */
+
+		$payload = json_encode([
+			"companyId"  => 29643,
+			"start_date" => $start_date,
+			"end_date"   => $end_date,
+			"department"=> $depart,
+			"section"   => $section,
+			"action"    => $action
+		]);
+
+		// echo '<pre>';
+		// print_r($payload);
+		// echo '<pre>';
+		// die();
+
+		$ch = curl_init("http://31.97.230.189:3000/api/attendance/monthly");
+
+		curl_setopt_array($ch, [
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_POST           => true,
+			CURLOPT_HTTPHEADER     => ["Content-Type: application/json"],
+			CURLOPT_POSTFIELDS     => $payload,
+			CURLOPT_TIMEOUT        => 60
+		]);
+
+		$response = curl_exec($ch);
+		curl_close($ch);
+
+		$api = json_decode($response, true);
+
+		if (!$api || $api["success"] !== true) {
+			show_error("Attendance service unavailable");
+		}
+
+		/* ================= PASS DATA TO VIEW ================= */
+
+		$data = [];
+		$data["load"]     = $api["data"]["load"];
+		$data["report"]   = $api["data"]["report"];
+		$data["days"]     = $api["data"]["days"];
+		$data["daysweek"] = $api["data"]["daysweek"];
+		$data["cmp_name"] = $api["data"]["cmp_name"];
+		$data["start_date"] = $api["data"]["start_date"];
+		$data["end_date"]   = $api["data"]["end_date"];
+		$ui = $api["data"]["uiFlags"];
+		$data["status_check"]  = $ui["status"];
+		$data["working_check"] = $ui["working"];
+		$data["totals_check"]  = $ui["totals"];
+		$data["all_check"]     = $ui["all"];
+		$data["two_check"]     = $ui["two"];
+		$data["late_check"]    = $ui["late"];
+		$data["early_check"]   = $ui["early"];
+
+
+		$this->load->view('attendance/monthly', $data);
+	}
+
+	// ---------- STATUS LOGIC (JS getStatus ka PHP version) ----------
+private function getStatusPHP($u, $start_date)
+{
+    $st = "P";
+
+    if (!empty($u['data'])) {
+
+        if ($u['absent'] === "1") $st = "A";
+        if ($u['weekly_off'] === "1") $st = "W";
+        if ($u['holiday'] === "1") $st = "H";
+        if ($u['leave'] === "1") $st = "L";
+
+        $hasOut = false;
+        foreach ($u['data'] as $d) {
+            if ($d['mode'] === "out") {
+                $hasOut = true;
+                break;
+            }
+        }
+
+        if ($u['mispunch'] === "1" && !$hasOut) {
+            if ($start_date !== date("Y-m-d")) {
+                $st = "MS";
+            }
+        } elseif ($u['halfday'] === "1") {
+            $st = "P/2";
+        } elseif ($u['sl'] === "SL") {
+            $st = "SL";
+        }
+
+    } else {
+        $st = "A";
+        if ($u['weekly_off'] === "1") $st = "W";
+        if ($u['holiday'] === "1") $st = "H";
+        if ($u['leave'] === "1") $st = "L";
+    }
+
+    return $st;
+}
+
+// ---------- TIME CHECK (JS hasTime ka PHP version) ----------
+private function hasTimePHP($timeStr)
+{
+    if (empty($timeStr)) return false;
+
+    if (preg_match('/(\d+):(\d+)/', $timeStr, $m)) {
+        $minutes = ((int)$m[1] * 60) + (int)$m[2];
+        return $minutes > 0;
+    }
+
+    return false;
+}
+
+
+	public function daily_report2()
+		{
+			// ✅ POST DATA
+			$postdata   = $this->input->post();
+
+			$start_date = $postdata['start_date'] ?? '';
+			$depart     = $postdata['depart'] ?? '';
+			$section    = $postdata['section'] ?? '';
+			$shift      = $postdata['shift'] ?? '';
+			$action     = $postdata['action'] ?? '';
+
+			// ✅ Company ID
+			if ($this->session->userdata('type') == 'P') {
+				$companyId = $this->session->userdata('empCompany');
+			} else {
+				$companyId = $this->session->userdata('login_id');
+			}
+
+			// ✅ NODE API PAYLOAD
+			$payload = json_encode([
+				"companyId"  => 29643,
+				"start_date" => $start_date,
+				"department"=> $depart,
+				"section"   => $section,
+				"shift"     => $shift,
+				"action"    => $action
+			]);
+
+			$ch = curl_init("http://31.97.230.189:3000/api/attendance/daily");
+
+			curl_setopt_array($ch, [
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_POST           => true,
+				CURLOPT_HTTPHEADER     => ["Content-Type: application/json"],
+				CURLOPT_POSTFIELDS     => $payload,
+				CURLOPT_TIMEOUT        => 60
+			]);
+
+			$response = curl_exec($ch);
+			curl_close($ch);
+
+			$api = json_decode($response, true);
+
+			if (!$api || $api["success"] !== true) {
+				show_error("Attendance service unavailable");
+			}
+
+			// ✅ RESPONSE DATA MAPPING
+			$data = [];
+
+			$data['start_date'] = $api['data']['start_date'] ?? $start_date;
+			$data['load']       = $api['data']['load'] ?? 0;
+
+			// Main report array
+			$data['report']     = $api['data']['report'] ?? [];
+
+			$action = $postdata['action'] ?? 'active';
+
+			$filteredReport = [];
+
+			foreach ($data['report'] as $u) {
+
+				$status = $this->getStatusPHP($u, $start_date);
+
+				switch ($action) {
+
+					case 'active':
+						$filteredReport[] = $u;
+						break;
+
+					case 'present':
+						if (!empty($u['data']) && !in_array($status, ['A','W','H','L'])) {
+							$filteredReport[] = $u;
+						}
+						break;
+
+					case 'absent':
+						if ($status === 'A') {
+							$filteredReport[] = $u;
+						}
+						break;
+
+					case 'mispunch':
+						if ($u['mispunch'] === "1") {
+							$filteredReport[] = $u;
+						}
+						break;
+
+					case 'halfday':
+						if ($u['halfday'] === "1") {
+							$filteredReport[] = $u;
+						}
+						break;
+
+					case 'late':
+						if ($this->hasTimePHP($u['late_hrs'])) {
+							$filteredReport[] = $u;
+						}
+						break;
+
+					case 'early':
+						if ($this->hasTimePHP($u['early_hrs'])) {
+							$filteredReport[] = $u;
+						}
+						break;
+
+					case 'shortLeave':
+						if ($u['sl'] === "SL") {
+							$filteredReport[] = $u;
+						}
+						break;
+
+					case 'unverified':
+						if ($u['unverified'] === "1") {
+							$filteredReport[] = $u;
+						}
+						break;
+
+					case 'fieldDuty':
+						if ($u['fieldDuty'] === "1") {
+							$filteredReport[] = $u;
+						}
+						break;
+
+					case 'manual':
+						if ($u['manual'] === "1") {
+							$filteredReport[] = $u;
+						}
+						break;
+
+					case 'gps':
+						if ($u['gps'] === "1") {
+							$filteredReport[] = $u;
+						}
+						break;
+				}
+			}
+
+			// 🔥 IMPORTANT: report ko filtered data se replace karo
+			$data['report'] = $filteredReport;
+
+
+			// Summary mapping
+			$summary = $api['data']['summary'] ?? [];
+
+			$data['totalActive']      = $summary['totalActive'] ?? 0;
+			$data['totalPresent']     = $summary['totalPresent'] ?? 0;
+			$data['totalAbsent']      = $summary['totalAbsent'] ?? 0;
+			$data['totalMispunch']    = $summary['totalMispunch'] ?? 0;
+			$data['totalHalfDay']     = $summary['totalHalfDay'] ?? 0;
+			$data['totalLate']        = $summary['totalLate'] ?? 0;
+			$data['totalEarly']       = $summary['totalEarly'] ?? 0;
+			$data['totalShortLeave']  = $summary['totalShortLeave'] ?? 0;
+			$data['totalUnverified']  = $summary['totalUnverified'] ?? 0;
+			$data['totalFieldDuty']   = $summary['totalFieldDuty'] ?? 0;
+			$data['totalManual']      = $summary['totalManual'] ?? 0;
+			$data['totalGps']         = $summary['totalGps'] ?? 0;
+
+			// Filters back to view
+			$data['depart']  = $depart;
+			$data['section'] = $section;
+			$data['shift']   = $shift;
+			
+
+			// Company Name (if needed)
+			$data['cmp_name'] = $this->session->userdata('company_name') ?? '';
+
+			// echo '<pre>';
+			// print_r($data);
+			// echo '</pre>';
+			// die();
+			// ✅ LOAD VIEW
+			$this->load->view('attendance/dailyreport2.php', $data);
+		}
+
+
 	
 	
 		public function activateEmployee(){
@@ -3382,6 +3762,11 @@ class User extends CI_Controller {
 						'department' => $department
 				
 					);
+		
+			echo '<pre>';
+			print_r($data);
+			echo '</pre>';
+			die();
 			//$data=$this->db->update('login',$postdata);
 			$this->db->where('id',$id);
 			$data= $this->db->update('login',$data);
@@ -8438,7 +8823,7 @@ public function edit_head(){
 		else{
 			redirect('user-login');
 		}
-	}
+	}	
 
 
 public function Assign_working(){
@@ -8523,6 +8908,65 @@ public function assign_att(){
 		}
 		
 	}
+
+
+
+	public function updateemployeeAddress()
+{
+    if (empty($this->session->userdata('id'))) {
+        redirect('user-login');
+    }
+
+    $id  = $this->input->post('id');
+    $bid = $this->input->post('bid');
+
+    /* ================= PRESENT ADDRESS ================= */
+    $present_address = json_encode([
+        'country'  => $this->input->post('present_country'),
+        'state'    => $this->input->post('present_state'),
+        'district' => $this->input->post('present_district'),
+        'block'    => $this->input->post('present_block'),
+        'street'   => $this->input->post('present_street'),
+        'pincode'  => $this->input->post('present_pincode'),
+    ]);
+
+    /* ================= PERMANENT ADDRESS ================= */
+    $permanent_address = json_encode([
+        'country'  => $this->input->post('permanent_country'),
+        'state'    => $this->input->post('permanent_state'),
+        'district' => $this->input->post('permanent_district'),
+        'block'    => $this->input->post('permanent_block'),
+        'street'   => $this->input->post('permanent_street'),
+        'pincode'  => $this->input->post('permanent_pincode'),
+    ]);
+
+    /* ================= UPDATE LOGIN TABLE ================= */
+    $this->db->where('id', $id)->update('login', [
+        'present_address'   => $present_address,
+        'permanent_address' => $permanent_address
+    ]);
+
+    /* ================= ACTIVITY LOG ================= */
+    if ($this->session->userdata('type') === 'P') {
+        $loginId = $this->session->userdata('empCompany');
+    } else {
+        $loginId = $this->session->userdata('login_id');
+    }
+
+    $uname = $this->web->getNameByEmployeeId($id);
+
+    $actdata = [
+        'bid'       => $loginId,
+        'uid'       => $this->session->userdata('login_id'),
+        'activity'  => 'Employee address updated for ' . ($uname[0]->name ?? ''),
+        'date_time' => time()
+    ];
+    $this->db->insert('activity', $actdata);
+
+    /* ================= RESPONSE ================= */
+    $this->session->set_flashdata('msg', 'Employee Address Updated Successfully!');
+    redirect('employees');
+}
 
 public function updateemployeedetail(){
 		if(!empty($this->session->userdata('id'))){
