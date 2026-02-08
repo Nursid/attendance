@@ -583,6 +583,13 @@
                     </tbody>
 
                   </table>
+                  <div class="row">
+                        <div class="col-md-12">
+                            <div class="salary-pagination">
+                                <?= $pagination; ?>
+                            </div>
+                        </div>
+                    </div>
                 <!-- MODAL START  -->
                 <!-- Modal -->
                

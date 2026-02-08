@@ -1029,245 +1029,402 @@ class Web_Model extends CI_Model
 
 
 
-//     public function getSallaryReportOld($postData = ''){
+	public function getTypeTotalAmountByUsers($yearName, $monthName, $payRolType)
+{
+    $loginID = $this->web->session->userdata('login_id');
 
-// 		if($this->session->userdata()['type']=='P'){
+    $this->db->select('
+        tbl1.user_id,
+        tbl2.name as payrollName,
+        SUM(tbl1.amount) as addAmount
+    ');
+    $this->db->from('payroll_history as tbl1');
+    $this->db->join('payroll_master as tbl2', 'tbl2.id = tbl1.payroll_master_id', 'INNER');
+
+    $this->db->where([
+        'tbl2.type'        => $payRolType,
+        'tbl1.business_id' => $loginID,
+        'tbl1.paid'        => 1,
+        'tbl1.status'      => 1
+    ]);
+
+    $this->db->where('YEAR(tbl1.date)', $yearName);
+    $this->db->where('MONTH(tbl1.date)', $monthName);
+
+    $this->db->group_by('tbl1.user_id');
+
+    $result = $this->db->get()->result_array();
+
+    // ✅ Map by user_id
+    $mapped = [];
+    foreach ($result as $row) {
+        $mapped[$row['user_id']] = $row;
+    }
+
+    return $mapped;
+}
+public function getEmployeeCTCMap($yearName, $monthName)
+{
+    $loginID = $this->web->session->userdata('login_id');
+
+    $ctcMap = [];
+
+    // 1️⃣ Selected Month CTC (High Priority)
+    $monthCTC = $this->db->select('*')
+        ->from('user_ctc')
+        ->where('business_id', $loginID)
+        ->where('YEAR(date)', $yearName)
+        ->where('MONTH(date)', $monthName)
+        ->get()
+        ->result_array();
+
+    foreach ($monthCTC as $row) {
+        $ctcMap[$row['user_id']] = $row;
+    }
+
+    // 2️⃣ Latest CTC (Fallback)
+    $latestCTC = $this->db->query("
+        SELECT uc.*
+        FROM user_ctc uc
+        INNER JOIN (
+            SELECT user_id, MAX(date) as max_date
+            FROM user_ctc
+            WHERE business_id = ?
+            GROUP BY user_id
+        ) latest
+        ON latest.user_id = uc.user_id AND latest.max_date = uc.date
+        WHERE uc.business_id = ?
+    ", [$loginID, $loginID])->result_array();
+
+    foreach ($latestCTC as $row) {
+        // sirf wahi user jinke month ka CTC nahi mila
+        if (!isset($ctcMap[$row['user_id']])) {
+            $ctcMap[$row['user_id']] = $row;
+        }
+    }
+
+    return $ctcMap;
+}
+
+public function getAdvanceList()
+{
+    $loginID = $this->web->session->userdata('login_id');
+
+    return $this->db->select('*')
+        ->from('payroll_history')
+        ->where([
+            'business_id'       => $loginID,
+            'payroll_master_id' => 2,
+            'paid'              => 0,
+            'status'            => 1
+        ])
+        ->get()
+        ->result();
+}
+
+
+public function getAdvanceSettlementMap()
+{
+    $loginID = $this->web->session->userdata('login_id');
+
+    $result = $this->db->select('*')
+        ->from('payroll_history')
+        ->where([
+            'business_id' => $loginID,
+            'status'      => 1
+        ])
+        ->where('payroll_id IS NOT NULL', null, false)
+        ->get()
+        ->result();
+
+    // map by payroll_id (advance id)
+    $map = [];
+    foreach ($result as $row) {
+        $map[$row->payroll_id][] = $row;
+    }
+
+    return $map;
+}
+
+
+public function getSalaryReportMap($yearName, $monthName)
+{
+    $loginID = $this->web->session->userdata('login_id');
+
+    $result = $this->db->select('*')
+        ->from('salary_report')
+        ->where('bid', $loginID)
+        ->where('YEAR(date_time)', $yearName)
+        ->where('MONTH(date_time)', $monthName)
+        ->get()
+        ->result_array();
+
+    // ✅ Map by user_id (uid)
+    $mapped = [];
+    foreach ($result as $row) {
+        $mapped[$row['uid']] = $row;
+    }
+
+    return $mapped;
+}
+
+
+
+
+
+    public function getSallaryReport($postData = '', $limit = null, $offset = null, $search = null){
+
+		if($this->session->userdata()['type']=='P'){
       
-//       	$loginID = $this->session->userdata('empCompany');
-//       	$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginID);
+      	$loginID = $this->session->userdata('empCompany');
+      	$role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$loginID);
   
-//     } else {
-//       	$loginID=$this->web->session->userdata('login_id');
-//     }
-// 		$this->db->select('user_request.*, login.name as empName, login.mobile as empMobile, login.emp_code, login.designation as empDesignation, login.business_group,login.id as emp_id');
-// 		$this->db->order_by("emp_code");
-// 		$this->db->order_by("doj");
-// 		$this->db->join('login', 'login.id = user_request.user_id', 'LEFT');
-// 		$empList =  $this->db->get_where('user_request', array('user_request.business_id' => $loginID))->result();
+    } else {
+      	$loginID=$this->web->session->userdata('login_id');
+    }
+		$this->db->select('
+		user_request.*,
+		login.name as empName,
+		login.mobile as empMobile,
+		login.emp_code,
+		login.designation as empDesignation,
+		login.business_group,
+		login.id as emp_id,
+		login.department,
+		login.section
+	');
+	$this->db->join('login', 'login.id = user_request.user_id', 'LEFT');
+	$this->db->where('user_request.business_id', $loginID);
+	$this->db->order_by('emp_code', 'ASC');
+	$this->db->order_by('doj', 'ASC');
+	$this->db->limit(10, 0);
 
-// 		if(!empty($empList)){
-// 			if(!empty($postData)){
-// 				$yearName  = date('Y', strtotime($postData['date_from']));
-// 				$monthName = date('m', strtotime($postData['date_from']));
-// 				$selectedStartTime = strtotime(date("01-m-Y 00:00:00",strtotime($postData['date_from'])));
-// 				$selectedEndTime = strtotime(date("30-m-Y 00:00:00",strtotime($postData['date_from'])));
-// 				$d=30;
-// 				$selectedEndTime=strtotime(date("01-m-Y 23:59:59",strtotime($postData['date_from']))." +".$d." days");
-// 			}
-// 			else
-// 			{
-// 				$yearName = date('Y');
-// 				$monthName = date('m');
-// 				$selectedStartTime = strtotime(date("01-m-Y 00:00:00"));
-// 				$selectedEndTime = strtotime(date("30-m-Y 00:00:00"));
-// 			}
-			
-// 			foreach ($empList as $key => $dataVal) {
-			    
-			    
-// 				if(($dataVal->doj=="" || $selectedEndTime >= $dataVal->doj) && ($dataVal->left_date=="" || $selectedStartTime<$dataVal->left_date)){
-// 				   // if(($user->doj=="" || strtotime($end_date)>=$user->doj) && ($user->left_date=="" || strtotime($start_date)<$user->left_date)){
+	if ($limit !== null) {
+		$this->db->limit($limit, $offset);
+	}
 
-// 				}else{
-// 					unset($empList[$key]);
-// 				}
-// 			}
+	$empList = $this->db->get('user_request')->result();
+	
+		if(!empty($empList)){
+			if(!empty($postData)){
+				$yearName  = date('Y', strtotime($postData['date_from']));
+				$monthName = date('m', strtotime($postData['date_from']));
+				$selectedStartTime = strtotime(date("01-m-Y 00:00:00",strtotime($postData['date_from'])));
+				$selectedEndTime = strtotime(date("30-m-Y 00:00:00",strtotime($postData['date_from'])));
+				$d=30;
+				$selectedEndTime=strtotime(date("01-m-Y 23:59:59",strtotime($postData['date_from']))." +".$d." days");
+			}
+			else
+			{
+				$yearName = date('Y');
+				$monthName = date('m');
+				$selectedStartTime = strtotime(date("01-m-Y 00:00:00"));
+				$selectedEndTime = strtotime(date("30-m-Y 00:00:00"));
+			}
 
+			$additionMap   = $this->getTypeTotalAmountByUsers($yearName, $monthName, 1);
+			$deductionMap  = $this->getTypeTotalAmountByUsers($yearName, $monthName, 2);
+			$paidMap       = $this->getTypeTotalAmountByUsers($yearName, $monthName, 3);
+			$ctcMap = $this->getEmployeeCTCMap($yearName, $monthName);
+			$salaryMap = $this->getSalaryReportMap($yearName, $monthName);
 
-// if($this->session->userdata()['type']=='P'){
-//               if($role[0]->type!=1){
-//                 $departments = explode(",",$role[0]->department);
-//                 $sections = explode(",",$role[0]->section);
-// 				$team = explode(",",$role[0]->team);
-				
-//                 if(!empty($departments[0]) || !empty($sections[0]) || !empty($team[0])){
-//                   foreach ($empList as $key => $dataVal) {
-//                     $uname = $this->web->getNameByUserId($dataVal->user_id);
-// 				 $roleDp = array_search($uname[0]->department,$departments);
-//                     $roleSection = array_search($uname[0]->section,$sections);
-// 					$roleTeam = array_search($dataVal->user_id,$team);
-//                     if(!is_bool($roleTeam) || !is_bool($roleSection) || !is_bool($roleDp)){
-            
-//                     }else{
-//                       unset($empList[$key]);
-//                     }
-//                   }
-//                 }
-//               }
-//             }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// 			foreach ($empList as $key => $dataVal) {
-
-// 				//HARE GET AND CALCULATE // ALLOWANCE + OVERTIME + BONUS + INCENTIVE
-// 				$getAmount = $this->getTypeTotalAmount($dataVal->user_id, $yearName, $monthName, '1' );
-
-// 				// HARE GET USER TOTAL CTC
-// 				$getCTC  = $this->db->query("SELECT * FROM user_ctc WHERE  business_id = '".$loginID."' AND user_id = '".$dataVal->user_id."' AND  YEAR(date) = '".$yearName."' AND MONTH(date) = '".$monthName."' ")->row_array();
-
-// 				if(empty($getCTC)){
-// 					$getCTC  = $this->db->query("SELECT * FROM user_ctc WHERE  business_id = '".$loginID."' AND user_id = '".$dataVal->user_id."'  ORDER BY date DESC ")->row_array();
-// 				}
-
-				
-
-// 				// HARA GET TOTAL DEDUCTION AMOUNT
-// 				$getTotalDeduction = $this->getTypeTotalAmount($dataVal->user_id, $yearName, $monthName, '2' );
-
-// 				// HARA GET TOTAL PAID AMOUNT
-// 				$getTotalPaid  = $this->getTypeTotalAmount($dataVal->user_id, $yearName, $monthName, '3' );
-				
-// 				$totalAdvance = 0;
-// 				$netTotalAdvance = 0;
-				
-// 				$netSubAmount = 0;
-// 				$getAdvance  = $this->db->query("SELECT * FROM payroll_history WHERE  business_id = '".$loginID."' AND user_id = '".$dataVal->user_id."' and payroll_master_id='2' and paid=0 and status=1")->result();
-
-// 				foreach($getAdvance as $advance){
-// 					$advanceStartTime = strtotime(date("t-m-Y 00:00:00",strtotime($advance->date)));
-// 					if($advanceStartTime==$selectedStartTime){
-// 						$netTotalAdvance = $advance->amount;
-// 					}
-// 					if($advanceStartTime<=$selectedStartTime){
-// 						$getSubSettle = $this->db->query("SELECT * FROM payroll_history WHERE  business_id = '".$loginID."' AND user_id = '".$dataVal->user_id."' and payroll_id='$advance->id' and status=1")->result();
-// 						$subAmount = 0;
-// 						foreach($getSubSettle as $settle){
-// 							$monthStartTime = strtotime(date("t-m-Y 00:00:00",strtotime($settle->date)));
-// 							if($monthStartTime<=$selectedStartTime){
-// 								$subAmount+=$settle->amount;
-// 							}
-// 							if($monthStartTime==$selectedStartTime){
-// 								$netSubAmount+=$settle->amount;
-// 							}
-// 						}
-// 						$totalAdvance+= $advance->amount-$subAmount;
-// 					}
-// 				}
-// 				$empList[$key]->getTotalPaid = $totalAdvance;
-// 				//Calculate Add and Deduction
-// 				$salaryAddition = 0;
-// 				$salaryDeduction = 0;
-// 				$empList[$key]->basicCtc = 0;
-// 				if(!empty($getCTC)){
-// 					$salaryDeduction = $getCTC['pf_amount']+$getCTC['esi_amount']+$getCTC['other_amount'];
-// 					$salaryAddition = ($getCTC['total_ctc_amount']+$salaryDeduction)-$getCTC['basic_value'];
-// 					$empList[$key]->basicCtc = $getCTC['basic_value'];
-// 				}
-// 				// HARE CALCULATE TOTAL SALLARY
-// 				$empList[$key]->totalSalary = @$getAmount['addAmount']+@$getCTC['total_ctc_amount'];
-// 				$empList[$key]->ctc = @$getCTC['total_ctc_amount']+$salaryDeduction;
-
-// 				//Calculate Add and Deduction
-// 				$salaryAddition = 0;
-// 				$salaryDeduction = 0;
-				
-// 				if(!empty($getCTC)){
-// 					$salaryDeduction = $getCTC['pf_amount']+$getCTC['esi_amount']+$getCTC['other_amount'];
-// 					$salaryAddition = ($getCTC['total_ctc_amount']+$salaryDeduction)-$getCTC['basic_value'];
-// 				}
-// 				// HARE CALCULATE TOTAL SALLARY
-// 				$empList[$key]->totalSalary = @$getAmount['addAmount']+@$getCTC['total_ctc_amount'];
-// 				$empList[$key]->ctc = @$getCTC['total_ctc_amount']+$salaryDeduction;
-
-// 				if($getTotalDeduction['addAmount']!=""){
-// 					$empList[$key]->deductionAmount =  $getTotalDeduction['addAmount'];
-// 				}else{
-// 					$empList[$key]->deductionAmount =  "0";
-// 				}
-// 				if($getTotalPaid['addAmount']!=""){
-// 					$empList[$key]->deductionAmount +=  $getTotalPaid['addAmount'];
-// 				}
-// 				// $empList[$key]->deductionAmount+= $netSubAmount;
-
-// 				if(@$getAmount['addAmount']!=""){
-// 					$empList[$key]->additionAmount = @$getAmount['addAmount'];
-// 				}else{
-// 					$empList[$key]->additionAmount = "0";
-// 				}
-				
-// 				$empList[$key]->total = $empList[$key]->totalSalary-$getTotalDeduction['addAmount']-$getTotalPaid['addAmount'];
-
-// 				//Salary Report
-// 				$salaryData = $this->db->query("SELECT * FROM salary_report where uid='$dataVal->user_id' and bid='$loginID' AND  YEAR(date_time)='$yearName' AND MONTH(date_time)='$monthName'")->row_array();
-// 				$maxDays = date("t",strtotime($yearName."-".$monthName."-01"));
-
-// 				$perDay = $empList[$key]->ctc/$maxDays;
-// 				$newPayable = 0;
-// 				$salaryPf = 0;
-// 				$salaryEsi = 0;
-// 				$empList[$key]->nwd = 0;
-// 				$empList[$key]->present = 0;
-// 				$empList[$key]->half_day = 0;
-// 				$empList[$key]->week_off = 0;
-// 				$empList[$key]->holiday = 0;
-// 				$empList[$key]->leaves = 0;
-// 				$empList[$key]->short_leave = 0;
-// 				$empList[$key]->ed = 0;
-// 				$empList[$key]->pfValue = 0;
-// 				$empList[$key]->esiValue = 0;
-// 				$empList[$key]->id = 0;
-// 				$empList[$key]->pay_mode = 0;
-// 				if($salaryData){
-// 					$newPayable = $perDay*($salaryData['present']+($salaryData['half_day']/2)+$salaryData['week_off']+$salaryData['holiday']+(!empty($salaryData['leaves'])?$salaryData['leaves']:0)+$salaryData['short_leave']+$salaryData['ed']);
-// 					$empList[$key]->nwd = $salaryData['present']+($salaryData['half_day']/2)+$salaryData['week_off']+$salaryData['holiday']+(!empty($salaryData['leaves'])?$salaryData['leaves']:0)+$salaryData['short_leave']+$salaryData['ed'];
-// 				//	$empList[$key]->nwd = $salaryData['present']+($salaryData['half_day']/2)+$salaryData['week_off']+$salaryData['holiday']+(!empty($salaryData['leaves'])?$salaryData['leaves']:0)+$salaryData['short_leave'];
-
-// 					$empList[$key]->present = $salaryData['present'];
-// 					$empList[$key]->half_day = $salaryData['half_day'];
-// 					$empList[$key]->week_off = $salaryData['week_off'];
-// 					$empList[$key]->holiday = $salaryData['holiday'];
-// 					$empList[$key]->leaves = $salaryData['leaves'];
-// 					$empList[$key]->short_leave = $salaryData['short_leave'];
-// 					$empList[$key]->ed = $salaryData['ed'];
-// 					$empList[$key]->startDate = $salaryData['start_date'];
-// 					$empList[$key]->endDate = $salaryData['end_date'];
-// 					$empList[$key]->id = $salaryData['id'];
-// 					$empList[$key]->pay_mode = $salaryData['pay_mode'];
-// 					if(!empty($getCTC)){
-// 						if($getCTC['pf_type']=="Manual"){
-// 							$salaryPf = $getCTC['pf_value'];
-// 						}else{
-// 							$empList[$key]->pfValue = $getCTC['pf_value'];
-// 							$salaryPf = round(round($newPayable)*($getCTC['pf_value']/100));
-// 						}
-// 						if($getCTC['esi_type']=="Manual"){
-// 							$salaryEsi = $getCTC['esi_value'];
-// 						}else{
-// 							$empList[$key]->esiValue = $getCTC['esi_value'];
-// 							$salaryEsi = round(round($newPayable)*($getCTC['esi_value']/100));
-// 						}
+			$advanceList     = $this->getAdvanceList();
+			$settlementMap  = $this->getAdvanceSettlementMap();
 						
-// 					}
-// 				}
-// 				$empList[$key]->pf = $salaryPf;
-// 				$empList[$key]->esi = $salaryEsi;
-// 				$empList[$key]->total = round($newPayable);
-// 				$empList[$key]->netPayable = round((($newPayable+@$getAmount['addAmount'])-$getTotalDeduction['addAmount'])-$getTotalPaid['addAmount'])-$salaryPf-$salaryEsi;
-// 			}
+			foreach ($empList as $key => $dataVal) {
+			    
+				if(($dataVal->doj=="" || $selectedEndTime >= $dataVal->doj) && ($dataVal->left_date=="" || $selectedStartTime<$dataVal->left_date)){
+				}else{
+					unset($empList[$key]);
+				}
+			}
 
-// 		}
+		
 
-// 		return $empList;
+			if($this->session->userdata()['type']=='P'){
+						if($role[0]->type!=1){
+							$departments = explode(",",$role[0]->department);
+							$sections = explode(",",$role[0]->section);
+							$team = explode(",",$role[0]->team);
+							
+							if(!empty($departments[0]) || !empty($sections[0]) || !empty($team[0])){
+							foreach ($empList as $key => $dataVal) {
+								$uname = $this->web->getNameByUserId($dataVal->user_id);
+							$roleDp = array_search($uname[0]->department,$departments);
+								$roleSection = array_search($uname[0]->section,$sections);
+								$roleTeam = array_search($dataVal->user_id,$team);
+								if(!is_bool($roleTeam) || !is_bool($roleSection) || !is_bool($roleDp)){
+						
+								}else{
+								unset($empList[$key]);
+								}
+							}
+							}
+						}
+						}
 
-// 	}
+			foreach ($empList as $key => $dataVal) {
+
+
+				
+				$userId = $dataVal->user_id;
+
+				$addition   = $additionMap[$userId]['addAmount'] ?? 0;
+				$deduction  = $deductionMap[$userId]['addAmount'] ?? 0;
+				$paid       = $paidMap[$userId]['addAmount'] ?? 0;
+
+				
+				$getCTC = $getCTCMap[$userId] ?? [];
+
+				$totalCtc  = $getCTC['total_ctc_amount'] ?? 0;
+				$basicCtc  = $getCTC['basic_value'] ?? 0;
+				$pfAmount  = $getCTC['pf_amount'] ?? 0;
+				$esiAmount = $getCTC['esi_amount'] ?? 0;
+				$otherAmt  = $getCTC['other_amount'] ?? 0;
+				
+				$totalAdvance = 0;
+				$netTotalAdvance = 0;
+				
+				$netSubAmount = 0;
+			
+				foreach ($advanceList as $advance) {
+
+					if ($advance->user_id != $userId) continue;
+			
+					$advanceStartTime = strtotime(date("t-m-Y 00:00:00", strtotime($advance->date)));
+			
+					// 🔹 Current month advance
+					if ($advanceStartTime == $selectedStartTime) {
+						$netTotalAdvance += $advance->amount;
+					}
+			
+					if ($advanceStartTime <= $selectedStartTime) {
+			
+						$subAmount = 0;
+			
+						$settlements = $settlementMap[$advance->id] ?? [];
+			
+						foreach ($settlements as $settle) {
+			
+							$monthStartTime = strtotime(date("t-m-Y 00:00:00", strtotime($settle->date)));
+			
+							if ($monthStartTime <= $selectedStartTime) {
+								$subAmount += $settle->amount;
+							}
+			
+							if ($monthStartTime == $selectedStartTime) {
+								$netSubAmount += $settle->amount;
+							}
+						}
+			
+						$totalAdvance += ($advance->amount - $subAmount);
+					}
+				}
+				$empList[$key]->getTotalPaid = $totalAdvance;
+				//Calculate Add and Deduction
+				$salaryAddition = 0;
+				$salaryDeduction = 0;
+				$empList[$key]->basicCtc = 0;
+				if(!empty($getCTC)){
+					$salaryDeduction = $pfAmount + $esiAmount+$otherAmt;
+					$salaryAddition = ($totalCtc+$salaryDeduction)-$basicCtc;
+					$empList[$key]->basicCtc = $basicCtc;
+				}
+				// HARE CALCULATE TOTAL SALLARY
+				$empList[$key]->totalSalary = $addition +$totalCtc;
+				$empList[$key]->ctc = $totalCtc + $salaryDeduction;
+
+				//Calculate Add and Deduction
+				$salaryAddition = 0;
+				$salaryDeduction = 0;
+				
+				if(!empty($getCTC)){
+					$salaryDeduction = $pfAmount+$esiAmount+$otherAmt;
+					$salaryAddition = ($totalCtc+$salaryDeduction)-$basicCtc;
+				}
+				// HARE CALCULATE TOTAL SALLARY
+				$empList[$key]->totalSalary = $addition+$totalCtc;
+				$empList[$key]->ctc = $totalCtc +$salaryDeduction;
+
+				if($deduction!=""){
+					$empList[$key]->deductionAmount = $deduction;
+				}else{
+					$empList[$key]->deductionAmount =  "0";
+				}
+				if($paid!=""){
+					$empList[$key]->deductionAmount +=  $paid;
+				}
+				// $empList[$key]->deductionAmount+= $netSubAmount;
+
+				if($addition!=""){
+					$empList[$key]->additionAmount = $addition;
+				}else{
+					$empList[$key]->additionAmount = "0";
+				}
+				
+				$empList[$key]->total = $empList[$key]->totalSalary-$deduction-$paid;
+				$maxDays = date("t",strtotime($yearName."-".$monthName."-01"));
+
+				$salaryData = $salaryMap[$userId] ?? [];
+
+				$perDay = $empList[$key]->ctc/$maxDays;
+				$newPayable = 0;
+				$salaryPf = 0;
+				$salaryEsi = 0;
+				$empList[$key]->nwd = 0;
+				$empList[$key]->present = 0;
+				$empList[$key]->half_day = 0;
+				$empList[$key]->week_off = 0;
+				$empList[$key]->holiday = 0;
+				$empList[$key]->leaves = 0;
+				$empList[$key]->short_leave = 0;
+				$empList[$key]->ed = 0;
+				$empList[$key]->pfValue = 0;
+				$empList[$key]->esiValue = 0;
+				$empList[$key]->id = 0;
+				$empList[$key]->pay_mode = 0;
+				if($salaryData){
+					$newPayable = $perDay*($salaryData['present']+($salaryData['half_day']/2)+$salaryData['week_off']+$salaryData['holiday']+(!empty($salaryData['leaves'])?$salaryData['leaves']:0)+$salaryData['short_leave']+$salaryData['ed']);
+					$empList[$key]->nwd = $salaryData['present']+($salaryData['half_day']/2)+$salaryData['week_off']+$salaryData['holiday']+(!empty($salaryData['leaves'])?$salaryData['leaves']:0)+$salaryData['short_leave']+$salaryData['ed'];
+
+					$empList[$key]->present = $salaryData['present'];
+					$empList[$key]->half_day = $salaryData['half_day'];
+					$empList[$key]->week_off = $salaryData['week_off'];
+					$empList[$key]->holiday = $salaryData['holiday'];
+					$empList[$key]->leaves = $salaryData['leaves'];
+					$empList[$key]->short_leave = $salaryData['short_leave'];
+					$empList[$key]->ed = $salaryData['ed'];
+					$empList[$key]->startDate = $salaryData['start_date'];
+					$empList[$key]->endDate = $salaryData['end_date'];
+					$empList[$key]->id = $salaryData['id'];
+					$empList[$key]->pay_mode = $salaryData['pay_mode'];
+					if (!empty($getCTC)) {
+
+						if (($getCTC['pf_type'] ?? '') === "Manual") {
+							$salaryPf = $getCTC['pf_value'] ?? 0;
+						} else {
+							$pfPercent = $getCTC['pf_value'] ?? 0;
+							$salaryPf = round($newPayable * ($pfPercent / 100));
+						}
+					
+						if (($getCTC['esi_type'] ?? '') === "Manual") {
+							$salaryEsi = $getCTC['esi_value'] ?? 0;
+						} else {
+							$esiPercent = $getCTC['esi_value'] ?? 0;
+							$salaryEsi = round($newPayable * ($esiPercent / 100));
+						}
+					}
+				}
+				$empList[$key]->pf = $salaryPf;
+				$empList[$key]->esi = $salaryEsi;
+				$empList[$key]->total = round($newPayable);
+				$empList[$key]->netPayable = round((($newPayable+$addition)-$deduction)-$paid)-$salaryPf-$salaryEsi;
+			}
+		}
+
+		return $empList;
+
+	}
 
 
 
@@ -3511,7 +3668,7 @@ public function getUserLeaves($uid,$start,$end){
 
 
 
-	public function getSallaryReport($postData = '', $limit = null, $offset = null, $search = null)
+	public function getSallaryReportnew($postData = '', $limit = null, $offset = null, $search = null)
 
 	{
 		/* ================= BASIC SETUP ================= */
@@ -3532,10 +3689,6 @@ public function getUserLeaves($uid,$start,$end){
 		}
 
 		$monthKey = $yearName . '-' . $monthName;
-
-
-		
-
 		/* ================= EMPLOYEE LIST (ONE QUERY) ================= */
 		$this->db->select('
 		ur.*, 
@@ -3793,6 +3946,55 @@ public function countSalaryEmployees($search = null)
 
     return $this->db->count_all_results();
 }
+
+public function getSalaryBasic($empId, $month, $type = null, $name = null, $sum = false)
+{
+    $this->db->from('salary_basic')
+             ->join('ctc_head','ctc_head.id=salary_basic.header_id','left')
+             ->join('salary','salary.id=salary_basic.sid','left')
+             ->where('salary.uid', $empId)
+             ->where("DATE_FORMAT(salary.date,'%Y-%m')", $month);
+
+    if ($type) {
+        $this->db->where('ctc_head.type', $type);
+    }
+
+    if ($name) {
+        $this->db->where('ctc_head.name', $name);
+    }
+
+    if ($sum) {
+        $this->db->select_sum('salary_basic.amount', 'total');
+        return $this->db->get()->row()->total ?? 0;
+    }
+
+    $this->db->select('salary_basic.amount, salary_basic.header_type, salary_basic.header_value');
+    return $this->db->get()->row();
+}
+
+private function getPayrollSum($empId, $month, $masterIds, $extraWhere = [])
+{
+    $this->db->select_sum('payroll_history.amount', 'total')
+             ->from('payroll_history')
+             ->join('payroll_master','payroll_master.id=payroll_history.payroll_master_id')
+             ->where_in('payroll_master_id', (array)$masterIds)
+             ->where('payroll_history.status', 1)
+             ->where('user_id', $empId);
+
+    foreach ($extraWhere as $key => $value) {
+        $this->db->where($key, $value);
+    }
+
+    if (strpos($month, '<') !== false || strpos($month, '<=') !== false) {
+        $this->db->where("DATE_FORMAT(payroll_history.pay_date,'%Y-%m') ".$month);
+    } else {
+        $this->db->where("DATE_FORMAT(payroll_history.pay_date,'%Y-%m')", $month);
+    }
+
+    return $this->db->get()->row()->total ?? 0;
+}
+
+
 
 
 

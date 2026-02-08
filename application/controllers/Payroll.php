@@ -278,7 +278,8 @@ public function edit_head(){
 		$page   = ($this->uri->segment(3)) ? $this->uri->segment(3) : 0;
 
 		// Get total rows count
-		$total_rows = $this->web->countSalaryEmployees($search); // create this function
+		$total_rows = $this->web->countSalaryEmployees($search ); // create this function
+
 
 
 		if ($this->session->userdata()['type'] == 'P') {
@@ -292,7 +293,6 @@ public function edit_head(){
 		$config['per_page'] = $limit;
 		$config['uri_segment'] = 3;
 		$data['offset'] = $page;
-
 
 		/* ===== Bootstrap / DataTable Style ===== */
 
@@ -325,8 +325,6 @@ public function edit_head(){
 
 		$this->pagination->initialize($config);
 
-
-		$this->pagination->initialize($config);
 		// Fetch limited data
 		$data['salEmpList'] = $this->web->getSallaryReport(null, $limit, $page, $search);
 		// echo '<pre>';
@@ -694,6 +692,7 @@ public function edit_head(){
 	//salaryEmployees
 	public function employeesNetSalary()
 	{
+		$this->load->library('pagination');
 	    if($this->session->userdata()['type']=='P'){
           $business_id = $this->session->userdata('empCompany');
         } else {
@@ -703,22 +702,67 @@ public function edit_head(){
 		$data['title'] 		= 'Manage - Salary';
 		$data['lMenu']  	= 'Sallery';
         $cmpName = $this->web->getBusinessById($business_id);
+		$search = $this->input->get('search');
+		$limit  = 15; // records per page
+		$page   = ($this->uri->segment(3)) ? $this->uri->segment(3) : 0;
+
+		$total_rows = $this->web->countSalaryEmployees($search); // create this function
+
+		$config['base_url'] = base_url('Payroll/employeesNetSalary');
+		$config['total_rows'] = $total_rows;
+		$config['per_page'] = $limit;
+		$config['uri_segment'] = 3;
+		$data['offset'] = $page;
+
+
+		/* ===== Bootstrap / DataTable Style ===== */
+
+		$config['full_tag_open']    = '<ul class="pagination pagination-sm m-0 float-right">';
+		$config['full_tag_close']   = '</ul>';
+
+		$config['first_link']       = '«';
+		$config['first_tag_open']   = '<li class="page-item">';
+		$config['first_tag_close']  = '</li>';
+
+		$config['last_link']        = '»';
+		$config['last_tag_open']    = '<li class="page-item">';
+		$config['last_tag_close']   = '</li>';
+
+		$config['next_link']        = 'Next';
+		$config['next_tag_open']    = '<li class="page-item">';
+		$config['next_tag_close']   = '</li>';
+
+		$config['prev_link']        = 'Prev';
+		$config['prev_tag_open']    = '<li class="page-item">';
+		$config['prev_tag_close']   = '</li>';
+
+		$config['cur_tag_open']     = '<li class="page-item active"><span class="page-link">';
+		$config['cur_tag_close']    = '</span></li>';
+
+		$config['num_tag_open']     = '<li class="page-item">';
+		$config['num_tag_close']    = '</li>';
+
+		$config['attributes']       = array('class' => 'page-link');
+
+		$this->pagination->initialize($config);
+
+
 		if(isset($_GET['getDate'])){
 
-			$data['salEmpList'] 	= $this->web->getSallaryReport(['date_from'=>$_GET['getDate']]);
+			$data['salEmpList'] 	= $this->web->getSallaryReport(['date_from'=>$_GET['getDate']],$limit, $page);
 			$data['date_from']		= $_GET['getDate'];
 		}
 		else
 		{
-			$data['salEmpList'] 	= $this->web->getSallaryReport();
+			$data['salEmpList'] 	= $this->web->getSallaryReport(null, $limit, $page, null);
 			$data['date_from'] 		= date("Y-m");
 		}
-		echo 'hi';
 
-		echo '<pre>';
-		print_r($data);
-		die();
+		$data['pagination'] = $this->pagination->create_links();
 
+		// echo '<pre>';
+		// print_r($data);
+		// die();
     	$data['cmp_name']=$cmpName['name'];
 		$data['payrollList'] 	= $this->web->getData('payroll_master', array('status' => 1), '', 'ASC');
 		$this->load->view('salary/include/page',$data);
