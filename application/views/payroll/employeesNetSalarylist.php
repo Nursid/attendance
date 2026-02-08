@@ -222,7 +222,7 @@
                       <?php
                       $this->db->order_by("id", "asc");
                       if (!empty($salEmpList)) {
-                        $sr = 1;
+                        $sr = $offset + 1;
                           usort($salEmpList, function($a, $b) {
                             if(empty($a->emp_code)){
                                 return -1;
