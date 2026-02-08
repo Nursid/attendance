@@ -156,20 +156,12 @@
                           <?php } ?>
                         </div>
                         <?php 
-                          // $totalPaid = 0;
-                          // $totalNetPayable = 0;
-                          // foreach ($salEmpList as $item) {
-                          //     $totalPaid += $item->getTotalPaid;
-                          //     $totalNetPayable += $item->netPayable;
-                          // }
-                              $totalPaid = 0;
-                              $totalNetPayable = 0;
-
-                              foreach ($salEmpList as $item) {
-                                  $totalPaid       += isset($item->getTotalPaid) ? $item->getTotalPaid : 0;
-                                  $totalNetPayable += isset($item->netPayable) ? $item->netPayable : 0;
-                              }
-
+                          $totalPaid = 0;
+                          $totalNetPayable = 0;
+                          foreach ($salEmpList as $item) {
+                              $totalPaid += $item->getTotalPaid;
+                              $totalNetPayable += $item->netPayable;
+                          }
                         ?>
                      <!---  <div class="col-sm-6">
                           <div class="row">
@@ -184,7 +176,7 @@
                  
                   <div class="col-sm-2">
                     <form action="<?php echo base_url('Payroll/salaryReport') ?>" method="post">
-                      <input type="month" title="Start Date" min="2020" max="2025" placeholder="Date From" onchange="checkDate()" value="<?php echo isset($_GET['getDate']) ? $_GET['getDate'] : date("Y-m") ?>" class="form-control" name="date_from" dd1="date_from" required id="txtFrom" hidden>
+                      <input type="month" title="Start Date" min="2020" max="2026" placeholder="Date From" onchange="checkDate()" value="<?php echo isset($_GET['getDate']) ? $_GET['getDate'] : date("Y-m") ?>" class="form-control" name="date_from" dd1="date_from" required id="txtFrom" hidden>
                       <input type="submit" class="btn btn-primary" name="filter_btn" value="Recalculate Attendance" />
                     </form>
                   </div>
@@ -206,9 +198,11 @@
                         <th>S.No</th>
                         <th>EmpCode</th>
                         <th>Name</th>
-                        <th>CTC</th>
+                         <th>Section</th>
+                          <th>Department</th>
+                        <th>Gross Salary</th>
                         <th>NWD</th>
-                        <th>Salary</th>
+                        <th>Paid Salary</th>
                         <th>PF</th>
                         <th>ESI</th>
                         <th>TDS</th>
@@ -216,8 +210,10 @@
                         <th>Earnings</th>
                         <th>Deduction</th>
                         <th>NetPayable</th>
-                         <th>Pay Mode</th>
+                         <th width="10px">Pay Mode</th>
+                         <th>Bank</th>
                           <th>A/C Detail</th>
+                          <th>IFSC</th>
                         <th class="notPrintable">Action</th>
                       </tr>
                     </thead>
@@ -228,15 +224,15 @@
                       if (!empty($salEmpList)) {
                         $sr = 1;
                           usort($salEmpList, function($a, $b) {
-                              if(empty($a->emp_code)){
-                                  return -1;
-                              }elseif ($a->emp_code > $b->emp_code) {
-                                  return 1;
-                              } elseif ($a->emp_code < $b->emp_code) {
-                                  return -1;
-                              }
-                              return 0;
-                          });
+                            if(empty($a->emp_code)){
+                                return -1;
+                            }elseif ($a->emp_code > $b->emp_code) {
+                                return 1;
+                            } elseif ($a->emp_code < $b->emp_code) {
+                                return -1;
+                            }
+                            return 0;
+                        });
                         foreach ($salEmpList as $key => $empData) { 
                          // $this->db->order_by('id','DESC');
                           $month = isset($_GET['getDate']) ? $_GET['getDate'] : date("Y-m");
@@ -250,8 +246,21 @@
                               }
                           }
                        $salary = $this->db->get_where('salary',['uid'=>$empData->emp_id,"DATE_FORMAT(salary.date,'%Y-%m')"=>$month])->row();
-                       $emp_more_details  = $this->db->get_where('staff_detail',['uid'=>$empData->emp_id])->row();
-                       
+                     $emp_more_details  = $this->db->get_where('staff_detail',['uid'=>$empData->emp_id])->row();
+                    $emp_dep  = $this->db->get_where('login',['id'=>$empData->emp_id])->row();
+                       $dp = $this->web->getBusinessDepByUserId($emp_dep->department);
+                         $sec = $this->web->getBusinessSecByUserId($id,$emp_dep->section);
+                           // $ruleid  = $this->db->get_where('user_request',['user_id'=>$empData->emp_id])->row();
+                            $ruleid = $this->db->get_where('user_request', ['user_id' => $empData->emp_id,'business_id' => $id])->row();
+                          
+                         	$rules = $this->web->getRule($id, $ruleid->rule_id);
+                         	$edw_on = 0;
+							$edw_days = 0;
+							if($rules){
+							    	$edw_on = $rules['edw_on'];
+									$edw_days = $rules['edw_days'];
+							}
+                       	
                           $number_of_days = cal_days_in_month(CAL_GREGORIAN,date('m',strtotime(isset($_GET['getDate']) ? $_GET['getDate'] : date("Y-m"))),date('Y',strtotime(isset($_GET['getDate']) ? $_GET['getDate'] : date("Y-m"))));
 
                         //  $salary = $this->db->get_where('salary',['uid'=>$empData->emp_id,"DATE_FORMAT(salary.date,'%Y-%m')"=>$month])->row();
@@ -363,37 +372,132 @@
                                               ->where("DATE_FORMAT(payroll_history.pay_date,'%Y-%m') <=", isset($_GET['getDate']) ? $_GET['getDate'] : date("Y-m"))
                                               ->get()
                                               ->row();
-
-    //                        $total_salary = ($salary && $number_of_days > 0)
-    // ? round((($salary->basic_value + $deduction + $allowance) / $number_of_days) * ($empData->nwd ?? 0))
-    // : 0;
-
-    $total_salary = ($salary && $number_of_days > 0)
-    ? round((($salary->basic_value + $deduction + $allowance) / $number_of_days) * ($empData->nwd ?? 0))
-    : 0;
-
-
-
-                            $total_pf = isset($pf->amount) ?  ($pf->header_type=="Manual" ? $pf->amount : round((((($salary->basic_value)/$number_of_days)*$empData->nwd)*$pf->header_value))/100) : 0;
-                            $total_esi = isset($esi->amount) ?  ($esi->header_type=="Manual" ? $esi->amount : round((((($salary->basic_value)/$number_of_days)*$empData->nwd)*$esi->header_value))/100) : 0;
+                                              
+                                              
+                              $ta = $this->db->select('salary_basic.amount,salary_basic.header_type,salary_basic.header_value')
+                                             ->from('salary_basic')
+                                             ->join('ctc_head','ctc_head.id=salary_basic.header_id','left')
+                                             ->join('salary','salary.id=salary_basic.sid','left')
+                                             ->where(['salary.uid'=>$empData->emp_id])
+                                            ->where(['ctc_head.name'=>'HRA'])
+                                            ->where("DATE_FORMAT(salary.date,'%Y-%m')", $month)
+                                             ->get()
+                                             ->row();                  
+                                              
+                                              
+                                              $spc = $this->db->select('salary_basic.amount,salary_basic.header_type,salary_basic.header_value')
+                                             ->from('salary_basic')
+                                             ->join('ctc_head','ctc_head.id=salary_basic.header_id','left')
+                                             ->join('salary','salary.id=salary_basic.sid','left')
+                                             ->where(['salary.uid'=>$empData->emp_id])
+                                            ->where(['ctc_head.name'=>'SPECIAL'])
+                                            ->where("DATE_FORMAT(salary.date,'%Y-%m')", $month)
+                                             ->get()
+                                             ->row();                  
+                                              
+                                            
+                                              
+                                              
+                              $nwds=$empData->nwd;
                             
-                            $total_tds = isset($tds->amount) ?  ($tds->header_type=="Manual" ? $tds->amount : round((((($salary->basic_value)/$number_of_days)*$empData->nwd)*(!empty($tds->header_value) ? $tds->header_value : 0)))/100) : 0;
+                            if( ($edw_on=="1") && ($edw_days=="0") && ($nwds>$empData->days)){
+                               // if(  $nwds>$empData->days){
+										   $nwd=$empData->days; 
+										}else{
+										    $nwd=$nwds;
+										}
+										
+
+
+
+                            $total_salary = $salary ? round((($salary->basic_value+$allowance->total)/$number_of_days)*$nwd) : 0;
+
+                          // $total_pf = isset($pf->amount) ?  ($pf->header_type=="Manual" ? $pf->amount : round((((($salary->basic_value)/$number_of_days)*$nwd)*$pf->header_value))/100) : 0;
+                            
+                                 if (isset($pf->amount)) {
+                                if ($pf->header_type == "Manual") {
+                                 $total_pf = round(($pf->amount/$number_of_days)*$nwd);
+                              } else {
+                                  if($id="25189"){
+                                $basic_per_day = (($salary->basic_value)+($ta->amount)+($spc->amount))/ $number_of_days;
+                                  }else{
+                                    $basic_per_day = ($salary->basic_value)/ $number_of_days;  
+                                  }
+                              $earnings_for_days = $basic_per_day * $nwd;
+                              $pf_percent = $pf->header_value;
+
+                            $total_pf = round(($earnings_for_days * $pf_percent) / 100);
+                            if($total_pf>1800){
+                              $total_pf=1800;  
+                            }
+                                }
+                          } else {
+                          $total_pf = 0;
+
+                          } 
+                          
+                          if (isset($esi->amount)) {
+                                if ($esi->header_type == "Manual") {
+                                 $total_esi = round(($esi->amount/$number_of_days)*$nwd);
+                              } else {
+                                 
+                                    $basic_per_day_esi = (($salary->basic_value)+($allowance->total))/ $number_of_days;  
+                                  
+                              $earnings_for_days_esi = $basic_per_day_esi * $nwd;
+                              $esi_percent = $esi->header_value;
+
+                            $total_esi = round(($earnings_for_days_esi * $esi_percent) / 100);
+                            
+                                }
+                          } else {
+                          $total_esi = 0;
+
+                          }  
+                          
+                         
+                          
+                          
+                          
+                       //  $total_esi = isset($esi->amount) ?  ($esi->header_type=="Manual" ? $esi->amount : round(((((($salary->basic_value)+($allowance->total))/$number_of_days)*$nwd)*$esi->header_value))/100) : 0;
+                         //   $total_tds = isset($tds->amount) ?  ($tds->header_type=="Manual" ? $tds->amount : round(((((($salary->basic_value)+($allowance->total))/$number_of_days)*$nwd)*$tds->header_value))/100) : 0;
                             $earning_total = isset($earning->amount) ? $earning->amount : 0;
                             $deduction_total = isset($deduction_master->amount) ? $deduction_master->amount : 0;
                             $advance_total = isset($advance->amount) ? $advance->amount : 0;
-                            $netPayable = ($total_salary+$earning_total)-($total_pf+$total_esi+$total_tds+$deduction_total+$empData->getTotalPaid);
+                           // $netPayable = ($total_salary+$earning_total)-($total_pf+$total_esi+$total_tds+$deduction_total+$empData->getTotalPaid);
                             $selectDate = isset($_GET['getDate']) ? $_GET['getDate'] : $month;
 
                             $loan_amount = isset($loan->amount) ? $loan->amount : 0;
                             $imi_amount = isset($imi->amount) ? $imi->amount : 0;
                             $oldimi_amount = isset($oldimi->amount) ? $oldimi->amount : 0;
+                             $netPayable_wtds = round(($total_salary+$earning_total)-($total_pf+$total_esi+$deduction_total+$empData->getTotalPaid+$imi_amount+$advance_total));
+                             if (isset($tds->amount)) {
+                                if ($tds->header_type == "Manual") {
+                                 $total_tds = round(($tds->amount/$number_of_days)*$nwd);
+                              } else {
+                                 
+                                   // $basic_per_day = (($salary->basic_value)+($allowance->total))/ $number_of_days;  
+                                  
+                             // $earnings_for_days = $basic_per_day * $nwd;
+                              $tds_percent = $tds->header_value;
+
+                            $total_tds = round(($netPayable_wtds * $tds_percent) / 100);
+                            
+                                }
+                          } else {
+                          $total_tds = 0;
+                          } 
+                         $netPayable= $netPayable_wtds-$total_tds;
+                          
+                          
                           ?>
                           <tr>
                             <td><?= $sr; ?><?php #print_r($advance); echo "<br />"; print_r($imi); ?> </td>
                             <td><?= $empData->emp_code; ?></td>
                             <td><?= $empData->empName; ?></td>
-                            <td><?= isset($allowance->total) ? $salary->basic_value+$deduction->total+$allowance->total : 0; ?></td>
-                            <td><?= $empData->nwd; ?></td>
+                            <td><?= $dp[0]->name ;?></td>
+                            <td><?= $sec[0]->name ;?></td>
+                            <td><?= isset($allowance->total) ? $salary->basic_value+$allowance->total : 0; ?></td>
+                            <td><?= $nwd; ?></td>
                             <td><?= $total_salary; ?></td>
                             <td><?= $total_pf ?></td>
                             <td><?= $total_esi; ?></td>
@@ -401,15 +505,15 @@
                             <td><?= $advance_total+$loan_amount-$oldimi_amount; ?></td>
                             <td><?= $earning_total; ?></td>
                             <td><?= $deduction_total+$advance_total+$imi_amount; ?></td>
-                            <td><?= $netPayable-($imi_amount+$advance_total); ?></td>
-                            <td > <?=$empData->pay_mode; ?> <br>
-                            <input type="text" value="<?=$empData->pay_mode; ?>"  onchange="changeLeaveFrom2(event,'<?=$empData->id; ?>')" />
+                            <td><?= $netPayable; ?></td>
+                           <td> <input type="text" value="<?=$empData->pay_mode; ?>"  onchange="changeLeaveFrom2(event,'<?=$empData->id; ?>')" />
                         </td>
-                              <td><?= isset($emp_more_details) ? $emp_more_details->bank_name :"" ;?> <br>
-                              <?= isset($emp_more_details) ? $emp_more_details->account_no :"";?> <br>
-                              <?= isset($emp_more_details) ? $emp_more_details->ifsc_code :"" ;?>
+                               
+                              <td><?= isset($emp_more_details) ? $emp_more_details->bank_name :"" ;?> </td>
+                            <td><?= isset($emp_more_details) ? "'".$emp_more_details->account_no :"";?> </td>
+                             <td> <?= isset($emp_more_details) ? $emp_more_details->ifsc_code :"" ;?>
                               </td>
-                            <td>
+                              <td>
                               <a target="_blank" href="<?php echo base_url('Payroll/employeesPayslip/'); ?>?id=<?= $empData->emp_id."&date=".$month."&netPayable=".$netPayable."&selectDate=".$selectDate; ?>" class="btn btn-xs mt-1 btn-primary">Pay Slip</a>
                               <br>
                               <a href="#" class="btn btn-xs mt-1 btn-info" data-toggle="modal" data-target="#nwd<?php echo $empData->user_id; ?>"> <i class="fa fa-cog"></i>Working Days</a> <br>
@@ -452,12 +556,12 @@
                                       </div>
                                       <div class="col">
                                         <label for="other">Leaves</label>
-                                        <input type="number" name="wdLeaves" id="wdLeaves" value="<?= $empData->leaves; ?>" min="0" step="0.5"  class="form-control">
+                                        <input type="number" name="wdLeaves" id="wdLeaves" value="<?= $empData->leaves; ?>" min="0" class="form-control">
                                       </div>
-                                    <!--  <div class="col">
+                                      <div class="col">
                                         <label for="other">SL</label>
                                         <input type="number" name="wdShortLeave" id="wdShortLeave" value="<?= $empData->short_leave; ?>" min="0" class="form-control">
-                                      </div>-->
+                                      </div>
                                       <div class="col">
                                         <label for="other">ED</label>
                                         <input type="number" name="wdED" id="wdED" value="<?= $empData->ed; ?>" min="0" class="form-control">

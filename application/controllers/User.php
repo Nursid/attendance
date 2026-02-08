@@ -3576,10 +3576,6 @@ private function hasTimePHP($timeStr)
 			// Company Name (if needed)
 			$data['cmp_name'] = $this->session->userdata('company_name') ?? '';
 
-			// echo '<pre>';
-			// print_r($data);
-			// echo '</pre>';
-			// die();
 			// ✅ LOAD VIEW
 			$this->load->view('attendance/dailyreport2.php', $data);
 		}

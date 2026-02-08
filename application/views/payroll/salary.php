@@ -65,6 +65,7 @@
   .card-header:not(.collapsed) .rotate-icon {
     transform: rotate(180deg);
   }
+
 </style>
 
 
@@ -152,14 +153,49 @@
               </div>
 
               <div class="card-body">
-                <div class="row">
-                  
-                  <div class="col-sm-2">
-                    <input type="month" title="Start Date" placeholder="Date From" value="<?php echo $month; ?>" onchange="setDate()" id="setDate">
-                      <!-- <button type="button" class="btn btn-primary m-4" data-toggle="modal" data-target="#allCtcModal">All CTC</button> -->
-                  </div>
+              <form method="get" action="<?= base_url('Payroll/employeesSalary') ?>">
+              <div class="row">
+    <div class="col-12 d-flex justify-content-between align-items-end flex-wrap">
 
-                </div>
+        <!-- LEFT : Month -->
+        <div class="col-md-2 mb-2 mb-md-0">
+            <input type="month"
+                   class="form-control"
+                   title="Start Date"
+                   value="<?php echo $month; ?>"
+                   onchange="setDate()"
+                   id="setDate">
+        </div>
+
+        <!-- RIGHT : Search + Buttons -->
+        <div class="d-flex align-items-end gap-2 flex-wrap">
+
+            <div>
+                <input type="text"
+                       name="search"
+                       class="form-control"
+                       placeholder="Search by Name / Emp Code / Mobile"
+                       value="<?= $this->input->get('search') ?>">
+            </div>
+
+            <div>
+                <button type="submit" class="btn btn-primary">
+                    Search
+                </button>
+                <a href="<?= base_url('Payroll/employeesSalary') ?>"
+                   class="btn btn-secondary">
+                   Reset
+                </a>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+  </form>
+
+
+
             <!--  <div align="right">
                           <input type="button"  class="btn btn-primary" onClick="exportData()" value="Export To Excel" />
                           <input type="button"   class="btn btn-primary" id="btnExport" value="Export To Pdf" onclick="exportPDF()" />
@@ -234,7 +270,7 @@ if (!empty($salaryIds)) {
                   </thead>
                   <tbody>
 <?php
-$sr = 1;
+$sr = $offset + 1;
 
 foreach ($salEmpList as $empData):
 
@@ -292,10 +328,19 @@ foreach ($salEmpList as $empData):
     </td>
 </tr>
 <?php endforeach; ?>
+
 </tbody>
 
 
+
                 </table>
+                <div class="row">
+    <div class="col-md-12">
+        <div class="salary-pagination">
+            <?= $pagination; ?>
+        </div>
+    </div>
+</div>
                 <!-- MODAL START  -->
                 <!-- Modal -->
                 <div class="modal fade" data-backdrop="static" data-keyboard="false" id="salleryModal" tabindex="-1" role="dialog" aria-labelledby="salleryModalLabel" aria-hidden="true">
@@ -603,13 +648,13 @@ $(document).ready(function () {
     }
 
     $('#newsalaryReport').DataTable({
-        paging: true,
-        searching: true,   // ✅ SEARCH ENABLE
+        paging: false,
+        searching: false,   // ✅ SEARCH ENABLE
         ordering: true,
         info: true,
         lengthChange: true,
         pageLength: 25,
-        autoWidth: false,
+        autoWidth: false, 
         responsive: true
     });
 

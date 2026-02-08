@@ -262,38 +262,82 @@ public function edit_head(){
 		}
 	}
 
-	//salaryEmployees
 	public function employeesSalary()
 	{
-		$data['page']  		= 'payroll/salary';
-		$data['title'] 		= 'Manage - Salary';
-		$data['lMenu']  	= 'Sallery';
+		$this->load->library('pagination');
+
+		$data['page']  = 'payroll/salary';
+		$data['title'] = 'Manage - Salary';
+		$data['lMenu'] = 'Sallery';
+		$search = $this->input->get('search');
 
 
-		// $abc = $this->db->query("SELECT * FROM payroll_history WHERE MONTH(pay_date) = MONTH(CURRENT_DATE()) ")->result_array();
-		// echo $this->web->session->userdata('login_id');
+		$cmpName = $this->web->getBusinessById($this->session->userdata('login_id'));
+
+		$limit  = 25; // records per page
+		$page   = ($this->uri->segment(3)) ? $this->uri->segment(3) : 0;
+
+		// Get total rows count
+		$total_rows = $this->web->countSalaryEmployees($search); // create this function
+
+
+		if ($this->session->userdata()['type'] == 'P') {
+			$loginID = $this->session->userdata('empCompany');
+			$role = $this->web->getRollbyid($this->session->userdata('login_id'), $loginID);
+		} else {
+			$loginID = $this->session->userdata('login_id');
+		}
+		$config['base_url'] = base_url('Payroll/employeesSalary');
+		$config['total_rows'] = $total_rows;
+		$config['per_page'] = $limit;
+		$config['uri_segment'] = 3;
+		$data['offset'] = $page;
+
+
+		/* ===== Bootstrap / DataTable Style ===== */
+
+		$config['full_tag_open']    = '<ul class="pagination pagination-sm m-0 float-right">';
+		$config['full_tag_close']   = '</ul>';
+
+		$config['first_link']       = '«';
+		$config['first_tag_open']   = '<li class="page-item">';
+		$config['first_tag_close']  = '</li>';
+
+		$config['last_link']        = '»';
+		$config['last_tag_open']    = '<li class="page-item">';
+		$config['last_tag_close']   = '</li>';
+
+		$config['next_link']        = 'Next';
+		$config['next_tag_open']    = '<li class="page-item">';
+		$config['next_tag_close']   = '</li>';
+
+		$config['prev_link']        = 'Prev';
+		$config['prev_tag_open']    = '<li class="page-item">';
+		$config['prev_tag_close']   = '</li>';
+
+		$config['cur_tag_open']     = '<li class="page-item active"><span class="page-link">';
+		$config['cur_tag_close']    = '</span></li>';
+
+		$config['num_tag_open']     = '<li class="page-item">';
+		$config['num_tag_close']    = '</li>';
+
+		$config['attributes']       = array('class' => 'page-link');
+
+		$this->pagination->initialize($config);
+
+
+		$this->pagination->initialize($config);
+		// Fetch limited data
+		$data['salEmpList'] = $this->web->getSallaryReport(null, $limit, $page, $search);
+		// echo '<pre>';
+		// print_r($data);
 		// die();
-		// $abc = $this->db->query("SELECT * FROM payroll_history WHERE YEAR(pay_date) = '2022' AND MONTH(pay_date) = '06' ")->result_array();
-        $cmpName = $this->web->getBusinessById($this->web->session->userdata('login_id'));
 
+		$data['pagination'] = $this->pagination->create_links();
+		$data['cmp_name'] = $cmpName['name'];
+		$data['payrollList'] = $this->web->getData('payroll_master', ['status'=>1], '', 'ASC');
 
-		if($this->input->post()){
-
-			$data['salEmpList'] 	= $this->web->getSallaryReport($this->input->post());
-			$data['date_from'] = $this->input->post()['date_from'];
-		}
-		else
-		{
-			$data['salEmpList'] 	= $this->web->getSallaryReport();
-			$data['date_from'] = date("Y-m");
-		}
-
-   		 $data['cmp_name']=$cmpName['name'];
-
-
-		$data['payrollList'] 	= $this->web->getData('payroll_master', array('status' => 1), '', 'ASC');
-		// echo '<pre>'; print_r(	$data['payrollList']); die();
-		$this->load->view('salary/include/page',$data);
+		$this->load->view('salary/include/page', $data);
 	}
 
 	public function salaryReport()
@@ -669,6 +713,11 @@ public function edit_head(){
 			$data['salEmpList'] 	= $this->web->getSallaryReport();
 			$data['date_from'] 		= date("Y-m");
 		}
+		echo 'hi';
+
+		echo '<pre>';
+		print_r($data);
+		die();
 
     	$data['cmp_name']=$cmpName['name'];
 		$data['payrollList'] 	= $this->web->getData('payroll_master', array('status' => 1), '', 'ASC');

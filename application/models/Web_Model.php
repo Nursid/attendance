@@ -3511,44 +3511,63 @@ public function getUserLeaves($uid,$start,$end){
 
 
 
-	public function getSallaryReport($postData = '')
-{
-    /* ================= BASIC SETUP ================= */
-    if ($this->session->userdata()['type'] == 'P') {
-        $loginID = $this->session->userdata('empCompany');
-        $role = $this->web->getRollbyid($this->session->userdata('login_id'), $loginID);
-    } else {
-        $loginID = $this->session->userdata('login_id');
-    }
+	public function getSallaryReport($postData = '', $limit = null, $offset = null, $search = null)
 
-    /* ================= DATE RANGE ================= */
-    if (!empty($postData)) {
-        $yearName  = date('Y', strtotime($postData['date_from']));
-        $monthName = date('m', strtotime($postData['date_from']));
-    } else {
-        $yearName  = date('Y');
-        $monthName = date('m');
-    }
+	{
+		/* ================= BASIC SETUP ================= */
+		if ($this->session->userdata()['type'] == 'P') {
+			$loginID = $this->session->userdata('empCompany');
+			$role = $this->web->getRollbyid($this->session->userdata('login_id'), $loginID);
+		} else {
+			$loginID = $this->session->userdata('login_id');
+		}
 
-    $monthKey = $yearName . '-' . $monthName;
+		/* ================= DATE RANGE ================= */
+		if (!empty($postData)) {
+			$yearName  = date('Y', strtotime($postData['date_from']));
+			$monthName = date('m', strtotime($postData['date_from']));
+		} else {
+			$yearName  = date('Y');
+			$monthName = date('m');
+		}
 
-    /* ================= EMPLOYEE LIST (ONE QUERY) ================= */
-    $this->db->select('
-        ur.*, 
-        l.name AS empName,
-        l.mobile AS empMobile,
-        l.emp_code,
-        l.designation AS empDesignation,
-        l.business_group,
-        l.department,
-        l.section,
-        l.id AS emp_id
-    ');
-    $this->db->from('user_request ur');
-    $this->db->join('login l', 'l.id = ur.user_id', 'LEFT');
-    $this->db->where('ur.business_id', $loginID);
-    $this->db->order_by('l.emp_code', 'ASC');
-    $empList = $this->db->get()->result();
+		$monthKey = $yearName . '-' . $monthName;
+
+
+		
+
+		/* ================= EMPLOYEE LIST (ONE QUERY) ================= */
+		$this->db->select('
+		ur.*, 
+		l.name AS empName,
+		l.mobile AS empMobile,
+		l.emp_code,
+		l.designation AS empDesignation,
+		l.business_group,
+		l.department,
+		l.section,
+		l.id AS emp_id
+	');
+	$this->db->from('user_request ur');
+	$this->db->join('login l', 'l.id = ur.user_id', 'LEFT');
+	$this->db->where('ur.business_id', $loginID);
+
+	if (!empty($search)) {
+		$this->db->group_start();
+		$this->db->like('l.name', $search);
+		$this->db->or_like('l.emp_code', $search);
+		$this->db->or_like('l.mobile', $search);
+		$this->db->group_end();
+	}
+
+
+	$this->db->order_by('l.emp_code', 'ASC');
+
+	if ($limit !== null) {
+		$this->db->limit($limit, $offset);
+	}
+
+	$empList = $this->db->get()->result();
 
     if (empty($empList)) return [];
 
@@ -3569,9 +3588,12 @@ public function getUserLeaves($uid,$start,$end){
         }
     }
 
+	
+
     if (empty($empList)) return [];
 
     $empIds = array_column($empList, 'user_id');
+	
 
     /* ================= BULK CTC ================= */
     $ctcRaw = $this->db
@@ -3585,6 +3607,7 @@ public function getUserLeaves($uid,$start,$end){
     foreach ($ctcRaw as $c) {
         $ctcMap[$c['user_id']] = $c;
     }
+	
 
     /* ================= BULK PAYROLL (ADD / DEDUCT / PAID) ================= */
     $payrollRaw = $this->db->select('user_id, payroll_master_id, SUM(amount) amount')
@@ -3601,6 +3624,9 @@ public function getUserLeaves($uid,$start,$end){
         $payrollMap[$p['user_id']][$p['payroll_master_id']] = $p['amount'];
     }
 
+
+	
+
     /* ================= BULK SALARY REPORT ================= */
     $salaryReportRaw = $this->db
         ->where('bid', $loginID)
@@ -3614,63 +3640,160 @@ public function getUserLeaves($uid,$start,$end){
     foreach ($salaryReportRaw as $s) {
         $salaryReportMap[$s['uid']] = $s;
     }
-
     /* ================= FINAL CALCULATION LOOP ================= */
-    foreach ($empList as $k => $emp) {
+    // foreach ($empList as $k => $emp) {
 
-        $ctc = $ctcMap[$emp->user_id] ?? [];
+    //     $ctc = $ctcMap[$emp->user_id] ?? [];
 
-        $basic     = $ctc['basic_value'] ?? 0;
-        $totalCTC = $ctc['total_ctc_amount'] ?? 0;
+    //     $basic     = $ctc['basic_value'] ?? 0;
+    //     $totalCTC = $ctc['total_ctc_amount'] ?? 0;
 
-        $pfDed  = $ctc['pf_amount'] ?? 0;
-        $esiDed = $ctc['esi_amount'] ?? 0;
-        $othDed = $ctc['other_amount'] ?? 0;
+    //     $pfDed  = $ctc['pf_amount'] ?? 0;
+    //     $esiDed = $ctc['esi_amount'] ?? 0;
+    //     $othDed = $ctc['other_amount'] ?? 0;
 
-        $salaryDeduction = $pfDed + $esiDed + $othDed;
+    //     $salaryDeduction = $pfDed + $esiDed + $othDed;
 
-        $addition  = $payrollMap[$emp->user_id][1] ?? 0;
-        $deduction = $payrollMap[$emp->user_id][2] ?? 0;
-        $paid      = $payrollMap[$emp->user_id][3] ?? 0;
+    //     $addition  = $payrollMap[$emp->user_id][1] ?? 0;
+    //     $deduction = $payrollMap[$emp->user_id][2] ?? 0;
+    //     $paid      = $payrollMap[$emp->user_id][3] ?? 0;
 
-        $emp->basicCtc        = $basic;
-        $emp->additionAmount  = $addition;
-        $emp->deductionAmount = $deduction + $paid;
-        $emp->ctc             = $totalCTC + $salaryDeduction;
+    //     $emp->basicCtc        = $basic;
+    //     $emp->additionAmount  = $addition;
+    //     $emp->deductionAmount = $deduction + $paid;
+    //     $emp->ctc             = $totalCTC + $salaryDeduction;
 
-        $maxDays = date("t", strtotime("$yearName-$monthName-01"));
-        $perDay  = $maxDays ? ($emp->ctc / $maxDays) : 0;
+    //     $maxDays = date("t", strtotime("$yearName-$monthName-01"));
+    //     $perDay  = $maxDays ? ($emp->ctc / $maxDays) : 0;
 
-        $sr = $salaryReportMap[$emp->user_id] ?? [];
+    //     $sr = $salaryReportMap[$emp->user_id] ?? [];
 
-        $nwd =
-            ($sr['present'] ?? 0) +
-            (($sr['half_day'] ?? 0) / 2) +
-            ($sr['week_off'] ?? 0) +
-            ($sr['holiday'] ?? 0) +
-            ($sr['leaves'] ?? 0) +
-            ($sr['short_leave'] ?? 0) +
-            ($sr['ed'] ?? 0);
+    //     $nwd =
+    //         ($sr['present'] ?? 0) +
+    //         (($sr['half_day'] ?? 0) / 2) +
+    //         ($sr['week_off'] ?? 0) +
+    //         ($sr['holiday'] ?? 0) +
+    //         ($sr['leaves'] ?? 0) +
+    //         ($sr['short_leave'] ?? 0) +
+    //         ($sr['ed'] ?? 0);
 
-        $payable = round($perDay * $nwd);
+    //     $payable = round($perDay * $nwd);
 
-        $pf = ($ctc['pf_type'] ?? '') == 'Manual'
-            ? ($ctc['pf_value'] ?? 0)
-            : round($payable * (($ctc['pf_value'] ?? 0) / 100));
+    //     $pf = ($ctc['pf_type'] ?? '') == 'Manual'
+    //         ? ($ctc['pf_value'] ?? 0)
+    //         : round($payable * (($ctc['pf_value'] ?? 0) / 100));
 
-        $esi = ($ctc['esi_type'] ?? '') == 'Manual'
-            ? ($ctc['esi_value'] ?? 0)
-            : round($payable * (($ctc['esi_value'] ?? 0) / 100));
+    //     $esi = ($ctc['esi_type'] ?? '') == 'Manual'
+    //         ? ($ctc['esi_value'] ?? 0)
+    //         : round($payable * (($ctc['esi_value'] ?? 0) / 100));
 
-        $emp->pf = $pf;
-        $emp->esi = $esi;
+    //     $emp->pf = $pf;
+    //     $emp->esi = $esi;
 
-        $emp->total       = $payable;
-        $emp->netPayable  = round(($payable + $addition) - $deduction - $paid - $pf - $esi);
-    }
+    //     $emp->total       = $payable;
+    //     $emp->netPayable  = round(($payable + $addition) - $deduction - $paid - $pf - $esi);
+    // }
+
+	foreach ($empList as $k => $emp) {
+
+		$ctc = $ctcMap[$emp->user_id] ?? [];
+	
+		$basic    = (float) ($ctc['basic_value'] ?? 0);
+		$totalCTC = (float) ($ctc['total_ctc_amount'] ?? 0);
+	
+		$pfDed  = (float) ($ctc['pf_amount'] ?? 0);
+		$esiDed = (float) ($ctc['esi_amount'] ?? 0);
+		$othDed = (float) ($ctc['other_amount'] ?? 0);
+	
+		$salaryDeduction = $pfDed + $esiDed + $othDed;
+	
+		$addition  = (float) ($payrollMap[$emp->user_id][1] ?? 0);
+		$deduction = (float) ($payrollMap[$emp->user_id][2] ?? 0);
+		$paid      = (float) ($payrollMap[$emp->user_id][3] ?? 0);
+	
+		$emp->basicCtc        = $basic;
+		$emp->additionAmount  = $addition;
+		$emp->deductionAmount = $deduction + $paid;
+		$emp->ctc             = $totalCTC + $salaryDeduction;
+	
+		$maxDays = (int) date("t", strtotime("$yearName-$monthName-01"));
+		$perDay  = $maxDays > 0 ? ($emp->ctc / $maxDays) : 0;
+	
+		$sr = $salaryReportMap[$emp->user_id] ?? [];
+	
+		$nwd =
+			(float) ($sr['present'] ?? 0) +
+			((float) ($sr['half_day'] ?? 0) / 2) +
+			(float) ($sr['week_off'] ?? 0) +
+			(float) ($sr['holiday'] ?? 0) +
+			(float) ($sr['leaves'] ?? 0) +
+			(float) ($sr['short_leave'] ?? 0) +
+			(float) ($sr['ed'] ?? 0);
+	
+		$payable = round($perDay * $nwd);
+	
+		$pfValue  = (float) ($ctc['pf_value'] ?? 0);
+		$esiValue = (float) ($ctc['esi_value'] ?? 0);
+	
+		$pf = ($ctc['pf_type'] ?? '') === 'Manual'
+			? $pfValue
+			: round($payable * ($pfValue / 100));
+	
+		$esi = ($ctc['esi_type'] ?? '') === 'Manual'
+			? $esiValue
+			: round($payable * ($esiValue / 100));
+	
+		$emp->pf  = $pf;
+		$emp->esi = $esi;
+	
+		$emp->total = $payable;
+	
+		$emp->netPayable = round(
+			($payable + $addition)
+			- $deduction
+			- $paid
+			- $pf
+			- $esi
+		);
+	}
+	
 
     return $empList;
 }
+
+// public function countSalaryEmployees($search = null)
+// {
+//     if ($this->session->userdata()['type'] == 'P') {
+//         $loginID = $this->session->userdata('empCompany');
+//     } else {
+//         $loginID = $this->session->userdata('login_id');
+//     }
+
+//     return $this->db
+//         ->where('business_id', $loginID)
+//         ->count_all_results('user_request');
+// }
+
+
+public function countSalaryEmployees($search = null)
+{
+    $loginID = $this->session->userdata('login_id');
+
+    $this->db->from('user_request ur');
+    $this->db->join('login l', 'l.id = ur.user_id', 'LEFT');
+    $this->db->where('ur.business_id', $loginID);
+
+    if (!empty($search)) {
+        $this->db->group_start();
+        $this->db->like('l.name', $search);
+        $this->db->or_like('l.emp_code', $search);
+        $this->db->or_like('l.mobile', $search);
+        $this->db->group_end();
+    }
+
+    return $this->db->count_all_results();
+}
+
 
 
 
