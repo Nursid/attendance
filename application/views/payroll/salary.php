@@ -641,24 +641,24 @@ foreach ($salEmpList as $empData):
 
 
 <script>
-$(document).ready(function () {
+// $(document).ready(function () {
 
-    if ($.fn.DataTable.isDataTable('#newsalaryReport')) {
-        $('#newsalaryReport').DataTable().destroy();
-    }
+// if (!$.fn.DataTable.isDataTable('#newsalaryReport')) {
 
-    $('#newsalaryReport').DataTable({
-        paging: false,
-        searching: false,   // ✅ SEARCH ENABLE
-        ordering: true,
-        info: true,
-        lengthChange: true,
-        pageLength: 25,
-        autoWidth: false, 
-        responsive: true
-    });
+//     $('#newsalaryReport').DataTable({
+//         paging: false,
+//         searching: false,
+//         ordering: true,
+//         info: false,
+//         lengthChange: false,
+//         autoWidth: false,
+//         responsive: true
+//     });
 
-});
+// }
+
+// });
+
 </script>
 
 

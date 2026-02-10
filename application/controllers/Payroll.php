@@ -278,7 +278,7 @@ public function edit_head(){
 		$page   = ($this->uri->segment(3)) ? $this->uri->segment(3) : 0;
 
 		// Get total rows count
-		$total_rows = $this->web->countSalaryEmployees($search ); // create this function
+		$total_rows = $this->web->countSalaryEmployees($search); // create this function
 
 
 
@@ -326,7 +326,17 @@ public function edit_head(){
 		$this->pagination->initialize($config);
 
 		// Fetch limited data
-		$data['salEmpList'] = $this->web->getSallaryReport(null, $limit, $page, $search);
+		// $data['salEmpList'] = $this->web->getSallaryReport(null, $limit, $page, $search);
+		if(isset($_GET['getDate'])){
+
+			$data['salEmpList'] 	= $this->web->getSallaryReport(['date_from'=>$_GET['getDate']],$limit, $page);
+			$data['date_from']		= $_GET['getDate'];
+		}
+		else
+		{
+			$data['salEmpList'] 	= $this->web->getSallaryReport(null, $limit, $page, null);
+			$data['date_from'] 		= date("Y-m");
+		}
 		// echo '<pre>';
 		// print_r($data);
 		// die();
