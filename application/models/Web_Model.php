@@ -1203,6 +1203,14 @@ public function getSalaryReportMap($yearName, $monthName)
 		$this->db->limit($limit, $offset);
 	}
 
+	if (!empty($search)) {
+		$this->db->group_start();
+		$this->db->like('login.name', $search);
+		$this->db->or_like('login.emp_code', $search);
+		$this->db->or_like('login.mobile', $search);
+		$this->db->group_end();
+	}
+
 	$empList = $this->db->get('user_request')->result();
 	
 		if(!empty($empList)){
@@ -3368,7 +3376,6 @@ public function getlogAccess($start_time,$end_time,$loginid,$uid){
         } else {
         $loginID=$this->web->session->userdata('login_id');
         }
-		//$loginID = $this->web->session->userdata('login_id'); // THIS IS BUSINESS ID
 		$this->db->select('user_request.*, login.name as empName, login.mobile as empMobile, login.emp_code, login.designation as empDesignation, login.business_group');
 		$this->db->join('login', 'login.id = user_request.user_id', 'LEFT');
 		$empList =  $this->db->get_where('user_request', array('user_request.business_id' => $loginID))->result();
@@ -3423,59 +3430,15 @@ public function getlogAccess($start_time,$end_time,$loginid,$uid){
                     }
                  }
 				 $leave_dayst=$leave_days;
-			
-				// od on duty 
-				
-			/*	$onduty =$this->getUserOD($uid,$monthStartTime,$monthEndTime);
-				//$leaves =$this->getEmpLeaves($uid);
-				//$leaves_array = array();
-				$od_days =0;
-				if($onduty){
-					
-					foreach($onduty as $onduty){
-				  //if($leave->date_time>=$user['open_date'] && $leave->date_time<=$user['close_date']){
-                     // if($leave->type!="" && $leave->type!="unpaid" && $leave->status==1 ){
-						 // $half_day=$leave->half_day;
-                         // $leave_days=$leave_days+$half_day;
-                              //    }
-							  $from_date_od=date_create(date("Y-m-d",$onduty->date));
-							  $to_date_od=date_create(date("Y-m-d",$onduty->end_date));
-							  $od_diff=date_diff($from_date_od,$to_date_od);
-							  $od_dayso = $od_diff->format("%a");
-							  $od_dayso++;
-                              $od_days=$od_days+$od_dayso;
-                   }
-                 }
-				 $od_dayst=$od_days;
-				 
-				 
-				*/ 
-				 
-				 
-				 
-				 
-				 
+	 
 				 
 				 if($salaryEndDate>time()){
 					 $salaryEndDate = time();
 				 }
 				 $salaryRes = $this->db->query("SELECT * FROM salary_report where uid='$dataVal->user_id' and bid='$loginID' AND  YEAR(date_time)='$yearName' AND MONTH(date_time)='$monthName'")->row_array();
 				 $salaryData = array(
-					// 'bid'=>$loginID,
-					// 'uid'=>$dataVal->user_id,
-					 //'start_date'=>$salaryStartDate,
-					// 'end_date'=>$salaryEndDate,
-					 //'days'=>$maxDays,
-					 //'present'=>$totalPresent,
-					 //'absent'=>$totalAbsent,
-					 //'half_day'=>$totalP2,
-					// 'week_off'=>$totalWeekOff,
 					 'pay_mode'=>$pay_mode,
 					 'leaves'=>$leave_dayst,
-					// 'ed'=>$od_dayst
-					// 'short_leave'=>$totalShortLeave,
-					// 'net_payable'=>$newPayable,
-					 //'date_time'=>date("Y-m-d H:i:s",$salaryStartDate)
 				 );
 
 				 if(!empty($salaryRes)){
@@ -3483,21 +3446,14 @@ public function getlogAccess($start_time,$end_time,$loginid,$uid){
 				}else{
 					$this->db->insert('salary_report',$salaryData);
 				}
-				
 			
-			
-					
-				
-				
-				
 			}
 			$actdata=array(
 			                   'bid'=>$loginID ,
 				             'uid'=>$this->web->session->userdata('login_id'),
 				            'activity'=>"Salary of all employee calculated  for the month of ".$monthNa. " ",
 				            'date_time'=>time()
-				
-			                             );
+			                   );
 			                  $data=$this->db->insert('activity',$actdata);
 		}
 		return $empList;

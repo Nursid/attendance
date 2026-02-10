@@ -31,6 +31,10 @@
     opacity: 1;
   }
 
+  .dataTables_filter {
+    display: none !important;
+}
+
 
 
 
@@ -641,23 +645,6 @@ foreach ($salEmpList as $empData):
 
 
 <script>
-// $(document).ready(function () {
-
-// if (!$.fn.DataTable.isDataTable('#newsalaryReport')) {
-
-//     $('#newsalaryReport').DataTable({
-//         paging: false,
-//         searching: false,
-//         ordering: true,
-//         info: false,
-//         lengthChange: false,
-//         autoWidth: false,
-//         responsive: true
-//     });
-
-// }
-
-// });
 
 </script>
 

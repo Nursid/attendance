@@ -271,7 +271,6 @@ public function edit_head(){
 		$data['lMenu'] = 'Sallery';
 		$search = $this->input->get('search');
 
-
 		$cmpName = $this->web->getBusinessById($this->session->userdata('login_id'));
 
 		$limit  = 25; // records per page
@@ -326,20 +325,11 @@ public function edit_head(){
 		$this->pagination->initialize($config);
 
 		// Fetch limited data
-		// $data['salEmpList'] = $this->web->getSallaryReport(null, $limit, $page, $search);
-		if(isset($_GET['getDate'])){
-
-			$data['salEmpList'] 	= $this->web->getSallaryReport(['date_from'=>$_GET['getDate']],$limit, $page);
-			$data['date_from']		= $_GET['getDate'];
-		}
-		else
-		{
-			$data['salEmpList'] 	= $this->web->getSallaryReport(null, $limit, $page, null);
-			$data['date_from'] 		= date("Y-m");
-		}
-		// echo '<pre>';
-		// print_r($data);
-		// die();
+		$data['salEmpList'] = $this->web->getSallaryReport($this->input->post(), $limit, $page, $search);
+		
+			// echo '<pre>';
+			// print_r($data);
+			// die();
 
 		$data['pagination'] = $this->pagination->create_links();
 		$data['cmp_name'] = $cmpName['name'];
