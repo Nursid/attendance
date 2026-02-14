@@ -351,20 +351,128 @@ public function edit_head(){
         }
         $cmpName = $this->web->getBusinessById($business_id);
 
-		if($this->input->post()){
-             $data['salEmpList'] = $this->web->insertDaysReport($this->input->post());
-			$data['salEmpList'] = $this->web->insertSalleryReport($this->input->post());
-			$data['salEmpList'] = $this->web->getSallaryReport($this->input->post());
-			$data['date_from']  = $this->input->post()['date_from'];
-			$date  = $this->input->post()['date_from'];
+		$month = $this->input->post('date_from'); // example: 2026-02
+
+		if (!empty($month)) {
+
+			$selectedYear  = date('Y', strtotime($month));
+			$selectedMonth = date('m', strtotime($month));
+
+			$currentYear   = date('Y');
+			$currentMonth  = date('m');
+
+			// Start date always 1st of selected month
+			$start_date = $selectedYear . '-' . $selectedMonth . '-01';
+
+			// If selected month is current month
+			if ($selectedYear == $currentYear && $selectedMonth == $currentMonth) {
+				$end_date = date('Y-m-d'); // today's date
+			} else {
+				// Last day of selected month
+				$end_date = date('Y-m-t', strtotime($month));
+			}
 		}
-		else
-		{    $data['salEmpList'] = $this->web->insertDaysReport($this->input->post());
-			$data['salEmpList'] 	= $this->web->insertSalleryReport();
-			$data['salEmpList'] = $this->web->getSallaryReport();
-			$data['date_from'] = date("Y-m");
-			$date = date("Y-m");
-		}
+
+
+		$apiUrl = "http://31.97.230.189:3000/api/attendance/monthly";
+
+		$postData = [
+			"companyId" =>  $business_id,
+			"start_date" => $start_date,
+			"end_date" => $end_date,
+			"department" => "all",
+			"section" => "all",
+			"action" => "1"
+		];
+
+		$ch = curl_init($apiUrl);
+
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_POST, true);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			'Content-Type: application/json'
+		]);
+
+		$response = curl_exec($ch);
+		curl_close($ch);
+
+		$response = json_decode($response, true);
+
+		if (!empty($response['success']) && $response['success'] == true) {
+
+            $report = $response['data']['report'];
+            $days   = count($response['data']['days']);
+
+		
+
+            $data = [];
+
+            foreach ($report as $emp) {
+
+                $data[] = [
+                    'bid'         => $business_id,
+                    'uid'         => $emp['user_id'],
+                    'start_date'  => strtotime($start_date),
+  				    'end_date'    => strtotime($end_date),
+                    'days'        => $days,
+                    'present'     => $emp['totalPresent'],
+                    'absent'      => $emp['totalAbsent'],
+                    'half_day'    => $emp['totalP2'],
+                    'week_off'    => $emp['totalWeekOff'],
+                    'holiday'     => $emp['totalHoliday'],
+                    'leaves'      => $emp['totalLeaves'],
+                    'ed'          => $emp['totalOD'],
+                    'short_leave' => $emp['totalShortLeave'],
+                    'status'      => 1,
+                    'date_time'   => date('Y-m-d H:i:s')
+                ];
+            }
+
+
+            // ===== TRANSACTION START =====
+            $this->db->trans_begin();
+            // Delete old month data
+            $this->db->where('bid', $business_id);
+            $this->db->where('start_date', $start_date);
+            $this->db->delete('salary_report');
+
+            // Bulk insert new data
+            if (!empty($data)) {
+                $this->db->insert_batch('salary_report', $data);
+            }
+
+            // ===== TRANSACTION CHECK =====
+            if ($this->db->trans_status() === FALSE) {
+                $this->db->trans_rollback();
+                echo "Transaction Failed";
+            } else {
+                $this->db->trans_commit();
+                echo "Salary Report Calculated Successfully";
+            }
+
+        } else {
+            echo "API Failed";
+        }
+
+		// echo '<pre>';
+		// print_r($this->input->post());
+		// die();
+
+		// if($this->input->post()){
+        //     $data['salEmpList'] = $this->web->insertDaysReport($this->input->post());
+		// 	$data['salEmpList'] = $this->web->insertSalleryReport($this->input->post());
+		// 	$data['salEmpList'] = $this->web->getSallaryReport($this->input->post());
+		// 	$data['date_from']  = $this->input->post()['date_from'];
+		// 	$date  = $this->input->post()['date_from'];
+		// }
+		// else
+		// {   $data['salEmpList'] = $this->web->insertDaysReport($this->input->post());
+		// 	$data['salEmpList'] 	= $this->web->insertSalleryReport();
+		// 	$data['salEmpList'] = $this->web->getSallaryReport();
+		// 	$data['date_from'] = date("Y-m");
+		// 	$date = date("Y-m");
+		// }
 		$data['cmp_name']=$cmpName['name'];
 
 		// redirect('salary-employees');

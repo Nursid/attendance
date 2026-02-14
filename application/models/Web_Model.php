@@ -2404,7 +2404,7 @@ public function getuserById($bid,$id){
 	{ 
 	    if($this->session->userdata()['type']=='P'){
      
-       $loginID = $this->session->userdata('empCompany');
+        $loginID = $this->session->userdata('empCompany');
         } else {
         $loginID=$this->web->session->userdata('login_id');
         }
@@ -3950,6 +3950,11 @@ private function getPayrollSum($empId, $month, $masterIds, $extraWhere = [])
     return $this->db->get()->row()->total ?? 0;
 }
 
+
+
+// public function getTypeTotalAmount($user_id, $yearName, $monthName, $payRolType){
+	
+// }
 
 
 
