@@ -10784,6 +10784,50 @@ public function shift_report(){
 		}
 	}
 	
+
+	public function export_access_report()
+{
+    $start_date = $this->input->get('start_date');
+    $end_date   = $this->input->get('end_date');
+    $bio        = $this->input->get('bio');
+    $event_name = $this->input->get('event_name');
+
+    $loginId = $this->session->userdata('login_id');
+
+    $start_time = strtotime($start_date . ' 00:00:00');
+    $end_time   = strtotime($end_date . ' 23:59:59');
+
+    $logs = $this->web->getvisitoraccessbyevent_export(
+        $start_time,
+        $end_time,
+        $bio,
+        $event_name,
+        $loginId
+    );
+
+    header("Content-Type: application/vnd.ms-excel");
+    header("Content-Disposition: attachment; filename=Access_Report.xls");
+
+    echo "S.No\tEmp Id\tName\tMobile\tFather\tDesignation\tDevice\tSection\tTime\tLat/Long\tLocation\n";
+
+    $count = 1;
+
+    foreach ($logs as $row) {
+        echo $count++ . "\t";
+        echo $row->user_id . "\t";
+        echo $row->name . "\t";
+        echo $row->mobile . "\t";
+        echo $row->father_name . "\t";
+        echo $row->designation . "\t";
+        echo $row->device_name . "\t";
+        echo $row->event_name . "\t";
+        echo date('d-M h:i A', $row->io_time) . "\t";
+        echo $row->latitude . "," . $row->longitude . "\t";
+        echo $row->location . "\n";
+    }
+
+    exit;
+}
 	
 	
 	

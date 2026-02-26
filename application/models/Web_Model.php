@@ -4240,5 +4240,54 @@ public function countVisitorLogs($start_time, $end_time, $bio, $event_name)
 }
 	
 
+public function getvisitoraccessbyevent_export($start_time, $end_time, $bio, $event_name, $loginId)
+{
+    $sql = "
+        SELECT DISTINCT
+            vl.id,
+            vl.user_id,
+            vl.device_id,
+            vl.event,
+            vl.io_time,
+            vl.latitude,
+            vl.longitude,
+            vl.location,
+            l.name,
+            bb.name as device_name,
+            l.father_name,
+            l.mobile,
+            l.designation,
+            be.event_name
+        FROM visitor_log vl
+        JOIN login l 
+            ON l.bio_id = vl.user_id 
+            AND l.company = ?
+        LEFT JOIN bio_event be
+            ON be.event_id = vl.event 
+            AND be.device_id = vl.device_id
+        LEFT JOIN Business_bioid bb 
+            ON bb.deviceid = vl.device_id 
+            AND bb.active = '1'
+        WHERE vl.user_id != 99999996
+        AND vl.io_time BETWEEN ? AND ?
+    ";
+
+    $params = [$loginId, $start_time, $end_time];
+
+    if ($event_name != 0) {
+        $sql .= " AND be.event_name = ?";
+        $params[] = $event_name;
+    }
+
+    if ($bio != 0) {
+        $sql .= " AND vl.device_id = ?";
+        $params[] = $bio;
+    }
+
+    $sql .= " ORDER BY vl.io_time DESC";
+
+    return $this->db->query($sql, $params)->result();
+}
+
 }
 ?>

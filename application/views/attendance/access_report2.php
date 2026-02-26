@@ -194,9 +194,15 @@ date_default_timezone_set('Asia/Kolkata');
                         
                         ?>
                          <div align="right">
-                          <input type="button"  class="btn btn-primary" onClick="exportDatas()" value="Export To Excel" />
+                          <!-- <input type="button"  class="btn btn-primary" onClick="exportDatas()" value="Export To Excel" /> -->
                         <!-- <input type="button"   class="btn btn-primary" id="btnExport" value="Export To Pdf" onclick="exportPDF()" />-->
-                          
+                        <a href="<?php echo base_url('User/export_access_report?start_date='.$start_date.
+                        '&end_date='.$end_date.
+                        '&bio='.$bio.
+                        '&event_name='.$event_name); ?>" 
+                        class="btn btn-primary">
+                        Export To Excel
+                        </a>
                         </div>
                         
                         
@@ -608,69 +614,44 @@ function endChange(e){
 
 
 <script>
+function exportDatas() {
 
- function exportDatas(){
-      var wb = new ExcelJS.Workbook();
-      var sh = wb.addWorksheet("Report");
-      <?php 
-    // if (!empty($users)) {
-      $sr = 1;?>
-      sh.columns = [
-        {header: 'SNo.', key: 'SNo', width: 10},
-        {header: 'Empcode', key: 'Empcode', width: 10},
-        {header: 'Name', key: 'Name', width: 20},
-          {header: 'Desig', key: 'Desig', width: 20},
-		{header: 'Device', key: 'Device', width:25},
-		  {header: 'Section', key: 'Section', width: 20},
-       {header: 'Time', key: 'Time', width: 25},
-  {header: 'Lat/Long', key: 'Lat', width: 25},
-    {header: 'Location', key: 'Location', width: 25}
-       
-       
-      ];
-    
-      <?php
-       if($bio==0) { 
-                       $logs=$this->web->getvisitoraccess($start_time,$end_time,$loginId);
-                      }else{
-                          
-                         $logs=$this->web->getvisitoraccessbyevent($start_time,$end_time,$bio);
-                      } 
-        foreach($logs as $logs){
-            $uname = $this->web->getNameByuserbio_id($logs->user_id,$loginId);
-        // $uname = $this->web->getNameByUserId($logs->user_id);
-         $devicename = $this->web->getdevicebysn($logs->device_id);
-         $event = $this->web->geteventbydeviceid($logs->device_id,$logs->event);
-          ?>
-   
-    
- sh.addRow({SNo:'<?php echo $sr;?>',Empcode:'<?= $logs->user_id; ?>',Name:'<?= $uname[0]->name; ?>',Desig:'<?= $uname[0]->designation; ?>',Device: '<?= $devicename[0]->name;?>', Section: '<?= $event[0]->event_name;?>',Time:'<?= date('d-m-Y h-i-A', $logs->io_time) ;?>' , Lat: '<?= $logs->latitude.",".$logs->longitude; ?>',Location: '<?= $logs->location ; ?>'});
-      <?php 
-     
-                           
-          echo "sh.getRow(".$sr++.").alignment = { wrapText: true,vertical: 'top',horizontal: 'center' };";
-          
-        }
-        echo "sh.getRow(".$sr.").alignment = { wrapText: true,vertical: 'top',horizontal: 'center' };";
-        echo "sh.insertRow(1, ['$cmp_name']);";
-       
-        echo "sh.insertRow(2, ['Access Log Report']);";
-        echo "sh.mergeCells('A1:Q1');";
-        echo "sh.mergeCells('A2:Q2');";
-        echo "sh.getRow(1).alignment = {horizontal: 'center' };";
-        echo "sh.getRow(2).alignment = {horizontal: 'center' };";
-        $sr+=4;
-      
-        echo "sh.mergeCells('A$sr:Q$sr');";
-        echo "sh.getRow($sr).alignment = {horizontal: 'center' };";
-     // }
-      ?>
-      wb.xlsx.writeBuffer().then((data) => {
-            const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8' });
-            saveAs(blob, 'Log Report.xlsx');
-      });
-  }
+var table = $('#example2').DataTable();
+var data = table.rows({ search: 'applied' }).data(); // filtered data
 
+var wb = new ExcelJS.Workbook();
+var sh = wb.addWorksheet("Access Report");
+
+// Table headers
+sh.columns = [
+    { header: 'S.No.', width: 8 },
+    { header: 'Emp Id', width: 15 },
+    { header: 'Name', width: 20 },
+    { header: 'Mobile', width: 15 },
+    { header: 'Father Name', width: 20 },
+    { header: 'Designation', width: 20 },
+    { header: 'Device', width: 20 },
+    { header: 'Section', width: 20 },
+    { header: 'Time', width: 20 },
+    { header: 'Lat/Long', width: 25 },
+    { header: 'Location', width: 30 }
+];
+
+// Loop through table rows
+for (var i = 0; i < data.length; i++) {
+    sh.addRow(data[i]);
+}
+
+// Alignment
+sh.eachRow(function (row) {
+    row.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+});
+
+// Download file
+wb.xlsx.writeBuffer().then(function (buffer) {
+    saveAs(new Blob([buffer]), "Access_Report.xlsx");
+});
+}
 
 </script>
       
