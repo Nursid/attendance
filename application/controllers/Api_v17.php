@@ -7931,38 +7931,503 @@ function getCompanyUsersByStatus(){
 //     }
 //   }
 
-   function addBioAttendance(){
+  //  function addBioAttendance(){
+  //   $data=json_decode(file_get_contents("php://input"));
+  //   if(key($data)=="checkon"){
+  //     if($data->checkon->key=="752d2c9ecfe079e5e5f3539f4d750e5c"){
+  //       $loginid = $data->checkon->deviceid;
+  //       $uid = $data->checkon->empcode;
+  //       $deviceMode = 0;
+  //       $getBusinessByDeviceId = $this->app->getBusinessByDeviceId($loginid);
+  //       if(isset($getBusinessByDeviceId)){
+  //         $loginid = $getBusinessByDeviceId['bid'];
+  //         $deviceMode = $getBusinessByDeviceId['mode'];
+  //         $deviceid = $getBusinessByDeviceId['id'];
+  //       }
+
+  //       $getUserByBioId = $this->app->getUserByBioId($uid,$loginid);
+  //       if(isset($getUserByBioId)){
+  //         $uid = $getUserByBioId['id'];
+  //       }
+
+  //       $user_status = $this->app->userCmpStatus($uid,$loginid);
+ 
+  //       $userCmp = $this->app->getUserCompany($uid);
+ 
+  //       if( !empty($userCmp['business_id']) && $userCmp['business_id']==$loginid){
+  //         $checkOffline = $this->app->checkIoTime($uid,$loginid,$data->checkon->time);
+  //         if(empty($checkOffline)){
+  //           $start_time = strtotime(date("d-m-Y 00:00:00",$data->checkon->time));
+  //           $end_time = strtotime(date("d-m-Y 23:59:59",$data->checkon->time));
+
+  //           $mode = "in";
+  //           if($deviceMode==0){
+  //             $offline_at = $this->app->checkOfflineAt($uid,$loginid,$start_time,$end_time);
+  //             if($userCmp['hostel']==1){
+  //                 $mode = "out";
+  //             }
+  //             if(!empty($offline_at)){
+  //               if($offline_at['mode']=="in"){
+  //                 $mode = "out";
+  //               }else{
+  //                 $mode = "in";
+  //               }
+  //             }
+  //           }else if($deviceMode==1){
+  //             $mode = "in";
+  //           }else if($deviceMode==2){
+  //             $mode = "out";
+  //           }
+  //         else if($deviceMode==3){
+  //             $mode = "Log";
+  //           }
+            
+
+  //           $data = array(
+  //             'bussiness_id'=>$loginid,
+  //             'user_id'=>$uid,
+  //             'mode'=>$mode,
+  //             'comment'=>"",
+  //             'device'=>$deviceid,
+  //             'manual'=>"4",
+  //             'hostel'=>$userCmp['hostel'],
+  //             'io_time'=>$data->checkon->time,
+  //             'date'=>time()
+  //           );
+  //           $res = $this->app->insertAttendance($data);
+  //           if($res == 1){
+  //             $sendRes = array('msg'=>'Attendance added Successfully','status'=>'1');
+  //           }else{
+  //             $sendRes = array('msg'=>'Failed to Add','status'=>'0');
+  //           }
+  //           echo $response= json_encode(array('checkon'=>$sendRes));
+  //         }else{
+  //           $sendRes = array('msg'=>'Already Added','status'=>'0');
+  //           echo $response= json_encode(array('checkon'=>$sendRes));
+  //         }
+ 
+  //       }else{
+  //         $sendRes = array('msg'=>'Wrong Company bioid','status'=>'0');
+  //         echo $response= json_encode(array('checkon'=>$sendRes));
+  //       }
+  //     }
+  //   }
+  // }
+
+
+  function addBioAttendance(){
     $data=json_decode(file_get_contents("php://input"));
     if(key($data)=="checkon"){
       if($data->checkon->key=="752d2c9ecfe079e5e5f3539f4d750e5c"){
         $loginid = $data->checkon->deviceid;
         $uid = $data->checkon->empcode;
+       $bio_mode = $data->checkon->mode;
+        // if(empty($bio_mode)){
+        // $bio_mode=0; }
+        // $inout = $data->checkon->inout;
+         $event = $data->checkon->event;
+         if(empty( $event)){
+         $event=0; }
+        $bio_msg = $data->checkon->msg;
+        $signal = $data->checkon->signal;
+        $satellites = $data->checkon->satellite;
+        $locations = $data->checkon->location;
+        $number = preg_replace('/[\x00-\x1F\x7F]/', '', $locations);
+        $location=ltrim($number, '0');
+      //$bio_long = $data->checkon->location;
+      $address = "";
+      if(!empty( $locations)){
+      $data_loc=explode(",",$location);
+       $bio_lat= $data_loc[0];
+       $bio_long= $data_loc[1];
+       $address = $this->latLongToAddress($bio_lat,$bio_long);
+       
+      }else{
+           $bio_lat="1";
+       $bio_long= "1";
+      }
         $deviceMode = 0;
+       $io_time=$data->checkon->time;
+        $io_time2=date("d/m/Y H:i:s",$io_time);
+        $io_time_t=date("H:i",$io_time);
+        $io_time_d=date("d/m/Y ",$io_time);
         $getBusinessByDeviceId = $this->app->getBusinessByDeviceId($loginid);
         if(isset($getBusinessByDeviceId)){
-          $loginid = $getBusinessByDeviceId['bid'];
+          $loginids = $getBusinessByDeviceId['bid'];
           $deviceMode = $getBusinessByDeviceId['mode'];
           $deviceid = $getBusinessByDeviceId['id'];
         }
+     
+     
+     // new api int
+     
+     /// new api 2
+     if($loginid=="AYSC26027704"){
+          $data = array(
+        
+            'lLCNNo'=>"2031",
+            'sEmpCode' => $uid,
+            'sMchnCode' => $loginid,
+            'sAttnTime' => $io_time_t,
+            'sAttnDate' => $io_time_d,
+            'sAPIKey' => 'AD%$$JS20#@%$YHKJ31',
+            'sAPICode' =>"MchnAttn",
+            'sVndrCode' =>" Vndr/001"
+        
+    );
+   
+    $jsonData = json_encode($data);
+    $url = 'HRMANAGER.innojar.com/api/hrmngrapi';
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+   
+ 
+   curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($jsonData))
+    );
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    if(curl_errno($ch)) {
+        echo 'Error:' . curl_error($ch);
+    } else {
+        $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($http_status != 200) {
+            echo 'Unexpected HTTP status: ' . $http_status;
+        } else {
+            echo $response;
+        }
+    }
+    // visitor code start 
+    /* }elseif($loginid=="AYSF21074928"){
+          
+        $datav = array(
+              'bussiness_id'=>$loginid,
+              'user_id'=>$uid,
+              'mode'=>"0",
+              'event'=>"0",
+              'in_out'=>"0",
+              'latitude'=>$bio_lat,
+              'longitude'=>$bio_long,
+              'io_time'=>$io_time,
+              'msg'=>$bio_msg,
+              '4gsignal'=>$signal,
+              'satelites'=>$satellites,
+              'date'=>time()
+            );
+           $resv = $this->web->insertvisitorlog($datav);
+      if($resv == 1){
+      $sendResv = array('msg'=>'Log added Successfully','status'=>'1');
+       echo $response= json_encode(array('checkon'=>$sendResv));
+      }*/
+   // visitor code end  
+  // seprate device code
+  
+     }
+     elseif($loginid=="ZYRL11097811"){
+          $data = array(
+        'TakeAttendance' => array(
+            'enrollment_id' => $uid,
+            'device_token' => $loginid,
+            'attendance_datetime' => $io_time2
+        )
+    );
+    
+    $jsonData = json_encode($data);
+    $url = 'https://attendance.aadigyan.in/api/TAttendance.asmx/PostAttendance';
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($jsonData))
+    );
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    if(curl_errno($ch)) {
+        echo 'Error:' . curl_error($ch);
+    } else {
+        $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($http_status != 200) {
+            echo 'Unexpected HTTP status: ' . $http_status;
+        } else {
+            echo $response;
+        }
+    }
+     
+     
+     
+     }
+     elseif($loginid=="ZYTC04021127"){
+         $ukid = preg_replace('/[\x00-\x1F\x7F]/', '', $uid);
+    $data = array(
+                  'studentId'=> $uid,
+                       'deveiceId'=>'ZYTC04021127'
+    );
 
-        $getUserByBioId = $this->app->getUserByBioId($uid,$loginid);
+    $jsonData = json_encode($data);
+    $url = 'https://app.aadigyan.in/aPI/pospurchase.asmx/InsertData';
+
+    $ch = curl_init();
+     curl_setopt($ch, CURLOPT_URL, $url);
+     curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+    // Headers
+     curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($jsonData)
+    ));
+
+    
+    
+    $response = curl_exec($ch);
+
+   if (curl_errno($ch)) {
+    echo 'Curl error: ' . curl_error($ch);
+} else {
+    echo 'Response: ' . $response;
+}
+
+curl_close($ch);
+    
+    
+     //old api intfor sudansu 
+        }
+      elseif($deviceMode==6){
+    $postData = [
+     'enrollment_id' => $uid,
+            'device_token' => $loginid,
+       'attendance_datetime' => $io_time2
+      ];
+
+
+    $ch = curl_init();
+
+    curl_setopt_array($ch, [
+        CURLOPT_URL => "https://attendance.aadigyan.in/API/Attendance.asmx/RecordAttendanceTemp",
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+            "Content-Type: application/json",
+            "Accept: application/json"
+        ],
+        CURLOPT_USERAGENT => "PostmanRuntime/7.32.3",
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_POSTFIELDS => json_encode($postData)
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+
+    curl_close($ch);
+
+    if ($error) {
+        echo json_encode([
+            "status" => "0",
+            "msg" => "cURL Error: " . $error
+        ]);
+        return;
+    }
+
+    echo json_encode([
+        "http_code" => $httpCode,
+        "response" => $response
+    ]);
+// vistor mode api
+ }elseif($deviceMode==10){
+      $getBusinessByDeviceIds = $this->app->getBusinessByDeviceId($loginid);
+        if(isset($getBusinessByDeviceIds)){
+          $loginidt = $getBusinessByDeviceIds['bid'];
+         
+        }else{
+            $loginidt="1";
+        }
+     // $loginidt = $getBusinessByDeviceId['bid'];
+    // $getUserByBioId = $this->app->getUserByBioId($uid,$loginids);
+     //  $useid = $getUserByBioId['id'];
+     $datav = array(
+              'device_id'=>$loginid,
+              'user_id'=>$uid,
+              'buid'=>"32552",
+             // 'usid'=>$useid,
+              'mode'=>"0",
+              'event'=>"0",
+              'in_out'=>"0",
+             'latitude'=>$bio_lat,
+            'longitude'=>$bio_long,
+                'location'=>$address,
+              'io_time'=>$io_time,
+              'msg'=>$bio_msg,
+              '4gsignal'=>$signal,
+              'satelites'=>$satellites,
+              'photo'=>"image",
+              'date'=>time()
+            );
+           $resv = $this->web->insertvisitorlog($datav);
+       if($resv == 1){
+       
+       
+        $sendResv = array('msg'=>'Visitor log added Successfully','status'=>'1');
+            // $sendRes2 = array('msg'=>$limits,'status'=> $today_log);
+            }else{
+              $sendResv = array('msg'=>'Failed to Add','status'=>'0');
+            }
+          
+            echo $response= json_encode(array('checkon'=>$sendResv));
+            //echo  json_encode(array('checkon'=>$sendRes2));
+       
+ 
+       
+
+        }elseif($deviceMode==5){
+      $getStudentByBioId = $this->web->getStudentByBioId($uid,$loginids);
+       $getUserByBioId = $this->app->getUserByBioId($uid,$loginids);
+     
+      if(isset($getStudentByBioId)){
+        $stuid = $getStudentByBioId['id'];
+     
+       
+        
+      $datas = array(
+        'bid'=>$loginids,
+        'student_id'=>$stuid,
+        'student_status'=> "1",
+        'device'=>$deviceid,
+       'time'=>$io_time,
+        'update_date'=>time(),
+        'date_time'=>time()
+      );
+      $ress = $this->web->insertstudentbioAttendance($datas);  
+      
+     
+       }elseif(isset($getUserByBioId)){
+          $usid = $getUserByBioId['id'];
+        
+      
+       $datat = array(
+              'bussiness_id'=>$loginids,
+              'user_id'=>$usid,
+              'mode'=>"6",
+             // 'comment'=>"",
+              'device'=>$deviceid,
+              'manual'=>"6",
+            //  'night'=>$night,
+            // 'latitude'=>$bio_lat,
+           //  'longitude'=>$bio_long,
+               // 'location'=>$address,
+              //'hostel'=>$userCmp['hostel'],
+              'io_time'=>$io_time,
+              'date'=>time()
+            );
+            $ress = $this->app->insertAttendance($datat);
+      
+       }
+      
+      
+       
+       if($ress == 1){
+       
+       
+        $sendRess = array('msg'=>'Student log added Successfully','status'=>'1');
+            // $sendRes2 = array('msg'=>$limits,'status'=> $today_log);
+            }else{
+              $sendRess = array('msg'=>'Failed to Add','status'=>'0');
+            }
+          
+            echo $response= json_encode(array('checkon'=>$sendRess));
+       
+       
+       
+       
+       
+       
+        }elseif($deviceMode!=12){
+   
+       
+        $getUserByBioId = $this->app->getUserByBioId($uid,$loginids);
         if(isset($getUserByBioId)){
-          $uid = $getUserByBioId['id'];
+          $usid = $getUserByBioId['id'];
         }
 
-        $user_status = $this->app->userCmpStatus($uid,$loginid);
+        $user_status = $this->app->userCmpStatus($usid,$loginids);
  
-        $userCmp = $this->app->getUserCompany($uid);
- 
-        if( !empty($userCmp['business_id']) && $userCmp['business_id']==$loginid){
-          $checkOffline = $this->app->checkIoTime($uid,$loginid,$data->checkon->time);
+        $userCmp = $this->app->getUserCompany($usid);
+       $gp = $this->web->getBusinessGroupByUserId($getUserByBioId['business_group']);
+         $ns=$gp[0]->night;
+         
+         // new code
+     $gpb = $this->web->getNightBusinessGroup($loginids);
+     if(!empty($gpb) && $io_time <= strtotime(date("d-m-Y 09:00:00",$io_time))){
+     $nstarttime=strtotime($gpb[0]->shift_start);
+      $io_timeold = strtotime(date("d-m-Y h:i",$io_time)." -1 days");
+     // $start_time1 = strtotime(date("d-m-Y 00:00:00",$io_timeold));
+      $start_time1 = strtotime(date("d-m-Y 18:00:00",$io_timeold));
+      $end_time1 = strtotime(date("d-m-Y 23:59:59",$io_timeold));
+      $offline_at1 = $this->app->checkOfflineAt($usid,$loginids,$start_time1,$end_time1);
+      if(!empty($offline_at1)){
+        $stroffatt=strtotime(date("h:i",$offline_at1['io_time']));
+       // if($offline_at1['mode']=="in" && $stroffatt >$nstarttime ){
+        if($offline_at1['mode']=="in" ){
+          $io_timenew = strtotime(date("d-m-Y h:i",$io_time)." -1 days");
+          $night="1";
+          $mode = "out";
+        }
+      } 
+    } else {
+      $io_timenew=$io_time ;
+      $night="0";
+      $mode = "in";
+     }
+      // end new code
+         
+       
+         /// if night shift 
+        /* if( $ns==1 && $io_time <= strtotime(date("d-m-Y 09:00:00",$io_time)) ) {
+          $io_timenew = strtotime(date("d-m-Y h:i",$io_time)." -1 days");
+          $night="1";
+         } else {
+          $io_timenew=$io_time ;
+          $night="0";
+
+         }
+         */
+         
+         
+         
+         $io_timedubb=$io_timenew-180;
+        
+        $memdetail = $this->web->getMembershipDetailapi($usid,$loginids);
+        $limits=($memdetail[0]->access_limit);
+         $startf=$memdetail[0]->from_date;
+         $end=$memdetail[0]->to_date;
+         $endf=$end-64800;
+         $dlogs="SELECT count(id) as dologs FROM attendance WHERE user_id='$usid' and io_time BETWEEN ' $startf' and '$end' " ;
+                    $dlog=$this->db->query($dlogs)->result();
+                   $today_log = $dlog[0]->dologs;
+     
+     
+     
+        if( !empty($userCmp['business_id']) && $userCmp['business_id']==$loginids){
+         $checkOffline = $this->app->checkIoTime($usid,$loginids,$io_timenew, $io_timedubb);
+        // $checkOffline = $this->app->checkIoTime($uid,$loginid,$data->checkon->time);
           if(empty($checkOffline)){
-            $start_time = strtotime(date("d-m-Y 00:00:00",$data->checkon->time));
-            $end_time = strtotime(date("d-m-Y 23:59:59",$data->checkon->time));
+            $start_time = strtotime(date("d-m-Y 00:00:00",$io_timenew));
+            $end_time = strtotime(date("d-m-Y 23:59:59",$io_timenew));
+
 
             $mode = "in";
             if($deviceMode==0){
-              $offline_at = $this->app->checkOfflineAt($uid,$loginid,$start_time,$end_time);
+              $offline_at = $this->app->checkOfflineAt($usid,$loginids,$start_time,$end_time);
               if($userCmp['hostel']==1){
                   $mode = "out";
               }
@@ -7984,23 +8449,52 @@ function getCompanyUsersByStatus(){
             
 
             $data = array(
-              'bussiness_id'=>$loginid,
-              'user_id'=>$uid,
+              'bussiness_id'=>$loginids,
+              'user_id'=>$usid,
               'mode'=>$mode,
               'comment'=>"",
               'device'=>$deviceid,
               'manual'=>"4",
+            'event'=>$event,
+              'night'=>$night,
+             'latitude'=>$bio_lat,
+            'longitude'=>$bio_long,
+               'location'=>"test",
               'hostel'=>$userCmp['hostel'],
-              'io_time'=>$data->checkon->time,
+              'io_time'=>$io_timenew,
               'date'=>time()
             );
             $res = $this->app->insertAttendance($data);
             if($res == 1){
+                if($deviceMode==4){
+              $memdetail = $this->web->getMembershipDetailapi($usid,$loginids);
+               if(!empty($memdetail)){
+        $limits=$memdetail[0]->access_limit;
+         $startf=$memdetail[0]->from_date;
+         $end=$memdetail[0]->to_date;
+         $endf=$end-64800;
+         $dlogs="SELECT count(id) as dologs FROM attendance WHERE user_id='$usid' and io_time BETWEEN ' $startf' and '$end' " ;
+         $dlog=$this->db->query($dlogs)->result();
+         $today_log = $dlog[0]->dologs;
+         
+             if( $limits<=$today_log || $endf<=time()){
+             $res2= $this->web->Inactivatecstudent($loginid,$uid,$usid); 
+              }   
+              
+               }
+                    
+                }
+                
               $sendRes = array('msg'=>'Attendance added Successfully','status'=>'1');
+             $sendRes2 = array('msg'=>$limits,'status'=> $today_log);
             }else{
               $sendRes = array('msg'=>'Failed to Add','status'=>'0');
             }
+          //  if($resv == 1){
+    //  $sendRes = array('msg'=>'Log added Successfully','status'=>'1');
+    //  }
             echo $response= json_encode(array('checkon'=>$sendRes));
+            echo  json_encode(array('checkon'=>$sendRes2));
           }else{
             $sendRes = array('msg'=>'Already Added','status'=>'0');
             echo $response= json_encode(array('checkon'=>$sendRes));
@@ -8010,7 +8504,9 @@ function getCompanyUsersByStatus(){
           $sendRes = array('msg'=>'Wrong Company bioid','status'=>'0');
           echo $response= json_encode(array('checkon'=>$sendRes));
         }
+        } // end mod=5
       }
     }
   }
+
 }

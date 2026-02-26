@@ -117,15 +117,15 @@ date_default_timezone_set('Asia/Kolkata');
                             <div class="col-sm-2">
                               <input type="date" name="end_date" id="end_date"  value="<?php echo $end_date; ?>"class="form-control" max="<?php echo date('Y-m-d'); ?>" min="<?php echo $start_date;?>" onchange="endChange(event);">
                             </div>
-                            <div class="col-sm-2 ">
-                              <!--<label for="employee">Employee</label>-->
+                           <div class="col-sm-2 ">
+                             
                               <select name="bio" class="form-control"  id="bio" >
                                   
                                 <?php   
-                                  if ($bio!=0){
-                                       $devicename = $this->web->getdevicebyid($bio);
+                                  if (!empty ($bio)){
+                                       $devicename = $this->web->getdevicebysn($bio);
                                   ?>
-                                  <option value="<?php echo $devicesname[0]->id;  ?>"><?php echo $devicename[0]->name;  ?></option>
+                                  <option value="<?php echo $devicename[0]->deviceid;  ?>"><?php echo $devicename[0]->name;  ?></option>
                                   <?php
                                 } else { ?>
                                   <option value="0"> All Device </option>
@@ -139,13 +139,39 @@ date_default_timezone_set('Asia/Kolkata');
                                   ?>
                                  <option value="0"> All Device </option>
                                <?php  foreach($device as $device){ ?>
-                                  <option value="<?php echo $device->id  ?>"><?php echo $device->name;  ?></option>
+                                  <option value="<?php echo $device->deviceid  ?>"><?php echo $device->name;  ?></option>
                                   
                                
-                                <?php }?> 
-                                
+                                <?php }?>
                                 </select>
                               </div>
+                              
+                              <div class="col-sm-2 ">
+                            
+                              
+                              
+                              <select name="event_name" class="form-control" id="event_name" required>
+
+    <!-- Default option -->
+    <option value="0">All Train</option>
+
+    <?php
+        $events = $this->web->getUniqueEvent($loginId);
+        if (!empty($events)) {
+            foreach ($events as $row) {
+    ?>
+                <option value="<?php echo $row->event_name; ?>">
+                    <?php echo $row->event_name; ?>
+                </option>
+    <?php
+            }
+        }
+    ?>
+
+</select>
+
+                              </div>
+                              
                               <div class="col-sm-2">
                                 <button type="submit" class="btn btn-success btn-fill btn-block" onclick="showLoader()">Show</button>
                               </div>
@@ -155,10 +181,17 @@ date_default_timezone_set('Asia/Kolkata');
                       </div>
                       <br><br>
                       <!-- /.total starts -->
+                      
+                      
                     
+                      
+                      
+                      
                       <?php
+                      if($load) {
                         $stdate=strtotime($start_date);
-                        $endate=strtotime($end_date); 
+                        $endate=strtotime($end_date);
+                        
                         ?>
                          <div align="right">
                           <input type="button"  class="btn btn-primary" onClick="exportDatas()" value="Export To Excel" />
@@ -180,47 +213,114 @@ date_default_timezone_set('Asia/Kolkata');
                         </h6>
                         
 
-                        <table id="example1" class="table table-bordered table-striped">
+                        <table id="example2" class="table table-bordered table-striped">
                           <thead>
-                            <tr>
+                             <tr>
                               <th>S.No.</th>
                                <th>Emp Id</th>
                               <th>Name</th>
+                              <th>Mobile</th>
+                              <th>Father Name</th>
+                               <th>Desig</th>
                               <th>Device</th>
-                              <th>date</th>
+                               <th>Section</th>
                               <th>Time</th>
-                              <th>Mode</th>
+                             <!-- <th>Mode</th>-->
+                              <th>Lat/Long</th>
+                              <th>Location</th>
+                             <!--  <th>Image</th>-->
                                
                             </tr>
                           </thead>
                           <tbody>
                             <?php 
+                        if(empty($event_name)) { 
+                            $event_name=0;
+                        }
+                        
+
                         $count=$offset + 1;
-                        foreach($logsData as $logs){  
+                        foreach($logs as $logs){  
+                              
                           ?>    
                            <tr>
                                
                            <td> <?php echo $count++; ?> </td>
-                           <td><?php echo $logs->emp_code; ?></td>
-                            <td><?php echo $logs->name; ?></td>
-                            <td><?php echo $logs->device_name; ?></td>
+                           <td>
+                               
+                            <?php 
+                                      echo $logs->user_id;
+                                        ?>   
+                           </td>
+                           
+                           <td> 
+                           <?php 
+                            echo $logs->name;
+                                        ?>
+                           
+                           </td>
+                           <td> 
+                           <?php 
+                            echo $logs->mobile;
+                                        ?>
+                           
+                           </td>
+                           <td> 
+                           <?php 
+                            echo $logs->father_name;
+                                        ?>
+                           
+                           </td>
                                                       
+                           <td> 
+                           <?php 
+                                    echo $logs->designation;
+                                        ?>
+                           
+                           </td>
+                           <td> <?php 
+                          echo $logs->device_name;
+                           ?>
+                           </td>
+                           
+                             <td> <?php 
+                        echo $logs->event_name;
+                           ?>
+                           </td>
+                           
                            <td>
                                <?php $field= $logs->io_time ;
 					 
-                                echo date('d-M-Y', $field);  
-                                ?>
-                                </td>
-                                <td>
-                                <?php $field= $logs->io_time ;
-                          
-                                echo date('h:i:A', $field);  
-                                ?>
-                                </td>
-                                <td> <?php 
-                                echo $logs->mode;
-                                ?>
-                                </td>
+			          echo date('d-M h:i:A', $field);  
+			          ?>
+			          </td>    
+                          <!-- <td> <?php 
+                           echo $logs->mode;
+                           ?>
+                           </td>-->
+                           
+                            <td> <?php 
+                           if(!empty($logs->latitude)){
+                           echo $logs->latitude.",".$logs->longitude; }
+                           ?>
+                           </td>
+                           
+                           
+                           <td> <?php 
+                           if(!empty($logs->location)){
+                           echo $logs->location ; }
+                           ?>
+                           </td>
+                         <!--  <td> <?php 
+                           if(!empty($logs->selfie)){
+                           echo $logs->selfie ; }
+                           ?>
+                           </td>-->
+                           
+                           
+                               
+                               
+                               
                            </tr> 
                           <?php } ?> 
                         </tbody>
@@ -233,6 +333,146 @@ date_default_timezone_set('Asia/Kolkata');
                     <?php 
                   ?>
                     </div>
+                    <?php
+                  }
+                  /*else{
+                  ?>
+                  
+                   <?php
+                      
+                        $stdate1=(strtotime($end_date))-86400;
+                        $endate1=strtotime($end_date);
+                        ?>
+                        <h6>Logs for Date:-<?php echo date("d-M-Y ",$stdate1)?> to Date:- <?php echo date("d-M-Y ",$endate1)?> 
+                       
+                        
+                      <?php  $start_time1 = strtotime(date("d-m-Y 00:00:00",$stdate1));
+			         		$end_time1 = strtotime(date("d-m-Y 23:59:59",$endate1));
+                       
+                      
+                      ?>
+                        
+                        
+                        </h6>
+                      
+                      
+                      <table id="example1" class="table table-bordered table-striped">
+                          <thead>
+                            <tr>
+                              <th>S.No.</th>
+                               <th>Emp Id</th>
+                              <th>Name</th>
+                               <th>Desig</th>
+                              <th>Device</th>
+                               <th>Section</th>
+                              <th>Time</th>
+                             <!-- <th>Mode</th>-->
+                              <th>Lat/Long</th>
+                              <th>Location</th>
+                             <!--  <th>Image</th>-->
+                               
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <?php 
+                            
+                       $logs=$this->web->getvisitoraccess($start_time1,$end_time1,$loginId);
+                       
+                      
+                        $count=1;
+                        foreach($logs as $logs){  
+                              
+                          ?>    
+                           <tr>
+                               
+                           <td> <?php echo $count++; ?> </td>
+                           <td>
+                               
+                            <?php //$uname = $this->web->getNameByUserId($logs->user_id);
+                                      //  echo $uname[0]->emp_code;
+                                      echo $logs->user_id;
+                                        ?>   
+                           </td>
+                           
+                           <td> 
+                           <?php //echo $logs->user_id;
+                              $uname = $this->web->getNameByuserbio_id($logs->user_id,$loginId);
+                                        echo $uname[0]->name;
+                                        ?>
+                           
+                           </td>
+                           
+                           
+                           
+                           <td> 
+                           <?php //echo $logs->user_id;
+                             // $uname = $this->web->getNameByUserId($logs->user_id);
+                                        echo $uname[0]->designation;
+                                        ?>
+                           
+                           </td>
+                           <td> <?php 
+                           $devicename = $this->web->getdevicebysn($logs->device_id);
+                                        echo $devicename[0]->name;
+                          // echo $logs->device_id;
+                           ?>
+                           </td>
+                           
+                             <td> <?php 
+                           $event = $this->web->geteventbydeviceid($logs->device_id,$logs->event);
+                                      //  echo $sections[0]->section_id;
+                                       //$sectionsname = $this->web->getBusinessSectionById($sections[0]->section_id);
+                         echo $event[0]->event_name;
+                        // echo $logs->event;
+                          
+                           ?>
+                           </td>
+                           
+                           <td>
+                               <?php $field= $logs->io_time ;
+					 
+			          echo date('d-M h:i:A', $field);  
+			          ?>
+			          </td>    
+                          <!-- <td> <?php 
+                           echo $logs->mode;
+                           ?>
+                           </td>-->
+                           
+                            <td> <?php 
+                           if(!empty($logs->latitude)){
+                           echo $logs->latitude.",".$logs->longitude; }
+                           ?>
+                           </td>
+                           
+                           
+                           <td> <?php 
+                           if(!empty($logs->location)){
+                           echo $logs->location ; }
+                           ?>
+                           </td>
+                         <!--  <td> <?php 
+                           if(!empty($logs->selfie)){
+                           echo $logs->selfie ; }
+                           ?>
+                           </td>-->
+                           
+                           
+                               
+                               
+                               
+                           </tr> 
+                          <?php } ?> 
+                        </tbody>
+                        <tfoot>
+                        </tfoot>
+                      </table>
+                      
+               
+                      
+                      <?php }
+                      */
+                      ?>
                   
                   
                   
@@ -378,29 +618,36 @@ function endChange(e){
       sh.columns = [
         {header: 'SNo.', key: 'SNo', width: 10},
         {header: 'Empcode', key: 'Empcode', width: 10},
-        {header: 'Name', key: 'Name', width: 15},
+        {header: 'Name', key: 'Name', width: 20},
+          {header: 'Desig', key: 'Desig', width: 20},
 		{header: 'Device', key: 'Device', width:25},
+		  {header: 'Section', key: 'Section', width: 20},
        {header: 'Time', key: 'Time', width: 25},
-	{header: 'Mode', key: 'Mode', width: 10}
+  {header: 'Lat/Long', key: 'Lat', width: 25},
+    {header: 'Location', key: 'Location', width: 25}
        
        
       ];
     
       <?php
        if($bio==0) { 
-                       $logs=$this->web->getCmpAccess($start_time,$end_time,$loginId);
+                       $logs=$this->web->getvisitoraccess($start_time,$end_time,$loginId);
                       }else{
                           
-                         $logs=$this->web->getDeviceAccess($start_time,$end_time,$loginId,$bio);
+                         $logs=$this->web->getvisitoraccessbyevent($start_time,$end_time,$bio);
                       } 
         foreach($logs as $logs){
-         $uname = $this->web->getNameByUserId($logs->user_id);
-         $devicename = $this->web->getdevicebyid($logs->device);
+            $uname = $this->web->getNameByuserbio_id($logs->user_id,$loginId);
+        // $uname = $this->web->getNameByUserId($logs->user_id);
+         $devicename = $this->web->getdevicebysn($logs->device_id);
+         $event = $this->web->geteventbydeviceid($logs->device_id,$logs->event);
           ?>
    
     
- sh.addRow({SNo:'<?php echo $sr;?>',Empcode:'<?= $uname[0]->emp_code; ?>',Name:'<?= $uname[0]->name; ?>',Device: '<?= $devicename[0]->name;?>', Time:'<?= date('d-m-Y h-i-A', $logs->io_time) ;?>' , Mode: '<?= $logs->mode ; ?>'});
+ sh.addRow({SNo:'<?php echo $sr;?>',Empcode:'<?= $logs->user_id; ?>',Name:'<?= $uname[0]->name; ?>',Desig:'<?= $uname[0]->designation; ?>',Device: '<?= $devicename[0]->name;?>', Section: '<?= $event[0]->event_name;?>',Time:'<?= date('d-m-Y h-i-A', $logs->io_time) ;?>' , Lat: '<?= $logs->latitude.",".$logs->longitude; ?>',Location: '<?= $logs->location ; ?>'});
       <?php 
+     
+                           
           echo "sh.getRow(".$sr++.").alignment = { wrapText: true,vertical: 'top',horizontal: 'center' };";
           
         }

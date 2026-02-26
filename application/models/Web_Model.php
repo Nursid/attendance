@@ -3956,9 +3956,289 @@ private function getPayrollSum($empId, $month, $masterIds, $extraWhere = [])
 	
 // }
 
+public function getAccessLogsNew($start_time,$end_time,$loginid,$bio = 0,$limit = 50,$offset = 0){
+
+    $this->db->select('
+        attendance.*,
+        login.emp_code,
+        login.name,
+        Business_bioid.name as device_name
+    ');
+    
+    $this->db->from('attendance');
+    $this->db->join('login','login.id = attendance.user_id','left');
+    $this->db->join('Business_bioid','Business_bioid.id = attendance.device','left');
+    
+    $this->db->where('attendance.status',1);
+    $this->db->where('attendance.manual',4);
+    $this->db->where('attendance.bussiness_id',$loginid);
+    $this->db->where('attendance.io_time >=',$start_time);
+    $this->db->where('attendance.io_time <=',$end_time);
+
+    if($bio != 0){
+        $this->db->where('attendance.device',$bio);
+    }
+
+    $this->db->order_by('attendance.io_time','DESC');
+    $this->db->limit($limit,$offset);
+
+    return $this->db->get()->result();
+}
+
+public function getDeviceAccessNew($start_time,$end_time,$loginid,$bio,$limit=null,$offset=null){
+
+    $this->db->select('
+        a.*,
+        l.emp_code,
+        l.name,
+        b.name as device_name
+    ');
+    
+    $this->db->from('attendance a');
+    $this->db->join('login l', 'l.id = a.user_id', 'left');
+    $this->db->join('Business_bioid b', 'b.id = a.device', 'left');
+
+    $this->db->where('a.status', 1);
+    $this->db->where('a.manual', 4);
+    $this->db->where('a.bussiness_id', $loginid);
+    $this->db->where('a.device', $bio);
+    $this->db->where('a.io_time >=', $start_time);
+    $this->db->where('a.io_time <=', $end_time);
+
+    $this->db->order_by('a.io_time','DESC');
+
+    if($limit){
+        $this->db->limit($limit, $offset);
+    }
+
+    return $this->db->get()->result();
+}
+
+public function countAccessLogs($start_time,$end_time,$loginid,$bio=0){
+
+    $this->db->from('attendance');
+    $this->db->where('status',1);
+    $this->db->where('manual',4);
+    $this->db->where('bussiness_id',$loginid);
+    $this->db->where('io_time >=',$start_time);
+    $this->db->where('io_time <=',$end_time);
+
+    if($bio != 0){
+        $this->db->where('device',$bio);
+    }
+
+    return $this->db->count_all_results();
+}
+
+public function getvisitoraccessbyeventbio($start_time, $end_time, $bio, $event_name)
+{
+    $this->db->select('vl.*');
+    $this->db->from('visitor_log vl');
+
+    $this->db->where('vl.user_id !=', 99999996);
+    $this->db->where('vl.io_time >=', $start_time);
+    $this->db->where('vl.io_time <=', $end_time);
+
+    // Bio (device) filter
+    if ($bio != 0) {
+        $this->db->where('vl.device_id', $bio);
+    }
+
+    /**
+     * Join ONLY if event filter is applied
+     * This is the KEY FIX
+     */
+    if ($event_name != 0) {
+        $this->db->join(
+            'bio_event be',
+            'be.event_id = vl.event AND be.device_id = vl.device_id',
+            'inner'
+        );
+        $this->db->where('be.event_name', $event_name);
+    }
+
+    $this->db->order_by('vl.io_time', 'DESC');
+
+    return $this->db->get()->result();
+}
+
+public function getNameByuserbio_id($uid,$bid){
+	//$sql = "SELECT * FROM `login` WHERE bio_id='$uid' and company='$bid'";
+	return $this->db->query("SELECT * FROM `login` WHERE bio_id='$uid' and company='$bid'")->result();
+}
+
+public function getdevicebysn($bio){
+	$sql = "SELECT * FROM Business_bioid where deviceid='$bio'and active='1'";
+	$res = $this->db->query($sql);
+	return $res->result();
+}
 
 
+public function getUniqueEvent($bid){
+$sql = "SELECT DISTINCT event_name FROM bio_event";
+$res = $this->db->query($sql);
+return $res->result();
+}
 
+
+// public function getvisitoraccessbyevent($start_time, $end_time, $bio, $event_name)
+// {
+//     $sql = "
+//         SELECT vl.*
+//         FROM visitor_log vl
+//         JOIN bio_event be
+//             ON be.event_id = vl.event
+//             AND be.device_id = vl.device_id
+//         WHERE vl.user_id != 99999996
+//         AND vl.io_time BETWEEN ? AND ?
+//     ";
+
+//     $params = [$start_time, $end_time];
+
+//     // Filter by event_name (if not All)
+//     if ($event_name != 0) {
+//         $sql .= " AND be.event_name = ?";
+//         $params[] = $event_name;
+//     }
+
+//     // Filter by device_id (if not All)
+//     if ($bio != 0) {
+//         $sql .= " AND vl.device_id = ?";
+//         $params[] = $bio;
+//     }
+
+//     $sql .= " ORDER BY vl.io_time DESC";
+
+//     $res = $this->db->query($sql, $params);
+//     return $res->result();
+// }
+
+public function geteventbydeviceid($bio,$event){
+	$sql = "SELECT * FROM bio_event where device_id='$bio'and event_id='$event' ";
+	$res = $this->db->query($sql);
+	return $res->result();
+}
+
+
+// public function getvisitoraccessbyevent($start_time, $end_time, $bio, $event_name, $limit, $offset)
+// {
+//     $sql = "
+//         SELECT 
+//             vl.*,
+//             l.name,
+//             l.father_name,
+//             l.designation,
+//             bb.name as device_name,
+//             be.event_name
+//         FROM visitor_log vl
+//         LEFT JOIN login l 
+//             ON l.bio_id = vl.user_id
+//         LEFT JOIN Business_bioid bb 
+//             ON bb.deviceid = vl.device_id AND bb.active = '1'
+//         LEFT JOIN bio_event be
+//             ON be.event_id = vl.event 
+//             AND be.device_id = vl.device_id
+//         WHERE vl.user_id != 99999996
+//         AND vl.io_time BETWEEN ? AND ?
+//     ";
+
+//     $params = [$start_time, $end_time];
+
+//     if ($event_name != 0) {
+//         $sql .= " AND be.event_name = ?";
+//         $params[] = $event_name;
+//     }
+
+//     if ($bio != 0) {
+//         $sql .= " AND vl.device_id = ?";
+//         $params[] = $bio;
+//     }
+
+//     $sql .= " ORDER BY vl.io_time DESC LIMIT ? OFFSET ?";
+//     $params[] = $limit;
+//     $params[] = $offset;
+
+//     return $this->db->query($sql, $params)->result();
+// }
+public function getvisitoraccessbyevent($start_time, $end_time, $bio, $event_name, $limit, $offset, $loginId)
+{
+    $sql = "
+        SELECT DISTINCT
+            vl.id,
+            vl.user_id,
+            vl.device_id,
+            vl.event,
+            vl.io_time,
+            vl.latitude,
+            vl.longitude,
+            vl.location,
+            l.name,
+			bb.name as device_name,
+            l.father_name,
+            l.mobile,
+            l.designation,
+            be.event_name
+        FROM visitor_log vl
+         JOIN login l 
+            ON l.bio_id = vl.user_id 
+            AND l.company = ?
+        LEFT JOIN bio_event be
+            ON be.event_id = vl.event 
+            AND be.device_id = vl.device_id
+		LEFT JOIN Business_bioid bb 
+            ON bb.deviceid = vl.device_id AND bb.active = '1'
+        WHERE vl.user_id != 99999996
+        AND vl.io_time BETWEEN ? AND ?
+    ";
+
+    $params = [$loginId, $start_time, $end_time];
+
+    if ($event_name != 0) {
+        $sql .= " AND be.event_name = ?";
+        $params[] = $event_name;
+    }
+
+    if ($bio != 0) {
+        $sql .= " AND vl.device_id = ?";
+        $params[] = $bio;
+    }
+
+    $limit  = (int)$limit;
+    $offset = (int)$offset;
+
+    $sql .= " ORDER BY vl.io_time DESC LIMIT $limit OFFSET $offset";
+
+    return $this->db->query($sql, $params)->result();
+}
+
+public function countVisitorLogs($start_time, $end_time, $bio, $event_name)
+{
+    $sql = "
+        SELECT COUNT(*) as total
+        FROM visitor_log vl
+        LEFT JOIN bio_event be
+            ON be.event_id = vl.event 
+            AND be.device_id = vl.device_id
+        WHERE vl.user_id != 99999996
+        AND vl.io_time BETWEEN ? AND ?
+    ";
+
+    $params = [$start_time, $end_time];
+
+    if ($event_name != 0) {
+        $sql .= " AND be.event_name = ?";
+        $params[] = $event_name;
+    }
+
+    if ($bio != 0) {
+        $sql .= " AND vl.device_id = ?";
+        $params[] = $bio;
+    }
+
+    $query = $this->db->query($sql, $params)->row();
+    return $query->total;
+}
+	
 
 }
 ?>

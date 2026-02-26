@@ -8317,56 +8317,167 @@ public function add_device(){
 	
 	
 	
-	public function access_report(){
-		if(!empty($this->session->userdata('id'))){
-				$postdata=$this->input->post();
-					$start_date = date("Y-m-d");
-					$end_date = date("Y-m-d");
-					$true = 0;
-					$bio="";
-					//$option= "all";
-					//$days_array = array();
-					$new_array = array();
-					$loginId = $this->session->userdata('login_id');
-					if($this->session->userdata('type')=="P"){
-						$userCmp = $this->app->getUserCompany($loginId);
-						if(isset($userCmp) && ($userCmp['left_date']=="" || $userCmp['left_date']>time())){
-							$loginId = $userCmp['business_id'];
-						}
-					}
+	// public function access_report(){
+	// 	if(!empty($this->session->userdata('id'))){
+	// 			$postdata=$this->input->post();
+	// 				$start_date = date("Y-m-d");
+	// 				$end_date = date("Y-m-d");
+	// 				$true = 0;
+	// 				$bio="";
+	// 				//$option= "all";
+	// 				//$days_array = array();
+	// 				$new_array = array();
+	// 				$loginId = $this->session->userdata('login_id');
+	// 				if($this->session->userdata('type')=="P"){
+	// 					$userCmp = $this->app->getUserCompany($loginId);
+	// 					if(isset($userCmp) && ($userCmp['left_date']=="" || $userCmp['left_date']>time())){
+	// 						$loginId = $userCmp['business_id'];
+	// 					}
+	// 				}
 										
-				//	$cmpName = $this->web->getBusinessById($loginId);
+	// 			//	$cmpName = $this->web->getBusinessById($loginId);
 
-					if(isset($postdata['start_date']) && isset($postdata['end_date'])){
-						$start_date = $postdata['start_date'];
-						$end_date = $postdata['end_date'];
-						$bio = $postdata['bio'];
-						//$option = $postdata['option'];
-						$true= 1;
-						//$users_data = $this->app->getCompanyUsers($loginId);
-						//$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
-						//$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($end_date)));
-					}
+	// 				if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+	// 					$start_date = $postdata['start_date'];
+	// 					$end_date = $postdata['end_date'];
+	// 					$bio = $postdata['bio'];
+	// 					//$option = $postdata['option'];
+	// 					$true= 1;
+	// 					//$users_data = $this->app->getCompanyUsers($loginId);
+	// 					//$start_time = strtotime(date("d-m-Y 00:00:00",strtotime($start_date)));
+	// 					//$end_time = strtotime(date("d-m-Y 23:59:59",strtotime($end_date)));
+	// 				}
 					
-					
-			     $data=array(
-						'start_date'=>$start_date,
-						'end_date'=>$end_date,
-						'bio'=>$bio,
-						'load'=>$true,
-						//'option'=>$option,
-					//	'cmp_name'=>$cmpName['name']
-					);
-					//print_r($new_array);
-					$this->load->view('attendance/access_report',$data);
+	// 				$page = $this->input->get('page') ?? 1;
+	// 				$limit = 100;
+	// 				$offset = ($page - 1) * $limit;
+	// 		     $data=array(
+	// 					'start_date'=>$start_date,
+	// 					'end_date'=>$end_date,
+	// 					'bio'=>$bio,
+	// 					'load'=>$true,
+	// 					"page"=>$page,
+	// 					"offset"=>$offset,
+	// 					"limit"=>$limit
+	// 					//'option'=>$option,
+	// 				//	'cmp_name'=>$cmpName['name']
+	// 				);
+	// 				//print_r($new_array);
+	// 				$this->load->view('attendance/access_report',$data);
 		
-		}
-		else{
-			redirect('user-login');
-		}
-	}
+	// 	}
+	// 	else{
+	// 		redirect('user-login');
+	// 	}
+	// }
 	
+	public function access_report_old()
+{
+    if (empty($this->session->userdata('id'))) {
+        redirect('user-login');
+    }
+
+    $this->load->library('pagination');
+
+    // $postdata = $this->input->post();
+
+    // $start_date = date("Y-m-d");
+    // $end_date   = date("Y-m-d");
+    // $bio        = 0;
+    // $load       = 0;
+
+    $loginId = $this->session->userdata('login_id');
+
+    if ($this->session->userdata('type') == "P") {
+        $userCmp = $this->app->getUserCompany($loginId);
+        if (isset($userCmp) && ($userCmp['left_date'] == "" || $userCmp['left_date'] > time())) {
+            $loginId = $userCmp['business_id'];
+        }
+    }
+
+    // Filters
+    // if (!empty($postdata)) {
+    //     $start_date = $postdata['start_date'];
+    //     $end_date   = $postdata['end_date'];
+    //     $bio        = $postdata['bio'];
+    //     $load       = 1;
+    // }
+	$start_date = $this->input->get('start_date') ?? date("Y-m-d");
+	$end_date   = $this->input->get('end_date') ?? date("Y-m-d");
+	$bio        = $this->input->get('bio') ?? 0;
+	$load       = $this->input->get('start_date') ? 1 : 0;
+
+    // Time conversion
+    $start_time = strtotime($start_date . " 00:00:00");
+    $end_time   = strtotime($end_date . " 23:59:59");
+
+    // ===== PAGINATION SAME AS SALARY =====
+    $limit  = 20;
+    $offset = ($this->uri->segment(3)) ? $this->uri->segment(3) : 0;
+
+    $total_rows = 0;
+    $logs = [];
+
+    if ($load) {
+
+        $total_rows = $this->web->countAccessLogs(
+            $start_time,
+            $end_time,
+            $loginId,
+            $bio
+        );
+
+        $logs = $this->web->getAccessLogsNew(
+            $start_time,
+            $end_time,
+            $loginId,
+            $bio,
+            $limit,
+            $offset
+        );
+    }
+
+	$config['base_url']    = base_url('User/access_report');
+	$config['total_rows']  = $total_rows;
+	$config['per_page']    = $limit;
+	$config['uri_segment'] = 3;
+	$config['reuse_query_string'] = TRUE; // <<< add this
 	
+	// Bootstrap styling (same as salary)
+	$config['full_tag_open']    = '<ul class="pagination pagination-sm m-0 float-right">';
+	$config['full_tag_close']   = '</ul>';
+	$config['first_link']       = '«';
+	$config['first_tag_open']   = '<li class="page-item">';
+	$config['first_tag_close']  = '</li>';
+	$config['last_link']        = '»';
+	$config['last_tag_open']    = '<li class="page-item">';
+	$config['last_tag_close']   = '</li>';
+	$config['next_link']        = 'Next';
+	$config['next_tag_open']    = '<li class="page-item">';
+	$config['next_tag_close']   = '</li>';
+	$config['prev_link']        = 'Prev';
+	$config['prev_tag_open']    = '<li class="page-item">';
+	$config['prev_tag_close']   = '</li>';
+	$config['cur_tag_open']     = '<li class="page-item active"><span class="page-link">';
+	$config['cur_tag_close']    = '</span></li>';
+	$config['num_tag_open']     = '<li class="page-item">';
+	$config['num_tag_close']    = '</li>';
+	$config['attributes']       = ['class' => 'page-link'];
+	
+	$this->pagination->initialize($config);
+
+    $data = [
+        'start_date' => $start_date,
+        'end_date'   => $end_date,
+        'bio'        => $bio,
+        'load'       => $load,
+        'logsData'   => $logs,
+        'pagination' => $this->pagination->create_links(),
+        'offset'     => $offset
+    ];
+
+    $this->load->view('attendance/access_report', $data);
+}	
 	function GetBioAttendance(){
     if(!empty($this->session->userdata('id'))){
      // $check=$this->app->checkMobile($data->checkon->mobile);
@@ -8535,7 +8646,7 @@ public function add_device(){
 	
 	
 	
-	public function access_report_old(){
+	public function access_report_pre_old(){
 		if(!empty($this->session->userdata('id'))){
 				$postdata=$this->input->post();
 					$start_date = date("Y-m-d");
@@ -10581,7 +10692,97 @@ public function shift_report(){
 			redirect('user-login');
 		}
 	}	
+
+
+	public function access_report(){
+		if(!empty($this->session->userdata('id'))){
+				$postdata=$this->input->get();
+					$start_date = date("Y-m-d");
+					$end_date = date("Y-m-d");
+					$bio=0;
+						$event_name=0;
+					$true = 0;
+					//$option= "all";
+					//$days_array = array();
+					$new_array = array();
+					$loginId = $this->session->userdata('login_id');
+					if($this->session->userdata('type')=="P"){
+						$userCmp = $this->app->getUserCompany($loginId);
+						if(isset($userCmp) && ($userCmp['left_date']=="" || $userCmp['left_date']>time())){
+							$loginId = $userCmp['business_id'];
+						}
+					}
+			
+					if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+						$start_date = $postdata['start_date'];
+						$end_date = $postdata['end_date'];
+						$bio = $postdata['bio'];
+						$event_name = $postdata['event_name'];
+						$true= 1;
+					}
+
+					$this->load->library('pagination');
+				$start_time = strtotime($start_date . ' 00:00:00');
+				$end_time   = strtotime($end_date . ' 23:59:59');
 	
+				$config['base_url'] = base_url('User/access_report');
+				$config['total_rows'] = $this->web->countVisitorLogs($start_time, $end_time, $bio, $event_name);
+				$config['per_page'] = 50;
+				$config['uri_segment'] = 3;
+				$config['reuse_query_string'] = TRUE; 
+				$config['full_tag_open']    = '<ul class="pagination pagination-sm m-0 float-right">';
+				$config['full_tag_close']   = '</ul>';
+				$config['first_link']       = '«';
+				$config['first_tag_open']   = '<li class="page-item">';
+				$config['first_tag_close']  = '</li>';
+				$config['last_link']        = '»';
+				$config['last_tag_open']    = '<li class="page-item">';
+				$config['last_tag_close']   = '</li>';
+				$config['next_link']        = 'Next';
+				$config['next_tag_open']    = '<li class="page-item">';
+				$config['next_tag_close']   = '</li>';
+				$config['prev_link']        = 'Prev';
+				$config['prev_tag_open']    = '<li class="page-item">';
+				$config['prev_tag_close']   = '</li>';
+				$config['cur_tag_open']     = '<li class="page-item active"><span class="page-link">';
+				$config['cur_tag_close']    = '</span></li>';
+				$config['num_tag_open']     = '<li class="page-item">';
+				$config['num_tag_close']    = '</li>';
+				$config['attributes']       = ['class' => 'page-link'];
+				
+
+
+				$this->pagination->initialize($config);
+
+				$page = ($this->uri->segment(3)) ? $this->uri->segment(3) : 0;
+			
+				$data['logs'] = $this->web->getvisitoraccessbyevent(
+					$start_time,
+					$end_time,
+					$bio,
+					$event_name,
+					$config['per_page'],
+					$page,
+					$loginId
+				);
+
+				$data['pagination'] = $this->pagination->create_links();
+									
+					
+				$data['start_date'] = $start_date;
+				$data['end_date']   = $end_date;
+				$data['bio']        = $bio;
+				$data['event_name'] = $event_name;
+				$data['load']       = $true;
+				$data['offset']       = $page;
+					
+					$this->load->view('attendance/access_report2',$data);
+		
+		}
+		else{
+			redirect('user-login');
+		}
+	}
 	
 	
 	
