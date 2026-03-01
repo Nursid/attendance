@@ -4212,21 +4212,6 @@ public function getvisitoraccessbyevent($start_time, $end_time, $bio, $event_nam
 
     $sql .= " ORDER BY vl.io_time DESC LIMIT $limit OFFSET $offset";
 
-	$debugSql = $sql;
-
-		foreach ($params as $param) {
-			if (is_numeric($param)) {
-				$debugSql = preg_replace('/\?/', $param, $debugSql, 1);
-			} else {
-				$debugSql = preg_replace('/\?/', "'".$this->db->escape_str($param)."'", $debugSql, 1);
-			}
-		}
-
-		echo "<pre>";
-		echo "FINAL SQL QUERY:\n\n";
-		echo $debugSql;
-		exit;
-
     return $this->db->query($sql, $params)->result();
 }
 
