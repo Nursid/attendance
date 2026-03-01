@@ -10700,7 +10700,7 @@ public function shift_report(){
 					$start_date = date("Y-m-d");
 					$end_date = date("Y-m-d");
 					$bio=0;
-						$event_name=0;
+					$event_name=0;
 					$true = 0;
 					//$option= "all";
 					//$days_array = array();
@@ -10716,7 +10716,8 @@ public function shift_report(){
 					if(isset($postdata['start_date']) && isset($postdata['end_date'])){
 						$start_date = $postdata['start_date'];
 						$end_date = $postdata['end_date'];
-						$bio = $postdata['bio'];
+						// $bio = $postdata['bio'];
+						$bio = isset($postdata['bio']) ? trim((string)$postdata['bio']) : '0';
 						$event_name = $postdata['event_name'];
 						$true= 1;
 					}
@@ -10724,6 +10725,7 @@ public function shift_report(){
 					$this->load->library('pagination');
 				$start_time = strtotime($start_date . ' 00:00:00');
 				$end_time   = strtotime($end_date . ' 23:59:59');
+				echo $bio;
 	
 				$config['base_url'] = base_url('User/access_report');
 				$config['total_rows'] = $this->web->countVisitorLogs($start_time, $end_time, $bio, $event_name);
@@ -10828,10 +10830,54 @@ public function shift_report(){
 
     exit;
 }
-	
-	
-	
-	
+	public function getAllEmployeesForExport()
+	{
+		$sessionData = $this->session->userdata();
+
+		if ($sessionData['type'] == 'P') {
+			$loginID = $sessionData['empCompany'];
+
+			$role = $this->web->getRollbyid(
+				$sessionData['login_id'],
+				$loginID
+			);
+
+		} else {
+			$loginID = $sessionData['login_id'];
+		}
+
+		$this->db->select('
+			user_request.*,
+			login.name as empName,
+			login.mobile as empMobile,
+			login.emp_code,
+			login.designation as empDesignation,
+			login.business_group,
+			login.id as emp_id,
+			login.department,
+			login.section
+		');
+
+		$this->db->from('user_request'); // ✅ Missing earlier
+
+		$this->db->join('login', 'login.id = user_request.user_id', 'LEFT');
+
+		$this->db->where('user_request.business_id', $loginID);
+
+		$this->db->order_by('login.emp_code', 'ASC'); // ✅ Prefixed
+		$this->db->order_by('user_request.doj', 'ASC'); // ✅ Prefixed
+
+		$employees = $this->db->get()->result_array();
+
+		$response = [
+			'status' => 1,
+			'data'   => $employees
+		];
+
+		return $this->output
+			->set_content_type('application/json')
+			->set_output(json_encode($response));
+	}
 }
 
 ?>
