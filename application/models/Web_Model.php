@@ -4202,11 +4202,11 @@ public function getvisitoraccessbyevent($start_time, $end_time, $bio, $event_nam
         $params[] = $event_name;
     }
 
-    if ($bio != 0) {
-        $sql .= " AND vl.device_id = ?";
-        $params[] = $bio;
-    }
-
+	if (!empty($bio)) {
+		$sql .= " AND TRIM(CAST(vl.device_id AS CHAR)) = ?";
+		$params[] = trim((string)$bio);
+	}
+	
     $limit  = (int)$limit;
     $offset = (int)$offset;
 
