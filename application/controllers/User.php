@@ -10699,8 +10699,8 @@ public function shift_report(){
 				$postdata=$this->input->get();
 					$start_date = date("Y-m-d");
 					$end_date = date("Y-m-d");
-					$bio=0;
-					$event_name=0;
+					$bio='';
+					$event_name='';
 					$true = 0;
 					//$option= "all";
 					//$days_array = array();
@@ -10725,7 +10725,6 @@ public function shift_report(){
 					$this->load->library('pagination');
 				$start_time = strtotime($start_date . ' 00:00:00');
 				$end_time   = strtotime($end_date . ' 23:59:59');
-				echo $bio;
 	
 				$config['base_url'] = base_url('User/access_report');
 				$config['total_rows'] = $this->web->countVisitorLogs($start_time, $end_time, $bio, $event_name);
