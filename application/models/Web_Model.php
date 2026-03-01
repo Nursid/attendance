@@ -4040,9 +4040,13 @@ public function getvisitoraccessbyeventbio($start_time, $end_time, $bio, $event_
     $this->db->where('vl.io_time <=', $end_time);
 
     // Bio (device) filter
-    if ($bio != 0) {
-        $this->db->where('vl.device_id', $bio);
-    }
+    // if ($bio != 0) {
+    //     $this->db->where('vl.device_id', $bio);
+    // }
+
+	if (!empty($bio)) {
+		$this->db->where("TRIM(vl.device_id) =", trim($bio));
+	}
 
     /**
      * Join ONLY if event filter is applied

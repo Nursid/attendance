@@ -10717,7 +10717,7 @@ public function shift_report(){
 						$start_date = $postdata['start_date'];
 						$end_date = $postdata['end_date'];
 						// $bio = $postdata['bio'];
-						$bio = isset($postdata['bio']) ? trim((string)$postdata['bio']) : '0';
+						$bio = isset($postdata['bio']) ? trim((string)$postdata['bio']) : '';
 						$event_name = $postdata['event_name'];
 						$true= 1;
 					}
