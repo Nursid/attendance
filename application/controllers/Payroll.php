@@ -280,7 +280,6 @@ public function edit_head(){
 		$total_rows = $this->web->countSalaryEmployees($search); // create this function
 
 
-
 		if ($this->session->userdata()['type'] == 'P') {
 			$loginID = $this->session->userdata('empCompany');
 			$role = $this->web->getRollbyid($this->session->userdata('login_id'), $loginID);
@@ -326,11 +325,7 @@ public function edit_head(){
 
 		// Fetch limited data
 		$data['salEmpList'] = $this->web->getSallaryReport($this->input->post(), $limit, $page, $search);
-		
-			// echo '<pre>';
-			// print_r($data);
-			// die();
-
+	
 		$data['pagination'] = $this->pagination->create_links();
 		$data['cmp_name'] = $cmpName['name'];
 		$data['payrollList'] = $this->web->getData('payroll_master', ['status'=>1], '', 'ASC');
@@ -2347,6 +2342,55 @@ public function changeLeaveFmDate2(){
 	}	
 
 
+	public function downloadSalarySample()
+{
+    $business_id = $this->session->userdata('login_id');
+
+    $employees = $this->db->get_where('login', [
+        'company' => $business_id,
+
+    ])->result();
+
+    $this->load->library('excel');
+
+    $objPHPExcel = new PHPExcel();
+    $sheet = $objPHPExcel->setActiveSheetIndex(0);
+
+    // Header row
+    $headers = [
+        'User ID',
+        'Employee Name',
+        'Mobile',
+        'Basic Salary',
+        'HRA',
+        'DA',
+        'PF',
+        'ESI',
+        'TDS',
+        'Date (YYYY-MM)'
+    ];
+
+    $col = 0;
+    foreach ($headers as $header) {
+        $sheet->setCellValueByColumnAndRow($col++, 1, $header);
+    }
+
+    // Fill employee data
+    $row = 2;
+    foreach ($employees as $emp) {
+        $sheet->setCellValueByColumnAndRow(0, $row, $emp->id);
+        $sheet->setCellValueByColumnAndRow(1, $row, $emp->name);
+        $sheet->setCellValueByColumnAndRow(2, $row, $emp->mobile);
+        $row++;
+    }
+
+    header('Content-Type: application/vnd.ms-excel');
+    header('Content-Disposition: attachment;filename="salary_sample.xlsx"');
+    header('Cache-Control: max-age=0');
+
+    $writer = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+    $writer->save('php://output');
+}
 
 
 

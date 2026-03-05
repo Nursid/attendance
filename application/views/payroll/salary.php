@@ -167,9 +167,31 @@
                    class="form-control"
                    title="Start Date"
                    value="<?php echo $month; ?>"
-                   onchange="setDate()"
                    id="setDate">
+
+                   <button type="button" class="btn btn-primary" id="setDate2">
+                    Search
+                </button>  
         </div>
+
+
+        <div class="col-md-4">
+          <form id="importForm" enctype="multipart/form-data">
+              <div class="input-group">
+                  <input type="file" 
+                        name="salaryFile" 
+                        id="salaryFile"
+                        class="form-control"
+                        accept=".xls,.xlsx"
+                        required>
+                  <button type="button" 
+                          class="btn btn-success" 
+                          id="importBtn">
+                      Import Excel
+                  </button>
+              </div>
+          </form>
+      </div>
 
         <!-- RIGHT : Search + Buttons -->
         <div class="d-flex align-items-end gap-2 flex-wrap">
@@ -198,32 +220,26 @@
 </div>
   </form>
 
+  <br>
+  <div class="mb-2 text-right">
+  <button onclick="downloadSalarySample()" class="btn btn-success">
+    Download Salary Sample
+</button>
+</div>
 
 
-            <!--  <div align="right">
-                          <input type="button"  class="btn btn-primary" onClick="exportData()" value="Export To Excel" />
-                          <input type="button"   class="btn btn-primary" id="btnExport" value="Export To Pdf" onclick="exportPDF()" />
-                          
-                        </div>-->
-                        <br>
 
                         <?php
 $selectedMonth = isset($_GET['getDate']) ? $_GET['getDate'] : date('Y-m');
 
-/*
-  For each employee:
-  Get latest salary record whose date <= selected month
-*/
+
 $salaryRows = $this->db->query("
-    SELECT s1.*
-    FROM salary s1
-    INNER JOIN (
-        SELECT uid, MAX(date) AS max_date
-        FROM salary
-        WHERE DATE_FORMAT(date,'%Y-%m') <= ?
-        GROUP BY uid
-    ) s2 ON s1.uid = s2.uid AND s1.date = s2.max_date
-", [$selectedMonth])->result();
+    SELECT s.*
+    FROM salary s
+    INNER JOIN user_request ur ON ur.user_id = s.uid
+    WHERE ur.business_id = ?
+    AND DATE_FORMAT(s.date, '%Y-%m') = ?
+", [$id, $selectedMonth])->result();
 
 /* Map salary by uid */
 $salaryMap = [];
@@ -232,6 +248,8 @@ foreach ($salaryRows as $s) {
     $salaryMap[$s->uid] = $s;
     $salaryIds[] = $s->id;
 }
+
+
 
 /* Get salary breakup (Allowance / Deduction / PF / ESI / TDS) */
 $breakups = [];
@@ -253,6 +271,7 @@ if (!empty($salaryIds)) {
         $breakups[$r->sid][$r->type][$r->name] = $r->total;
     }
 }
+
 ?>
 
                 <table id="newsalaryReport" class="table table-bordered table-striped">
@@ -642,7 +661,7 @@ foreach ($salEmpList as $empData):
 
 <script src="<?php echo base_url('adminassets/plugins/jquery/jquery.min.js') ?>"></script>
 <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
 
@@ -938,20 +957,6 @@ foreach ($salEmpList as $empData):
 
   }
 
-
-  function setDate() {
-
-    var date_from = $("#setDate").val();
-        $.ajax({
-            type: "get",
-            url: "<?php base_url('Payroll/employeesSalary'); ?>",
-            data: {'date_from': date_from},
-            success: function (data) {
-                window.location.href = "<?php base_url('Payroll/employeesSalary'); ?>?getDate="+date_from;
-            }
-    });
-  }
-
   function checkDate() {
     var date_from = $("input[name='date_from']").val();
     var date_to = $("input[name='date_to']").val();
@@ -1073,7 +1078,7 @@ foreach ($salEmpList as $empData):
       dataType: "json",
       success: function(result) {
         if (result.status > 0) {
-          var deductData = "";
+          var deductData = "";  
           var count = 1;
           while(amount>0){
             if(count==maxMonths){
@@ -1156,3 +1161,142 @@ foreach ($salEmpList as $empData):
     $("input[name='salary_changed_"+$num+"']").val(1);
   }
 </script>
+
+<script>
+function downloadSalarySample() {
+
+const selectedMonth = $("#setDate").val();
+
+if (!selectedMonth) {
+    alert("Please select month");
+    return;
+}
+
+$.when(
+    $.get("<?= base_url('User/getAllEmployeesForExport') ?>", {
+        date: selectedMonth
+    }),
+    $.get("<?= base_url('User/getActiveSalaryHeads') ?>")
+).done(function(empRes, headRes) {
+
+    const employees = empRes[0].data || [];
+    const heads = headRes[0].data || [];
+
+    if (employees.length === 0) {
+        alert("No employee data found");
+        return;
+    }
+
+    // ✅ Create Header Row
+    let headerRow = [
+        "User ID",
+        "Employee Name",
+        "Mobile",
+        "Basic Salary"
+    ];
+
+    // Add dynamic salary heads
+    heads.forEach(h => {
+        headerRow.push(h.name);
+    });
+
+    headerRow.push("Date (YYYY-MM)");
+
+    const data = [headerRow];
+
+    // ✅ Create Employee Rows
+    employees.forEach(emp => {
+
+        let row = [
+            emp.user_id,
+            emp.empName,
+            emp.empMobile || "",
+            emp.basic_value || ""
+        ];
+
+        // 🔥 Insert dynamic head values properly
+        heads.forEach(h => {
+            if (emp.heads && emp.heads[h.name]) {
+                row.push(emp.heads[h.name]);
+            } else {
+                row.push("");
+            }
+        });
+
+        row.push(selectedMonth);
+
+        data.push(row);
+    });
+
+    // ✅ Generate Excel
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Salary Sample");
+
+    XLSX.writeFile(wb, `salary_sample_${selectedMonth}.xlsx`);
+
+}).fail(function() {
+    alert("Something went wrong");
+});
+}
+
+$(document).ready(function () {
+
+$("#setDate2").on("click", function () {
+    setDate();
+});
+});
+
+function setDate() {
+var date_from = $("#setDate").val();
+
+if (date_from) {
+  window.location.href = "<?= base_url('Payroll/employeesSalary') ?>?getDate=" + date_from;
+}
+}
+
+
+$(document).ready(function () {
+
+$("#importBtn").on("click", function () {
+
+    var fileInput = $("#salaryFile")[0].files[0];
+
+    if (!fileInput) {
+        alert("Please select a file to upload");
+        return;
+    }
+
+    var formData = new FormData();
+    formData.append("file", fileInput);
+    formData.append("companyId", "<?= $id ?>");
+    $.ajax({
+        url: "http://31.97.230.189:3000/api/salary/upload-excel", // aapka API endpoint
+        type: "POST",
+        data: formData,
+        processData: false,
+        contentType: false,
+        beforeSend: function() {
+            $("#importBtn").prop("disabled", true).text("Uploading...");
+        },
+        success: function(response) {
+            alert(response.message || "File uploaded successfully");
+            console.log(response);
+            setDate();
+
+        },
+        error: function(err) {
+            console.error(err);
+            alert("Upload failed");
+        },
+        complete: function() {
+            $("#importBtn").prop("disabled", false).text("Import Excel");
+        }
+    });
+
+});
+
+});
+
+</script>
+

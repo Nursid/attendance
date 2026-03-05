@@ -10829,54 +10829,219 @@ public function shift_report(){
 
     exit;
 }
-	public function getAllEmployeesForExport()
-	{
-		$sessionData = $this->session->userdata();
 
-		if ($sessionData['type'] == 'P') {
-			$loginID = $sessionData['empCompany'];
+public function getAllEmployeesForExport()
+{
+    $sessionData = $this->session->userdata();
 
-			$role = $this->web->getRollbyid(
-				$sessionData['login_id'],
-				$loginID
-			);
+    $loginID = ($sessionData['type'] == 'P') 
+        ? $sessionData['empCompany'] 
+        : $sessionData['login_id'];
 
-		} else {
-			$loginID = $sessionData['login_id'];
-		}
+    $date = $this->input->get('date');
 
-		$this->db->select('
-			user_request.*,
-			login.name as empName,
-			login.mobile as empMobile,
-			login.emp_code,
-			login.designation as empDesignation,
-			login.business_group,
-			login.id as emp_id,
-			login.department,
-			login.section
-		');
+    $startDate = null;
+    $endDate   = null;
 
-		$this->db->from('user_request'); // ✅ Missing earlier
+    if (!empty($date)) {
+        $startDate = $date . "-01";
+        $endDate   = date("Y-m-t", strtotime($startDate));
+    }
 
-		$this->db->join('login', 'login.id = user_request.user_id', 'LEFT');
+    // ✅ STEP 1: Get Employees + Salary
+    $this->db->select("
+        ur.user_id,
+        l.name as empName,
+        l.mobile as empMobile,
+        l.emp_code,
+        l.designation as empDesignation,
+        IFNULL(s.id, 0) as salary_id,
+        IFNULL(s.basic_value, '') as basic_value
+    ");
 
-		$this->db->where('user_request.business_id', $loginID);
+    $this->db->from('user_request ur');
+    $this->db->join('login l', 'l.id = ur.user_id', 'LEFT');
 
-		$this->db->order_by('login.emp_code', 'ASC'); // ✅ Prefixed
-		$this->db->order_by('user_request.doj', 'ASC'); // ✅ Prefixed
+    if ($startDate) {
+        $this->db->join(
+            'salary s',
+            "s.uid = ur.user_id 
+             AND s.date >= '$startDate' 
+             AND s.date <= '$endDate'",
+            'LEFT'
+        );
+    } else {
+        $this->db->join('salary s', 's.uid = ur.user_id', 'LEFT');
+    }
 
-		$employees = $this->db->get()->result_array();
+    $this->db->where('ur.business_id', $loginID);
+    $this->db->order_by('l.emp_code', 'ASC');
 
-		$response = [
-			'status' => 1,
-			'data'   => $employees
-		];
+    $employees = $this->db->get()->result_array();
 
-		return $this->output
-			->set_content_type('application/json')
-			->set_output(json_encode($response));
-	}
+    // ✅ STEP 2: Get Salary Head Values
+    $salaryIds = array_column($employees, 'salary_id');
+    $salaryIds = array_filter($salaryIds);
+
+    $headData = [];
+
+    if (!empty($salaryIds)) {
+
+        $this->db->select("
+            sb.sid,
+            ch.name,
+            IFNULL(sb.amount, '') as amount
+        ");
+        $this->db->from('salary_basic sb');
+        $this->db->join('ctc_head ch', 'ch.id = sb.header_id', 'LEFT');
+        $this->db->where_in('sb.sid', $salaryIds);
+
+        $headRows = $this->db->get()->result_array();
+
+        foreach ($headRows as $row) {
+            $headData[$row['sid']][$row['name']] = $row['amount'];
+        }
+    }
+
+    // ✅ STEP 3: Merge Head Data Into Employees
+    foreach ($employees as &$emp) {
+
+        $sid = $emp['salary_id'];
+        $emp['heads'] = isset($headData[$sid]) ? $headData[$sid] : [];
+
+        unset($emp['salary_id']);
+    }
+
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+            'status' => 1,
+            'data'   => $employees
+        ]));
 }
+	// public function getAllEmployeesForExport()
+	// {
+	// 	$sessionData = $this->session->userdata();
+
+	// 	if ($sessionData['type'] == 'P') {
+	// 		$loginID = $sessionData['empCompany'];
+
+	// 		$role = $this->web->getRollbyid(
+	// 			$sessionData['login_id'],
+	// 			$loginID
+	// 		);
+
+	// 	} else {
+	// 		$loginID = $sessionData['login_id'];
+	// 	}
+
+	// 	$date = $this->input->get('date');
+
+	// 	$this->db->select('
+	// 		user_request.*,
+	// 		login.name as empName,
+	// 		login.mobile as empMobile,
+	// 		login.emp_code,
+	// 		login.designation as empDesignation,
+	// 		login.business_group,
+	// 		login.id as emp_id,
+	// 		login.department,
+	// 		login.section,
+	// 	    IFNULL(salary.basic_value, "") as basic_value,
+	// 		salary.date
+	// 	');
+
+	// 	$this->db->from('user_request'); // ✅ Missing earlier
+
+	// 	$this->db->join('login', 'login.id = user_request.user_id', 'LEFT');
+	// 	if (!empty($date)) {
+
+	// 		$startDate = $date . "-01";
+	// 		$endDate   = date("Y-m-t", strtotime($startDate));
+		
+	// 		// ✅ Date condition JOIN ke andar
+	// 		$this->db->join(
+	// 			'salary',
+	// 			"salary.uid = user_request.user_id 
+	// 			 AND salary.date >= '$startDate' 
+	// 			 AND salary.date <= '$endDate'",
+	// 			'LEFT'
+	// 		);
+	// 	} else {
+	// 		$this->db->join(
+	// 			'salary',
+	// 			"salary.uid = user_request.user_id",
+	// 			'LEFT'
+	// 		);
+	// 	}
+
+	// 	$this->db->where('user_request.business_id', $loginID);
+	// 	$this->db->order_by('login.emp_code', 'ASC'); // ✅ Prefixed
+	// 	$this->db->order_by('user_request.doj', 'ASC'); // ✅ Prefixed
+
+	// 	$employees = $this->db->get()->result_array();
+
+	// 	$response = [
+	// 		'status' => 1,
+	// 		'data'   => $employees
+	// 	];
+
+	// 	return $this->output
+	// 		->set_content_type('application/json')
+	// 		->set_output(json_encode($response));
+	// }
+
+// 	public function getActiveSalaryHeads()
+// {
+//     $sessionData = $this->session->userdata();
+
+//     if ($sessionData['type'] == 'P') {
+//         $loginID = $sessionData['empCompany'];
+//     } else {
+//         $loginID = $sessionData['login_id'];
+//     }
+
+//     $this->db->select('name,type');
+//     $this->db->from('ctc_head');
+//     $this->db->where('bid', $loginID);
+//     $this->db->where('active', 1);
+
+//     $heads = $this->db->get()->result_array();
+
+//     return $this->output
+//         ->set_content_type('application/json')
+//         ->set_output(json_encode([
+//             'status' => 1,
+//             'data'   => $heads,
+// 			'loginID' => $loginID
+//         ]));
+// }
+
+public function getActiveSalaryHeads()
+{
+    $sessionData = $this->session->userdata();
+
+    $loginID = ($sessionData['type'] == 'P') 
+        ? $sessionData['empCompany'] 
+        : $sessionData['login_id'];
+
+    $this->db->select('id, name, type');
+    $this->db->from('ctc_head');
+    $this->db->where('bid', $loginID);
+    $this->db->where('active', 1);
+
+    $heads = $this->db->get()->result_array();
+
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+            'status' => 1,
+            'data'   => $heads
+        ]));
+}
+
+}
+
+
 
 ?>
