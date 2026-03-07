@@ -249,8 +249,6 @@ foreach ($salaryRows as $s) {
     $salaryIds[] = $s->id;
 }
 
-
-
 /* Get salary breakup (Allowance / Deduction / PF / ESI / TDS) */
 $breakups = [];
 if (!empty($salaryIds)) {
@@ -271,6 +269,9 @@ if (!empty($salaryIds)) {
         $breakups[$r->sid][$r->type][$r->name] = $r->total;
     }
 }
+
+
+
 
 ?>
 
@@ -294,6 +295,7 @@ if (!empty($salaryIds)) {
                   <tbody>
 <?php
 $sr = $offset + 1;
+
 
 foreach ($salEmpList as $empData):
 
@@ -1271,7 +1273,7 @@ $("#importBtn").on("click", function () {
     formData.append("file", fileInput);
     formData.append("companyId", "<?= $id ?>");
     $.ajax({
-        url: "http://31.97.230.189:3000/api/salary/upload-excel", // aapka API endpoint
+        url: "http://localhost:3000/api/salary/upload-excel", // aapka API endpoint
         type: "POST",
         data: formData,
         processData: false,

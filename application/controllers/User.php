@@ -3300,7 +3300,7 @@ class User extends CI_Controller {
 		/* ================= NODE API CALL ================= */
 
 		$payload = json_encode([
-			"companyId"  => 29643,
+			"companyId"  => $companyId,
 			"start_date" => $start_date,
 			"end_date"   => $end_date,
 			"department"=> $depart,
@@ -3426,10 +3426,11 @@ private function hasTimePHP($timeStr)
 			} else {
 				$companyId = $this->session->userdata('login_id');
 			}
+			
 
 			// ✅ NODE API PAYLOAD
 			$payload = json_encode([
-				"companyId"  => 29643,
+				"companyId"  => $companyId,
 				"start_date" => $start_date,
 				"department"=> $depart,
 				"section"   => $section,
