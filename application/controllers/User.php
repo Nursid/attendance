@@ -11101,11 +11101,18 @@ public function getPayrollDataForExport()
         ? $sessionData['empCompany'] 
         : $sessionData['login_id'];
 
+    $fromDate = $this->input->get('fromDate');
+    $toDate = $this->input->get('toDate');    
     $date = $this->input->get('date'); // YYYY-MM
     $payroll_id = $this->input->get('payroll_id');
 
-    $startDate = $date . "-01";
-    $endDate   = date("Y-m-t", strtotime($startDate));
+    if ($fromDate && $toDate) {
+        $startDate = $fromDate;
+        $endDate = $toDate;
+    } else {
+        $startDate = $date . "-01";
+        $endDate   = date("Y-m-t", strtotime($startDate));
+    }
 
     // ✅ STEP 0: Payroll Name (IMPORTANT FIX)
     $head = $this->db->select('name')
@@ -11131,30 +11138,45 @@ public function getPayrollDataForExport()
     // ✅ STEP 2: Payroll Data
     $this->db->select("
         user_id,
+        DATE(pay_date) as pdate,
         SUM(amount) as total
     ");
     $this->db->from('payroll_history');
     $this->db->where('business_id', $loginID);
     $this->db->where('payroll_master_id', $payroll_id);
-    $this->db->where('pay_date >=', $startDate);
-    $this->db->where('pay_date <=', $endDate);
-    $this->db->group_by('user_id');
+    $this->db->where('DATE(pay_date) >=', $startDate);
+    $this->db->where('DATE(pay_date) <=', $endDate);
+    $this->db->group_by('user_id, DATE(pay_date)');
 
     $payrollData = $this->db->get()->result_array();
 
     // ✅ STEP 3: Map
     $payrollMap = [];
+    $uniqueDates = [];
     foreach ($payrollData as $p) {
-        $payrollMap[$p['user_id']] = $p['total'];
+        $uid = $p['user_id'];
+        $d = $p['pdate'];
+
+        if (!isset($payrollMap[$uid])) {
+            $payrollMap[$uid] = [];
+        }
+        $payrollMap[$uid][$d] = $p['total'];
+
+        if (!in_array($d, $uniqueDates)) {
+            $uniqueDates[] = $d;
+        }
     }
+
+    sort($uniqueDates);
 
     // ✅ STEP 4: Dynamic Merge (MAIN FIX 🔥)
     foreach ($employees as &$emp) {
         $uid = $emp['user_id'];
 
-        $emp[$headName] = isset($payrollMap[$uid]) 
-            ? $payrollMap[$uid] 
-            : 0;
+        $emp['dates'] = [];
+        foreach ($uniqueDates as $d) {
+            $emp['dates'][$d] = isset($payrollMap[$uid][$d]) ? $payrollMap[$uid][$d] : 0;
+        }
     }
 
     return $this->output
@@ -11162,6 +11184,7 @@ public function getPayrollDataForExport()
         ->set_output(json_encode([
             'status' => 1,
             'head'   => $headName, // 👈 frontend use karega
+            'dates'  => $uniqueDates,
             'data'   => $employees
         ]));
 }

@@ -130,7 +130,9 @@
   <?php
   //if ($this->session->userdata()['type'] == 'B') {
       if($this->session->userdata()['type']=='B' || $role[0]->earn=="1" || $role[0]->type=="1"){
-    $month = isset($_GET['getDate']) ? $_GET['getDate'] : date("Y-m");
+    $fromDate = isset($_GET['fromDate']) ? $_GET['fromDate'] : date("Y-m-01");
+    $toDate = isset($_GET['toDate']) ? $_GET['toDate'] : date("Y-m-t");
+    $month = date('Y-m', strtotime($fromDate)); // Fallback for selectDate hidden field
   ?>
     <!-- Main content -->
     <section class="content">
@@ -153,7 +155,13 @@
                       <div class="row mb-4">
                         <div class="col-sm-3">
 
-                          <input type="month" title="Start Date" class="form-control" placeholder="Date From" value="<?php echo $month; ?>" onchange="setDate()" id="setDate">
+                          <input type="date" title="From Date" class="form-control" value="<?php echo $fromDate; ?>" id="fromDate">
+                        </div>
+                        <div class="col-sm-3">
+                          <input type="date" title="To Date" class="form-control" value="<?php echo $toDate; ?>" id="toDate">
+                        </div>
+                        <div class="col-sm-2">
+                          <button class="btn btn-primary mt-1" type="button" onclick="filterData()">Filter</button>
                         </div>
 
                     
@@ -212,7 +220,8 @@
                                               ->where_in('payroll_master_id',[4])
                                               ->where('payroll_history.status',1)
                                               ->where("user_id",$empData->emp_id)
-                                              ->where("DATE_FORMAT(pay_date,'%Y-%m')", $month)
+                                              ->where("pay_date >=", $fromDate)
+                                              ->where("pay_date <=", $toDate)
                                               ->get()->row();
                         $earnings = $this->db->select_sum("amount")
                                               ->from("payroll_history")
@@ -220,7 +229,8 @@
                                               ->where_in('payroll_master_id',[1,3,5,6])
                                               ->where('payroll_history.status',1)
                                               ->where("user_id",$empData->emp_id)
-                                              ->where("DATE_FORMAT(pay_date,'%Y-%m')", $month)
+                                              ->where("pay_date >=", $fromDate)
+                                              ->where("pay_date <=", $toDate)
                                               ->get()->row();
                         $deduction = $this->db->select_sum("amount")
                                               ->from("payroll_history")
@@ -228,7 +238,8 @@
                                               ->where_in('payroll_master_id',[7,8])
                                               ->where('payroll_history.status',1)
                                               ->where("user_id",$empData->emp_id)
-                                              ->where("DATE_FORMAT(pay_date,'%Y-%m')", $month)
+                                              ->where("pay_date >=", $fromDate)
+                                              ->where("pay_date <=", $toDate)
                                               ->get()->row();
                         $paid = $this->db->select_sum("amount")
                                               ->from("payroll_history")
@@ -237,7 +248,8 @@
                                               ->where('payroll_history.status',1)
                                               ->where("payroll_id",0)
                                               ->where("user_id",$empData->emp_id)
-                                              ->where("DATE_FORMAT(pay_date,'%Y-%m')", $month)
+                                              ->where("pay_date >=", $fromDate)
+                                              ->where("pay_date <=", $toDate)
                                               ->get()->row();
 
                         ?>
@@ -380,7 +392,12 @@
   }
 
 let selectedPayrollId = '';
-let selectedMonth = document.getElementById('setDate').value;
+let selectedFrom = document.getElementById('fromDate').value;
+let selectedTo = document.getElementById('toDate').value;
+
+function filterData() {
+  window.location.href = window.location.pathname + '?fromDate=' + $("#fromDate").val() + '&toDate=' + $("#toDate").val();
+}
 
 function selectPayroll(id, name) {
   selectedPayrollId = id;
@@ -484,51 +501,58 @@ function selectPayroll(id, name) {
 
 function exportPayroll() {
 
-const selectedMonth = $("#setDate").val();
+const fromDate = $("#fromDate").val();
+const toDate = $("#toDate").val();
 
 if (!selectedPayrollId) {
     alert("Please select payroll");
     return;
 }
 
-if (!selectedMonth) {
-    alert("Please select month");
+if (!fromDate || !toDate) {
+    alert("Please select both from and to dates");
     return;
 }
 
 $.get("<?= base_url('User/getPayrollDataForExport') ?>", {
-    date: selectedMonth,
+    fromDate: fromDate,
+    toDate: toDate,
     payroll_id: selectedPayrollId
 }, function(res) {
 
     const employees = res.data || [];
     const headName = res.head;
+    const dates = res.dates || [];
 
     let headerRow = [
         "User ID",
         "Employee Name",
-        "Mobile",
-        headName, // 🔥 dynamic
-        "Month"
+        "Mobile"
     ];
+    
+    dates.forEach(date => {
+        headerRow.push(`${headName} (${date})`);
+    });
 
     const data = [headerRow];
 
     employees.forEach(emp => {
-        data.push([
+        let row = [
             emp.user_id,
             emp.empName,
-            emp.empMobile || "",
-            emp[headName] || 0, // 🔥 dynamic key
-            selectedMonth
-        ]);
+            emp.empMobile || ""
+        ];
+        dates.forEach(date => {
+            row.push(emp.dates ? (emp.dates[date] || 0) : 0);
+        });
+        data.push(row);
     });
 
     const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Payroll Report");
 
-    XLSX.writeFile(wb, `${headName}_${selectedMonth}.xlsx`);
+    XLSX.writeFile(wb, `${headName}_${fromDate}_to_${toDate}.xlsx`);
 
 }, 'json');
 }
