@@ -106,17 +106,17 @@ date_default_timezone_set('Asia/Kolkata');
                   </div>
                   <div class="card-body">
                     <!-- /.Form starts -->
-                    <h5> Select Biometrics </h5>
+                    <!-- <h5> Select Biometrics </h5> -->
                     <div class="row">
                       <div class="col-lg-12 float-left">
                         <form action="<?php echo base_url('User/access_report')?>" method="GET">
                           <div class="row">
-                            <div class="col-sm-2">
+                            <!-- <div class="col-sm-2">
                               <input type="date" name="start_date" id="start_date"  value="<?php echo $start_date; ?>" class="form-control" max="<?php echo $end_date; ?>" onchange="startChange(event);">
                             </div>
                             <div class="col-sm-2">
                               <input type="date" name="end_date" id="end_date"  value="<?php echo $end_date; ?>"class="form-control" max="<?php echo date('Y-m-d'); ?>" min="<?php echo $start_date;?>" onchange="endChange(event);">
-                            </div>
+                            </div> -->
                             <div class="col-sm-2 ">
                               <!--<label for="employee">Employee</label>-->
                               <select name="bio" class="form-control"  id="bio" >

@@ -2393,6 +2393,28 @@ public function changeLeaveFmDate2(){
 }
 
 
+public function utilities()
+	{
+		$data['page']  		= 'payroll/utilities';
+		$data['title'] 		= 'Payroll - Utilities';
+		$data['lMenu']  	= 'Sallery';
+   	if($this->session->userdata()['type']=='P'){
+      
+      $business_id = $this->session->userdata('empCompany');
+     // $role=$this->web->getRollbyid($this->web->session->userdata('login_id'),$id);
+  
+    } else {
+      $business_id=$this->web->session->userdata('login_id');
+    }
+        $cmpName = $this->web->getBusinessById($business_id);
+		$data['salEmpList'] 	= $this->web->getSallaryReport();
+		$data['date_from'] = date("Y-m");
+    	$data['cmp_name']=$cmpName['name'];
+		$data['payrollList'] 	= $this->db->get_where('payroll_master', ['status' => 1], '', 'ASC')->result_array();
+		// print_r($data['payrollList']); exit;
+		$this->load->view('salary/include/page',$data);
+	}
+
 
 
 

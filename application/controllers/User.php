@@ -10698,8 +10698,10 @@ public function shift_report(){
 	public function access_report(){
 		if(!empty($this->session->userdata('id'))){
 				$postdata=$this->input->get();
-					$start_date = date("Y-m-d");
-					$end_date = date("Y-m-d");
+					// $start_date = date("Y-m-d");
+					// $end_date = date("Y-m-d");
+					$end_date = date("Y-m-d"); // today
+				    $start_date = date("Y-m-d", strtotime("-7 days")); // 7 days before
 					$bio='';
 					$event_name='';
 					$true = 0;
@@ -10714,14 +10716,14 @@ public function shift_report(){
 						}
 					}
 			
-					if(isset($postdata['start_date']) && isset($postdata['end_date'])){
-						$start_date = $postdata['start_date'];
-						$end_date = $postdata['end_date'];
-						// $bio = $postdata['bio'];
+					// if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+					// 	$start_date = $postdata['start_date'];
+					// 	$end_date = $postdata['end_date'];
+					// 	// $bio = $postdata['bio'];
 						$bio = isset($postdata['bio']) ? trim((string)$postdata['bio']) : '';
-						$event_name = $postdata['event_name'];
+						$event_name = 0;
 						$true= 1;
-					}
+					// }
 
 					$this->load->library('pagination');
 				$start_time = strtotime($start_date . ' 00:00:00');
@@ -10753,6 +10755,8 @@ public function shift_report(){
 				$config['attributes']       = ['class' => 'page-link'];
 				
 
+				
+
 
 				$this->pagination->initialize($config);
 
@@ -10767,6 +10771,25 @@ public function shift_report(){
 					$page,
 					$loginId
 				);
+				$data['start_date'] = date("Y-m-d", $start_time);
+				$data['end_date']   = date("Y-m-d", $end_time);
+
+				// echo $start_time,
+				// '-',
+				// $end_time,
+				// '-',
+				// $bio,
+				// '-',
+				// $event_name,
+				// '-',
+				// $config['per_page'],
+				// '-',
+				// $page,
+				// '-',
+				// $loginId;
+				// echo '<pre>';
+				// print_r($data);
+				// die();
 
 				$data['pagination'] = $this->pagination->create_links();
 									
@@ -11041,8 +11064,107 @@ public function getActiveSalaryHeads()
         ]));
 }
 
+
+
+	public function getPayroll()
+{
+    $sessionData = $this->session->userdata();
+
+    if ($sessionData['type'] == 'P') {
+        $loginID = $sessionData['empCompany'];
+    } else {
+        $loginID = $sessionData['login_id'];
+    }
+
+    $this->db->select('name,type');
+    $this->db->from('ctc_head');
+    $this->db->where('bid', $loginID);
+    $this->db->where('active', 1);
+
+    $heads = $this->db->get()->result_array();
+
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+            'status' => 1,
+            'data'   => $heads,
+			'loginID' => $loginID
+        ]));
 }
 
 
+public function getPayrollDataForExport()
+{
+    $sessionData = $this->session->userdata();
+
+    $loginID = ($sessionData['type'] == 'P') 
+        ? $sessionData['empCompany'] 
+        : $sessionData['login_id'];
+
+    $date = $this->input->get('date'); // YYYY-MM
+    $payroll_id = $this->input->get('payroll_id');
+
+    $startDate = $date . "-01";
+    $endDate   = date("Y-m-t", strtotime($startDate));
+
+    // ✅ STEP 0: Payroll Name (IMPORTANT FIX)
+    $head = $this->db->select('name')
+        ->from('payroll_master') // ✅ correct table
+        ->where('id', $payroll_id)
+        ->get()
+        ->row();
+
+    $headName = $head ? $head->name : 'Amount';
+
+    // ✅ STEP 1: Employee Basic Info
+    $this->db->select("
+        ur.user_id,
+        l.name as empName,
+        l.mobile as empMobile
+    ");
+    $this->db->from('user_request ur');
+    $this->db->join('login l', 'l.id = ur.user_id', 'LEFT');
+    $this->db->where('ur.business_id', $loginID);
+
+    $employees = $this->db->get()->result_array();
+
+    // ✅ STEP 2: Payroll Data
+    $this->db->select("
+        user_id,
+        SUM(amount) as total
+    ");
+    $this->db->from('payroll_history');
+    $this->db->where('business_id', $loginID);
+    $this->db->where('payroll_master_id', $payroll_id);
+    $this->db->where('pay_date >=', $startDate);
+    $this->db->where('pay_date <=', $endDate);
+    $this->db->group_by('user_id');
+
+    $payrollData = $this->db->get()->result_array();
+
+    // ✅ STEP 3: Map
+    $payrollMap = [];
+    foreach ($payrollData as $p) {
+        $payrollMap[$p['user_id']] = $p['total'];
+    }
+
+    // ✅ STEP 4: Dynamic Merge (MAIN FIX 🔥)
+    foreach ($employees as &$emp) {
+        $uid = $emp['user_id'];
+
+        $emp[$headName] = isset($payrollMap[$uid]) 
+            ? $payrollMap[$uid] 
+            : 0;
+    }
+
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+            'status' => 1,
+            'head'   => $headName, // 👈 frontend use karega
+            'data'   => $employees
+        ]));
+}
+}
 
 ?>

@@ -483,6 +483,13 @@
                   <p>Earnings&Deduc</p>
                 </a>
               </li>
+
+              <li class="nav-item">
+                <a href="<?php echo base_url('payroll/utilities')?>" class="nav-link">
+                  <i class="fa fa-history nav-icon"></i>
+                  <p>Payroll Utilities</p>
+                </a>
+              </li>
            
               
               
@@ -848,6 +855,14 @@
                 <a href="<?php echo base_url('payroll/earnings')?>" class="nav-link">
                   <i class="fa fa-history nav-icon"></i>
                   <p>Earnings&Deduc</p>
+                </a>
+              </li>
+
+              
+              <li class="nav-item">
+                <a href="<?php echo base_url('payroll/utilities')?>" class="nav-link">
+                  <i class="fa fa-history nav-icon"></i>
+                  <p>Payroll Utilities</p>
                 </a>
               </li>
            
