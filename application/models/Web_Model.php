@@ -4164,7 +4164,7 @@ public function geteventbydeviceid($bio,$event){
 
 //     return $this->db->query($sql, $params)->result();
 // }
-public function getvisitoraccessbyevent($start_time, $end_time, $bio, $event_name, $limit, $offset, $loginId)
+public function getvisitoraccessbyevent($start_time, $end_time, $bio, $event_name, $search, $limit, $offset, $loginId)
 {
     $sql = "
         SELECT DISTINCT
@@ -4207,6 +4207,12 @@ public function getvisitoraccessbyevent($start_time, $end_time, $bio, $event_nam
 		$params[] = trim((string)$bio);
 	}
 
+    if (!empty($search)) {
+        $sql .= " AND (l.name LIKE ? OR l.mobile LIKE ?)";
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
+    }
+
     $limit  = (int)$limit;
     $offset = (int)$offset;
 
@@ -4215,11 +4221,13 @@ public function getvisitoraccessbyevent($start_time, $end_time, $bio, $event_nam
     return $this->db->query($sql, $params)->result();
 }
 
-public function countVisitorLogs($start_time, $end_time, $bio, $event_name)
+public function countVisitorLogs($start_time, $end_time, $bio, $event_name, $search = '')
 {
     $sql = "
         SELECT COUNT(*) as total
         FROM visitor_log vl
+        JOIN login l 
+            ON l.bio_id = vl.user_id 
         LEFT JOIN bio_event be
             ON be.event_id = vl.event 
             AND be.device_id = vl.device_id
@@ -4239,12 +4247,18 @@ public function countVisitorLogs($start_time, $end_time, $bio, $event_name)
         $params[] = $bio;
     }
 
+    if (!empty($search)) {
+        $sql .= " AND (l.name LIKE ? OR l.mobile LIKE ?)";
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
+    }
+
     $query = $this->db->query($sql, $params)->row();
     return $query->total;
 }
 	
 
-public function getvisitoraccessbyevent_export($start_time, $end_time, $bio, $event_name, $loginId)
+public function getvisitoraccessbyevent_export($start_time, $end_time, $bio, $event_name, $search, $loginId)
 {
     $sql = "
         SELECT DISTINCT
@@ -4288,7 +4302,61 @@ public function getvisitoraccessbyevent_export($start_time, $end_time, $bio, $ev
         $params[] = $bio;
     }
 
+    if (!empty($search)) {
+        $sql .= " AND (l.name LIKE ? OR l.mobile LIKE ?)";
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
+    }
+
     $sql .= " ORDER BY vl.io_time DESC";
+
+    return $this->db->query($sql, $params)->result();
+}
+
+
+public function getvisitoraccessbyevent_api($start_time, $end_time, $bio, $search, $loginId)
+{
+    $sql = "
+        SELECT DISTINCT
+            vl.id,
+            vl.user_id,
+            vl.device_id,
+            vl.event,
+            vl.io_time,
+            vl.latitude,
+            vl.longitude,
+            vl.location,
+            l.name,
+			bb.name as device_name,
+            l.father_name,
+            l.mobile,
+            l.designation,
+            be.event_name
+        FROM visitor_log vl
+         JOIN login l 
+            ON l.bio_id = vl.user_id 
+            AND l.company = ?
+        LEFT JOIN bio_event be
+            ON be.event_id = vl.event 
+            AND be.device_id = vl.device_id
+		LEFT JOIN Business_bioid bb 
+            ON bb.deviceid = vl.device_id AND bb.active = '1'
+        WHERE vl.user_id != 99999996
+        AND vl.io_time BETWEEN ? AND ?
+    ";
+
+    $params = [$loginId, $start_time, $end_time];
+
+	if (!empty($bio)) {
+		$sql .= " AND TRIM(CAST(vl.device_id AS CHAR)) = ?";
+		$params[] = trim((string)$bio);
+	}
+
+    if (!empty($search)) {
+        $sql .= " AND (l.name LIKE ? OR l.mobile LIKE ?)";
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
+    }
 
     return $this->db->query($sql, $params)->result();
 }

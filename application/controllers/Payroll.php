@@ -2393,7 +2393,7 @@ public function changeLeaveFmDate2(){
 }
 
 
-public function utilities()
+	public function utilities()
 	{
 		$data['page']  		= 'payroll/utilities';
 		$data['title'] 		= 'Payroll - Utilities';
@@ -2415,11 +2415,113 @@ public function utilities()
 		$this->load->view('salary/include/page',$data);
 	}
 
+    public function importBulkPayroll() {
+        if($this->session->userdata()['type']=='P'){
+            $bid = $this->session->userdata('empCompany');
+        } else {
+            $bid=$this->session->userdata('login_id');
+        }
+    
+        $postData = json_decode(file_get_contents('php://input'), true);
+        if (!isset($postData['excelData']) || empty($postData['excelData'])) {
+            echo json_encode(['status' => 0, 'message' => 'No data received.']);
+            return;
+        }
+    
+        $json = $postData['excelData'];
+        
+        if (count($json) < 2) {
+            echo json_encode(['status' => 0, 'message' => 'Excel file is empty or missing data rows.']);
+            return;
+        }
+    
+        $headerRow = $json[0];
+        $dateColumns = []; 
+        
+        for ($col = 3; $col < count($headerRow); $col++) {
+            if (!isset($headerRow[$col])) continue;
+            
+            $cellValue = trim($headerRow[$col]);
+            if (preg_match('/(.+)\s\((.+)\)/', $cellValue, $matches)) {
+                $headName = trim($matches[1]);
+                $dateStr = trim($matches[2]);
+                
+                $master = $this->db->get_where('payroll_master', ['name' => $headName, 'status' => 1])->row();
+                if ($master) {
+                    $dateColumns[$col] = [
+                        'master_id' => $master->id,
+                        'date' => $dateStr
+                    ];
+                }
+            }
+        }
+    
+        if (empty($dateColumns)) {
+            echo json_encode(['status' => 0, 'message' => 'No valid date columns found in the header. (Expected format: "HeadName (YYYY-MM-DD)")']);
+            return;
+        }
+    
+        $updated = 0;
+        $inserted = 0;
+    
+        for ($row = 1; $row < count($json); $row++) {
+            $rowData = $json[$row];
+            if (!isset($rowData[0]) || empty($rowData[0])) continue;
+    
+            $userId = trim($rowData[0]);
+    
+            foreach ($dateColumns as $col => $info) {
+                if (!isset($rowData[$col])) continue;
+                
+                $amount = floatval($rowData[$col]);
+                if ($amount > 0) {
+                    $masterId = $info['master_id'];
+                    $payDate = $info['date'];
+    
+                    $exists = $this->db->get_where('payroll_history', [
+                        'user_id' => $userId,
+                        'pay_date' => $payDate,
+                        'payroll_master_id' => $masterId
+                    ])->row();
+    
+                    if ($exists) {
+                        $this->db->where('id', $exists->id);
+                        $this->db->update('payroll_history', ['amount' => $amount]);
+                        $updated++;
+                    } else {
+                        $saveArray = array(
+                            'business_id'       => $bid,
+                            'payroll_master_id' => $masterId,
+                            'user_id'           => $userId,
+                            'pay_date'          => $payDate,
+                            'amount'            => $amount,
+                            'remarks'           => 'Bulk Import',
+                            'status'            => 1,
+                            'settled'           => 1,
+                            'paid'              => 1,
+                            'payroll_id'        => 0,
+                            'date'              => date("Y-m-d H:i:s")
+                        );
+                        $this->db->insert('payroll_history', $saveArray);
+                        $inserted++;
+                    }
+                }
+            }
+        }
+    
+        // Record User Activity Event
+        $actdata = array(
+            'bid' => $bid,
+            'uid' => $this->session->userdata('login_id'),
+            'activity' => "Imported Bulk Payroll via Excel",
+            'date_time' => time()
+        );
+        $this->db->insert('activity', $actdata);
 
-
-
-	
+        echo json_encode([
+            'status' => 1,
+            'message' => "Successfully imported data. Inserted: $inserted, Updated: $updated records."
+        ]);
+    }
 }
-
-
 ?>

@@ -150,38 +150,46 @@
 
               <div class="card-body">
                 <div class="row">
-                  <div class="col-sm-10">
-                    <!-- <form action="<?php echo base_url('User/salaryEmployees') ?>" method="post"> -->
-                      <div class="row mb-4">
-                        <div class="col-sm-3">
-
-                          <input type="date" title="From Date" class="form-control" value="<?php echo $fromDate; ?>" id="fromDate">
+                  <div class="col-sm-12">
+                     <div class="row mb-3 align-items-end">
+                        <div class="col-sm-3 col-md-2">
+                           <label for="fromDate" class="form-label mb-1 text-muted text-sm"><small>From Date</small></label>
+                           <input type="date" title="From Date" class="form-control form-control-sm" value="<?php echo $fromDate; ?>" id="fromDate">
                         </div>
-                        <div class="col-sm-3">
-                          <input type="date" title="To Date" class="form-control" value="<?php echo $toDate; ?>" id="toDate">
+                        <div class="col-sm-3 col-md-2">
+                           <label for="toDate" class="form-label mb-1 text-muted text-sm"><small>To Date</small></label>
+                           <input type="date" title="To Date" class="form-control form-control-sm" value="<?php echo $toDate; ?>" id="toDate">
                         </div>
-                        <div class="col-sm-2">
-                          <button class="btn btn-primary mt-1" type="button" onclick="filterData()">Filter</button>
+                        <div class="col-sm-3 col-md-2">
+                           <button class="btn btn-primary btn-sm mt-4 w-100" type="button" onclick="filterData()">
+                               <i class="fas fa-filter"></i> Filter
+                           </button>
                         </div>
+                     </div>
 
-                    
-                        <div class="mb-3 text-right">
-  <?php foreach ($payrollList as $payroll) { ?>
-    <button 
-  class="btn btn-sm btn-outline-primary payroll-btn"
-  onclick="selectPayroll(<?= $payroll['id'] ?>, '<?= $payroll['name'] ?>')">
-  <?= $payroll['name'] ?>
-</button>
-  <?php } ?>
-</div>
-
-  <button class="btn btn-sm btn-success" onclick="exportPayroll()">
-    Export
-  </button>
-</div>
-
-                      </div>
-                    <!-- </form> -->
+                     <div class="row mb-4 align-items-center">
+                        <div class="col-12 pb-3 border-bottom">
+                           <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                              <div class="mb-2 mb-md-0">
+                                 <span class="mr-2 font-weight-bold text-secondary"><i class="fas fa-list"></i> Select Payroll:</span>
+                                 <?php foreach ($payrollList as $payroll) { ?>
+                                    <button class="btn btn-sm btn-outline-primary payroll-btn mr-1 mt-1" onclick="selectPayroll(<?= $payroll['id'] ?>, '<?= $payroll['name'] ?>')">
+                                       <?= $payroll['name'] ?>
+                                    </button>
+                                 <?php } ?>
+                              </div>
+                              <div class="d-flex mt-2 mt-md-0">
+                                 <button class="btn btn-sm btn-success mr-2" onclick="exportPayroll()">
+                                     <i class="fas fa-file-excel mr-1"></i> Export
+                                 </button>
+                                 <button class="btn btn-sm btn-info" onclick="$('#importPayrollExcel').click()">
+                                     <i class="fas fa-upload mr-1"></i> Import
+                                 </button>
+                                 <input type="file" id="importPayrollExcel" style="display:none;" accept=".xls,.xlsx" onchange="uploadPayrollBulk(this)">
+                              </div>
+                           </div>
+                        </div>
+                     </div>
                   </div>
                 </div>
               
@@ -498,6 +506,52 @@ function selectPayroll(id, name) {
 
 // }
 
+
+function uploadPayrollBulk(input) {
+    if (!input.files || input.files.length === 0) return;
+
+    var file = input.files[0];
+    var reader = new FileReader();
+
+    reader.onload = function(e) {
+        var data = new Uint8Array(e.target.result);
+        var workbook = XLSX.read(data, {type: 'array'});
+        
+        var firstSheet = workbook.SheetNames[0];
+        var worksheet = workbook.Sheets[firstSheet];
+        var json = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ""});
+
+        if (json.length < 2) {
+            swal("Error", "Excel file is empty or missing data rows.", "error");
+            input.value = "";
+            return;
+        }
+
+        $.ajax({
+            url: "<?= base_url('Payroll/importBulkPayroll') ?>",
+            type: "POST",
+            data: JSON.stringify({ excelData: json }),
+            processData: false,
+            contentType: "application/json",
+            dataType: "json",
+            success: function(res) {
+                if (res.status == 1) {
+                    swal("Success", res.message, "success").then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    swal("Error", res.message, "error");
+                }
+                input.value = ""; // reset
+            },
+            error: function() {
+                swal("Error", "Something went wrong during upload.", "error");
+                input.value = ""; // reset
+            }
+        });
+    };
+    reader.readAsArrayBuffer(file);
+}
 
 function exportPayroll() {
 

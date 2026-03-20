@@ -10695,13 +10695,12 @@ public function shift_report(){
 	}	
 
 
+	
 	public function access_report(){
 		if(!empty($this->session->userdata('id'))){
 				$postdata=$this->input->get();
-					// $start_date = date("Y-m-d");
-					// $end_date = date("Y-m-d");
-					$end_date = date("Y-m-d"); // today
-				    $start_date = date("Y-m-d", strtotime("-7 days")); // 7 days before
+					$start_date = date("Y-m-d");
+					$end_date = date("Y-m-d");
 					$bio='';
 					$event_name='';
 					$true = 0;
@@ -10716,14 +10715,14 @@ public function shift_report(){
 						}
 					}
 			
-					// if(isset($postdata['start_date']) && isset($postdata['end_date'])){
-					// 	$start_date = $postdata['start_date'];
-					// 	$end_date = $postdata['end_date'];
-					// 	// $bio = $postdata['bio'];
+					if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+						$start_date = $postdata['start_date'];
+						$end_date = $postdata['end_date'];
+						// $bio = $postdata['bio'];
 						$bio = isset($postdata['bio']) ? trim((string)$postdata['bio']) : '';
-						$event_name = 0;
+						$event_name = $postdata['event_name'];
 						$true= 1;
-					// }
+					}
 
 					$this->load->library('pagination');
 				$start_time = strtotime($start_date . ' 00:00:00');
@@ -10755,8 +10754,6 @@ public function shift_report(){
 				$config['attributes']       = ['class' => 'page-link'];
 				
 
-				
-
 
 				$this->pagination->initialize($config);
 
@@ -10771,25 +10768,6 @@ public function shift_report(){
 					$page,
 					$loginId
 				);
-				$data['start_date'] = date("Y-m-d", $start_time);
-				$data['end_date']   = date("Y-m-d", $end_time);
-
-				// echo $start_time,
-				// '-',
-				// $end_time,
-				// '-',
-				// $bio,
-				// '-',
-				// $event_name,
-				// '-',
-				// $config['per_page'],
-				// '-',
-				// $page,
-				// '-',
-				// $loginId;
-				// echo '<pre>';
-				// print_r($data);
-				// die();
 
 				$data['pagination'] = $this->pagination->create_links();
 									
@@ -10809,12 +10787,14 @@ public function shift_report(){
 		}
 	}
 	
+	
 
 	public function export_access_report()
 {
     $start_date = $this->input->get('start_date');
     $end_date   = $this->input->get('end_date');
     $bio        = $this->input->get('bio');
+    $search     = $this->input->get('search');
     $event_name = $this->input->get('event_name');
 
     $loginId = $this->session->userdata('login_id');
@@ -10827,6 +10807,7 @@ public function shift_report(){
         $end_time,
         $bio,
         $event_name,
+        $search,
         $loginId
     );
 
@@ -11167,7 +11148,11 @@ public function getPayrollDataForExport()
         }
     }
 
-    sort($uniqueDates);
+    if (empty($uniqueDates)) {
+        $uniqueDates[] = $endDate;
+    } else {
+        sort($uniqueDates);
+    }
 
     // ✅ STEP 4: Dynamic Merge (MAIN FIX 🔥)
     foreach ($employees as &$emp) {
@@ -11188,6 +11173,97 @@ public function getPayrollDataForExport()
             'data'   => $employees
         ]));
 }
+
+
+public function updateVisitorLocation()
+{
+    $post = $this->input->post();
+
+    if (empty($post['id']) || empty($post['latitude']) || empty($post['longitude'])) {
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode([
+                'status' => 0,
+                'message' => 'Required fields missing'
+            ]));
+    }
+
+    $id = $post['id'];
+    $latitude = $post['latitude'];
+    $longitude = $post['longitude'];
+
+    $updateData = [
+        'latitude'  => $latitude,
+        'longitude' => $longitude
+    ];
+
+    $this->db->where('id', $id);
+    $update = $this->db->update('visitor_log', $updateData);
+
+    if ($this->db->affected_rows() > 0) {
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode([
+                'status' => 1,
+                'message' => 'Location updated successfully'
+            ]));
+    } else {
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode([
+                'status' => 0,
+                'message' => 'No changes made or invalid ID'
+            ]));
+    }
+}
+
+
+public function access_report_search_api()
+{
+    $postdata = $this->input->get();
+
+    // Validate login_id
+    $loginId = isset($postdata['login_id']) ? trim($postdata['login_id']) : '';
+
+    if (empty($loginId)) {
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode([
+                'status' => 0,
+                'message' => 'login_id is required'
+            ]));
+    }
+
+    // Default date range (last 7 days)
+    $end_date = date("Y-m-d");
+    $start_date = date("Y-m-d", strtotime("-7 days"));
+
+    // Filters
+    $bio = isset($postdata['bio']) ? trim((string)$postdata['bio']) : '';
+    $search = isset($postdata['search']) ? trim((string)$postdata['search']) : '';
+    // Convert to timestamp
+    $start_time = strtotime($start_date . ' 00:00:00');
+    $end_time   = strtotime($end_date . ' 23:59:59');
+
+    // Fetch data (⚠️ correct param order)
+    $logs = $this->web->getvisitoraccessbyevent_api(
+        $start_time,
+        $end_time,
+        $bio,
+        $search,
+        $loginId
+    );
+
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+            'status' => 1,
+            'logs'   => $logs,
+            'start_date' => $start_date,
+            'end_date'   => $end_date,
+        ]));
+}
+
 }
 
 ?>
