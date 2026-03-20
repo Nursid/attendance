@@ -4164,7 +4164,8 @@ public function geteventbydeviceid($bio,$event){
 
 //     return $this->db->query($sql, $params)->result();
 // }
-public function getvisitoraccessbyevent($start_time, $end_time, $bio, $event_name, $search, $limit, $offset, $loginId)
+
+public function getvisitoraccessbyevent($start_time, $end_time, $bio, $event_name, $limit, $offset, $loginId)
 {
     $sql = "
         SELECT DISTINCT
@@ -4206,12 +4207,6 @@ public function getvisitoraccessbyevent($start_time, $end_time, $bio, $event_nam
 		$sql .= " AND TRIM(CAST(vl.device_id AS CHAR)) = ?";
 		$params[] = trim((string)$bio);
 	}
-
-    if (!empty($search)) {
-        $sql .= " AND (l.name LIKE ? OR l.mobile LIKE ?)";
-        $params[] = '%' . $search . '%';
-        $params[] = '%' . $search . '%';
-    }
 
     $limit  = (int)$limit;
     $offset = (int)$offset;
