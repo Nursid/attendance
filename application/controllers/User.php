@@ -11222,15 +11222,34 @@ public function access_report_search_api()
 {
     $postdata = $this->input->get();
 
-    // Validate login_id
+    // Validate login_id or mobile
     $loginId = isset($postdata['login_id']) ? trim($postdata['login_id']) : '';
+    $mobile  = isset($postdata['mobile']) ? trim($postdata['mobile']) : '';
+
+    if (!empty($mobile)) {
+        $this->db->select('id, name, mobile');
+        $this->db->from('login');
+        $this->db->where('mobile', $mobile);
+        $user_data = $this->db->get()->row();
+        
+        if (!empty($user_data)) {
+            $loginId = $user_data->id;
+        } else {
+            return $this->output
+                ->set_content_type('application/json')
+                ->set_output(json_encode([
+                    'status' => 0,
+                    'message' => 'Mobile number not found'
+                ]));
+        }
+    }
 
     if (empty($loginId)) {
         return $this->output
             ->set_content_type('application/json')
             ->set_output(json_encode([
                 'status' => 0,
-                'message' => 'login_id is required'
+                'message' => 'login_id or mobile is required'
             ]));
     }
 
