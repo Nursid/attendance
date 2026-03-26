@@ -20,7 +20,7 @@ jobs:
           username: root
           key: ${{secrets.KEY}} 
           script: |
-            cd /var/www/attendence
+            cd /var/www/attendance
             git pull origin main
             sudo systemctl restart apache2
             echo "Deployment done 🚀"
