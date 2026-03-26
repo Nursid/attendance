@@ -1,0 +1,26 @@
+name: Deploy PHP App to Hostinger
+
+on:
+  push:
+    branches:
+      - main   # deploy on main branch push
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy Via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with: 
+          host: ${{ secrets.SSH_KEY }} 
+          username: root
+          key: ${{secrets.KEY}} 
+          script: |
+            cd /var/www/attendence
+            git pull origin main
+            sudo systemctl restart apache2
+            echo "Deployment done 🚀"
