@@ -11326,6 +11326,16 @@ public function getDeviceByMobile()
         ]));
 }
 
+
+public function test_api()
+{
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+            'status' => 1
+        ]));
+}
+
 }
 
 ?>
