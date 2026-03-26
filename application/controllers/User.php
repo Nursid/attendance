@@ -11283,6 +11283,49 @@ public function access_report_search_api()
         ]));
 }
 
+public function getDeviceByMobile()
+{
+	$postdata = $this->input->get();
+    $mobile = $postdata['mobile']; // ya GET
+
+    if (empty($mobile)) {
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode([
+                'status' => 0,
+                'message' => 'Mobile number required'
+            ]));
+    }
+
+    // get company (bid) from login table
+    $loginData = $this->db
+        ->where('username', $mobile)
+        ->get('web_login')
+        ->row();
+
+    if (!$loginData) {
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode([
+                'status' => 0,
+                'message' => 'User not found'
+            ]));
+    }
+
+    $bid = $loginData->login_id; // column name check kar lena
+	
+    // get devices
+    $devices = $this->web->getdevice($bid);
+
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+            'status' => 1,
+            'total_device' => count($devices),
+            'data' => $devices
+        ]));
+}
+
 }
 
 ?>
