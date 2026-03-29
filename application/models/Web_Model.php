@@ -4356,5 +4356,29 @@ public function getvisitoraccessbyevent_api($start_time, $end_time, $bio, $searc
     return $this->db->query($sql, $params)->result();
 }
 
+
+public function callCommonApi($apiName, $jsonData){
+    $baseUrl = "http://31.97.230.189:7788/api/v1/";
+    $url = $baseUrl . $apiName;
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json'
+    ));
+    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+    $response = curl_exec($ch);
+    if(curl_errno($ch)){
+        return json_encode([
+            "status" => 500,
+            "msg" => curl_error($ch)
+        ]);
+    }
+    curl_close($ch);
+    return $response;
 }
+
+}
+
 ?>

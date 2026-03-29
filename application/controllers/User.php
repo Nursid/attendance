@@ -1266,7 +1266,13 @@ class User extends CI_Controller {
 
 		public function employees(){
 			if(!empty($this->session->userdata('id'))){
-				$this->load->view('attendance/employees');
+                if($this->session->userdata()['type']=='P'){
+                    $bid = $this->session->userdata('empCompany');
+                } else {
+                    $bid = $this->web->session->userdata('login_id');
+                }
+                $data['devices'] = $this->web->getdevice($bid);
+				$this->load->view('attendance/employees', $data);
 			}
 			else{
 				redirect('user-login');
@@ -1298,7 +1304,13 @@ class User extends CI_Controller {
 		}
 		public function addemployee(){
 			if(!empty($this->session->userdata('id'))){
-				$this->load->view('attendance/addemployee');
+                if($this->session->userdata()['type']=='P'){
+                    $bid = $this->session->userdata('empCompany');
+                } else {
+                    $bid = $this->web->session->userdata('login_id');
+                }
+                $data['devices'] = $this->web->getdevice($bid);
+				$this->load->view('attendance/addemployee', $data);
 			}
 			else{
 				redirect('user-login');

@@ -87,6 +87,167 @@
       $id=$this->web->session->userdata('login_id');
     }
     ?>
+
+<div id="devicePopup" style=" display:none; position:fixed; top:10%; left:20%; width:60%; height:80%; background:#fff; z-index:10000; overflow:auto; padding:20px; border-radius:10px; border: 2px solid #ccc; box-shadow: 0 0 10px rgba(0,0,0,0.5); ">
+    <h3>Select Devices</h3>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Select</th>
+                <th>Device ID</th>
+                <th>Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if(!empty($devices)){ foreach($devices as $d){ ?>
+            <tr>
+                <td>
+                    <input type="checkbox" class="popup_device_checkbox" value="<?php echo $d->deviceid; ?>">
+                </td>
+                <td><?php echo $d->deviceid; ?></td>
+                <td><?php echo $d->name; ?></td>
+            </tr>
+            <?php } } else { echo "<tr><td colspan='3'>No devices found</td></tr>"; } ?>
+        </tbody>
+    </table>
+    <div class="mt-3">
+        <button onclick="submitAddUser()" class="btn btn-primary">Submit ADDUSER</button>
+        <button onclick="callDeviceAPI('RESTARTDEVICE')" class="btn btn-warning">Restart</button>
+        <button onclick="callDeviceAPI('GETATTENDANCELOG')" class="btn btn-info">Get Logs</button>
+        <button onclick="callDeviceAPI('DELETEUSER')" class="btn btn-danger">Delete User</button>
+        <button onclick="closeDevicePopup()" class="btn btn-secondary">Close</button>
+    </div>
+</div>
+
+<div id="loader" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.7); z-index:20000; text-align:center; padding-top:20%;">
+    <h3>Processing... Please wait</h3>
+</div>
+
+<script>
+// Open popup function
+function openDevicePopup(){
+    let selectedEmp = document.querySelectorAll('.emp_checkbox:checked');
+    if(selectedEmp.length === 0){
+        alert("Select at least one employee");
+        return;
+    }
+    document.getElementById("devicePopup").style.display = "block";
+}
+
+// Close popup function
+function closeDevicePopup(){
+    document.getElementById("devicePopup").style.display = "none";
+}
+
+// Submit Add User
+function submitAddUser(){
+    let employees = [];
+    let devices = [];
+
+    // Get employees
+    document.querySelectorAll('.emp_checkbox:checked').forEach(function(el){
+        employees.push({
+            id: el.value,
+            name: el.dataset.name
+        });
+    });
+
+    // Get devices
+    document.querySelectorAll('.popup_device_checkbox:checked').forEach(function(el){
+        devices.push(el.value);
+    });
+
+    if(devices.length === 0){
+        alert("Select at least one device");
+        return;
+    }
+
+    let payload = [];
+    // Create combination (EMP × DEVICE)
+    employees.forEach(emp => {
+        devices.forEach(dev => {
+            payload.push({
+                DEVICESLNO: dev,
+                USERID: emp.id,
+                USERNAME: emp.name,
+                FINGERDATA: "",
+                FACEDATA: "",
+                CARDDATA: "12345",
+                PASSWORDDATA: "123",
+                ADMIN: "0"
+            });
+        });
+    });
+
+    console.log("Payload:", payload);
+    document.getElementById("loader").style.display = "block";
+
+    fetch("<?php echo base_url('device/common_api'); ?>", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            api: "ADDUSER",
+            data: payload
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("loader").style.display = "none";
+        closeDevicePopup();
+        console.log(data);
+        if(data.msg){
+            alert(data.msg);
+        } else {
+            alert("Success: " + JSON.stringify(data));
+        }
+    })
+    .catch(err => {
+        document.getElementById("loader").style.display = "none";
+        console.error(err);
+        alert("Error in API");
+    });
+}
+
+// Call other device APIs
+function callDeviceAPI(apiName){
+    let devices = [];
+    document.querySelectorAll('.popup_device_checkbox:checked').forEach(function(el){
+        devices.push(el.value);
+    });
+
+    if(devices.length === 0){
+        alert("Select at least one device");
+        return;
+    }
+
+    let payload = devices.map(id => ({ DEVICESLNO: id }));
+
+    document.getElementById("loader").style.display = "block";
+
+    fetch("<?php echo base_url('device/common_api'); ?>", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            api: apiName,
+            data: payload
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("loader").style.display = "none";
+        alert(data.msg || "Command Sent");
+    })
+    .catch(err => {
+        document.getElementById("loader").style.display = "none";
+        alert("Error calling " + apiName);
+    });
+}
+</script>
+
     <!-- Main content -->
     <section class="content">
       <?php
@@ -99,7 +260,8 @@
  
           <div align="right">
           <br>
-                          <input type="button" onClick="export_datas()" value="Export To Excel" />
+                          <input type="button" onClick="export_datas()" value="Export To Excel" class="btn btn-secondary" />
+                          <button onclick="openDevicePopup()" class="btn btn-info">Sync to Device</button>
                          <!-- <input type="button"  id="btnExport" value="Export To Pdf" onclick="exportPDF()" />-->
                           <br> <br>
                         </div>
@@ -116,6 +278,7 @@
               <table id="example1" class="table table-bordered table-striped">
                   <thead>
                   <tr>
+                    <th>Select</th>
                     <th>S.No</th>
                     <th>EmpCode</th>
                     <th>Name</th>
@@ -167,6 +330,10 @@
 						          $userid=$val->user_id;
                       ?>
                       <tr>
+                       <td>
+                        <?php $uname = $this->web->getNameByUserId($val->user_id); ?>
+                        <input type="checkbox" class="emp_checkbox" value="<?php echo $val->user_id; ?>" data-name="<?php echo $uname[0]->name; ?>">
+                       </td>
                        <td><?php echo $count++; ?></td>
                         
                         <td><?php $uname = $this->web->getNameByUserId($val->user_id);
@@ -764,9 +931,9 @@ function export_datas(){
 			  $group = $this->web->getBusinessGroupByUserId($uname[0]->business_group);
 			$dpt = $this->web->getBusinessDepByUserId($uname[0]->department);
             if($uname[0]->gender==0){
-            $gender=Male;
+            $gender='Male';
             }else{
-                $gender=Female;
+                $gender='Female';
                 
             }  
             $mail=$uname[0]->email;
@@ -819,6 +986,7 @@ function export_datas(){
   }
 
 </script>
+
 
 
 

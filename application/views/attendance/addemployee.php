@@ -455,5 +455,182 @@
           .addClass('active');
         });
       </script>
-    </body>
-    </html>
+    
+<div id="devicePopup" style=" display:none; position:fixed; top:10%; left:20%; width:60%; height:80%; background:#fff; z-index:10000; overflow:auto; padding:20px; border-radius:10px; border: 2px solid #ccc; box-shadow: 0 0 10px rgba(0,0,0,0.5); ">
+    <h3>Select Devices</h3>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Select</th>
+                <th>Device ID</th>
+                <th>Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if(!empty($devices)){ foreach($devices as $d){ ?>
+            <tr>
+                <td>
+                    <input type="checkbox" class="popup_device_checkbox" value="<?php echo $d->deviceid; ?>">
+                </td>
+                <td><?php echo $d->deviceid; ?></td>
+                <td><?php echo $d->name; ?></td>
+            </tr>
+            <?php } } else { echo "<tr><td colspan='3'>No devices found</td></tr>"; } ?>
+        </tbody>
+    </table>
+    <div class="mt-3">
+        <button onclick="submitAddUser()" class="btn btn-primary">Submit ADDUSER</button>
+        <button onclick="callDeviceAPI('RESTARTDEVICE')" class="btn btn-warning">Restart</button>
+        <button onclick="callDeviceAPI('GETATTENDANCELOG')" class="btn btn-info">Get Logs</button>
+        <button onclick="callDeviceAPI('DELETEUSER')" class="btn btn-danger">Delete User</button>
+        <button onclick="closeDevicePopup()" class="btn btn-secondary">Close</button>
+    </div>
+</div>
+
+<div id="loader" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.7); z-index:20000; text-align:center; padding-top:20%;">
+    <h3>Processing... Please wait</h3>
+</div>
+
+<script>
+// Open popup function
+function openDevicePopup(empId = null, empName = null){
+    if(empId && empName){
+        // Single employee mode (e.g. from Add Employee page)
+        window.singleEmpSync = { id: empId, name: empName };
+        document.getElementById("devicePopup").style.display = "block";
+        return;
+    }
+
+    let selectedEmp = document.querySelectorAll('.emp_checkbox:checked');
+    if(selectedEmp.length === 0){
+        alert("Select at least one employee");
+        return;
+    }
+    window.singleEmpSync = null;
+    document.getElementById("devicePopup").style.display = "block";
+}
+
+// Close popup function
+function closeDevicePopup(){
+    document.getElementById("devicePopup").style.display = "none";
+}
+
+// Submit Add User
+function submitAddUser(){
+    let employees = [];
+    let devices = [];
+
+    if(window.singleEmpSync){
+        employees.push(window.singleEmpSync);
+    } else {
+        // Get employees from checkboxes
+        document.querySelectorAll('.emp_checkbox:checked').forEach(function(el){
+            employees.push({
+                id: el.value,
+                name: el.dataset.name
+            });
+        });
+    }
+
+    // Get devices
+    document.querySelectorAll('.popup_device_checkbox:checked').forEach(function(el){
+        devices.push(el.value);
+    });
+
+    if(devices.length === 0){
+        alert("Select at least one device");
+        return;
+    }
+
+    if(employees.length === 0){
+        alert("No employee selected");
+        return;
+    }
+
+    let payload = [];
+    // Create combination (EMP × DEVICE)
+    employees.forEach(emp => {
+        devices.forEach(dev => {
+            payload.push({
+                DEVICESLNO: dev,
+                USERID: emp.id,
+                USERNAME: emp.name,
+                FINGERDATA: "",
+                FACEDATA: "",
+                CARDDATA: "12345",
+                PASSWORDDATA: "123",
+                ADMIN: "0"
+            });
+        });
+    });
+
+    console.log("Payload:", payload);
+    document.getElementById("loader").style.display = "block";
+
+    fetch("<?php echo base_url('device/common_api'); ?>", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            api: "ADDUSER",
+            data: payload
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("loader").style.display = "none";
+        closeDevicePopup();
+        console.log(data);
+        if(data.msg){
+            alert(data.msg);
+        } else {
+            alert("Success: " + JSON.stringify(data));
+        }
+    })
+    .catch(err => {
+        document.getElementById("loader").style.display = "none";
+        console.error(err);
+        alert("Error in API");
+    });
+}
+
+// Call other device APIs
+function callDeviceAPI(apiName){
+    let devices = [];
+    document.querySelectorAll('.popup_device_checkbox:checked').forEach(function(el){
+        devices.push(el.value);
+    });
+
+    if(devices.length === 0){
+        alert("Select at least one device");
+        return;
+    }
+
+    let payload = devices.map(id => ({ DEVICESLNO: id }));
+
+    document.getElementById("loader").style.display = "block";
+
+    fetch("<?php echo base_url('device/common_api'); ?>", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            api: apiName,
+            data: payload
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("loader").style.display = "none";
+        alert(data.msg || "Command Sent");
+    })
+    .catch(err => {
+        document.getElementById("loader").style.display = "none";
+        alert("Error calling " + apiName);
+    });
+}
+</script>
+</body>
+</html>
