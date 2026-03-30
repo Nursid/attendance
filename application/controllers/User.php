@@ -8268,6 +8268,24 @@ public function add_device(){
 						// 'date'=>strtotime($holiday->date)
 					);
 			$data=$this->db->insert('Business_bioid',$postdata);
+
+                   $data = array(
+            "DEVICESLNO"  => $this->input->post('serial'),
+            "DEVICENAME"  => $this->input->post('name'),
+            "MODELNO"     => $this->input->post('model'),
+            "TIMEZONEID"  => "57",
+            "LOCATION"    => "Delhi",
+            "ENDPOINT_URL"=> ""
+        );
+
+        // API expects array of objects
+        $payload = json_encode(array($data));
+
+        $response = $this->web->sendToApi($payload);
+  
+
+
+
 			if($data > 0){
 			   // $uname = $this->web->getNameByUserId($id);
 				 if ($this->session->userdata()['type'] == 'P') {
@@ -8773,9 +8791,29 @@ public function editdevice(){
 				'mode' => $mode,
 				'model' => $model
 			);
+$data2= array(
+            "DEVICESLNO"  => $this->input->post('deviceid'),
+            "DEVICENAME"  => $this->input->post('name'),
+            "MODELNO"     => $this->input->post('model'),
+            "TIMEZONEID"  => "57",
+            "LOCATION"    => "Delhi",
+            "ENDPOINT_URL"=> ""
+        );
+
 			print_r($data);
 			$this->db->where('id',$id);
 			$res = $this->db->update('Business_bioid',$data);
+ 
+
+        // API expects array of objects
+if($res>0){
+        $payload = json_encode(array($data2));
+
+        $response = $this->web->sendToApi($payload);
+
+}
+
+
 			//$uname = $this->web->getNameByUserId($id);
 				 if ($this->session->userdata()['type'] == 'P') {
           

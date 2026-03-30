@@ -61,6 +61,25 @@
   ?>
     
     
+<div id="loader" style="
+    display:none;
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.5);
+    z-index:9999;
+    text-align:center;
+    color:#fff;
+    font-size:20px;
+    padding-top:200px;
+">
+    Loading... Please wait
+</div>
+
+
+
+
+
     
     
     <section class="content-header">
@@ -152,6 +171,48 @@
           </div>
         </div>
 
+   
+  
+        <div class="row">
+          <!-- left column -->
+          <div class="col-md-12">
+            <div class="card card-primary">
+                           <div class="card-body">
+<div class="mt-3">
+<div><button onclick="openLogModal()" class="btn btn-warning">
+    Sync Attendance Log
+</button>
+        <button onclick="callDeviceAPI('GETCMDUSERDATA')" class="btn btn-warning">Sync User Data</button>
+        <button onclick="getUserData()" class="btn btn-primary">
+    View Users</button> 
+       <button onclick="callDeviceAPI('CLEARALLUSER')" class="btn btn-danger">Clear User</button>
+       <button onclick="callDeviceAPI('CLEARADMIN')" class="btn btn-danger">Clear Admin</button>
+      <button onclick="callDeviceAPI('CLEARALLATTENDANCELOG')" class="btn btn-danger">Clear Log</button>
+  <button onclick="callDeviceAPI('OPENDOOR')" class="btn btn-danger">Open Door</button>
+
+<button onclick="callDeviceAPI('REBOOTDEVICE')" class="btn btn-danger">Restart Machine</button>
+</div>
+<br> <div>
+<button onclick="callDeviceAPI('SETTIME')" class="btn btn-danger">Set Time</button>
+<button onclick="callDeviceAPI('ENABLEDEVICE')" class="btn btn-danger">Set TimeZone</button>
+<button onclick="callDeviceAPI('DISABLEDEVICE')" class="btn btn-danger">Set Event</button>
+
+</div>
+
+    </div>
+
+
+
+    </div>
+ </div> </div> </div>
+
+
+
+
+
+
+
+
         <div class="row">
           <!-- left column -->
           <div class="col-md-12">
@@ -163,11 +224,13 @@
               <table id="example1" class="table table-bordered table-striped">
                   <thead>
                   <tr>
+                   <th><input type="checkbox" id="select_all"></th>
                     <th>S.No</th>
                      <th>Model</th>
                     <th>Mode</th>
                      <th>Name</th>
                      <th>Serial No</th>
+                      <th>Status</th> 
                      <th>Last Update</th>
                    <th>Action</th>
                   </tr>
@@ -183,6 +246,10 @@
                       foreach($res as $res){
                       ?>
                       <tr>
+                   <td>
+                       <input type="checkbox" class="device_checkbox"
+                       value="<?php echo $res->deviceid; ?>">
+                          </td>
                         <td><?php echo $count++; ?></td>
                         <td><?php  $model=$res->model; 
                         if($model==0){
@@ -219,7 +286,9 @@
                         ?></td>
                         <td><?php echo $res->name; ?></td>
                         <td><?php echo $res->deviceid; ?></td>
+            <td>   <button onclick="callDeviceAPI('GETDEVICEONLINESTATUS')" >Check Online</button> </td>
                        <td>
+
                        <?php echo date('d-M-y',$res->update_date); ?>
                        <br> 
                        <?php echo date('h:i',$res->update_date); ?>
@@ -294,6 +363,85 @@
 </div>
 
 
+<div id="logModal" style="
+    display:none;
+    position:fixed;
+    top:50%; left:50%;
+    transform:translate(-50%, -50%);
+    width:320px;
+    background:#fff;
+    z-index:10000;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 0 10px rgba(0,0,0,0.3);
+">
+
+    <h4 style="margin-bottom:15px;">Select Date Range</h4>
+
+    <label style="font-size:13px;">From Date:</label>
+    <input type="datetime-local" id="from_date" style="
+        width:100%;
+        padding:6px;
+        margin-bottom:10px;
+    ">
+
+    <label style="font-size:13px;">To Date:</label>
+    <input type="datetime-local" id="to_date" style="
+        width:100%;
+        padding:6px;
+        margin-bottom:15px;
+    ">
+
+    <div style="text-align:right;">
+        <button onclick="submitAttendanceLog()" class="btn btn-primary btn-sm">
+            Submit
+        </button>
+        <button onclick="closeLogModal()" class="btn btn-danger btn-sm">
+            Close
+        </button>
+    </div>
+
+</div>
+
+<div id="userDataModal" style="
+    display:none;
+    position:fixed;
+    top:50%; left:50%;
+    transform:translate(-50%, -50%);
+    width:85%;
+    max-height:85%;
+    background:#fff;
+    z-index:10000;
+    padding:15px;
+    border-radius:10px;
+    box-shadow:0 0 10px rgba(0,0,0,0.3);
+    overflow:auto;
+">
+
+    <button onclick="closeUserModal()" style="float:right;">Close</button>
+
+    <h4>User Data</h4>
+
+    <!-- Summary -->
+    <div id="deviceSummary" style="margin-bottom:10px; font-weight:bold;"></div>
+
+    <!-- Table -->
+    <table id="userDataTable" class="display" style="width:100%">
+    <thead>
+        <tr>
+            <th>S.No</th>
+            <th>Enroll ID</th>
+            <th>Name</th>
+            <th>Role</th>
+            <th>Finger</th>
+            <th>Face</th>
+            <th>Card</th>
+            <th>Password</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+</div>
 
 
 
@@ -314,6 +462,11 @@
 <script src="<?php echo base_url('adminassets/dist/js/adminlte.min.js')?>"></script>
 <!-- AdminLTE for demo purposes -->
 <script src="<?php echo base_url('adminassets/dist/js/demo.js')?>"></script>
+
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 <script>
   $(function () {
    var table = $('#example1').DataTable({
@@ -374,5 +527,254 @@ $(function () {
     })
   }
 </script>
+
+<script>
+document.getElementById('select_all').addEventListener('click', function(){
+    document.querySelectorAll('.device_checkbox').forEach(cb => {
+        cb.checked = this.checked;
+    });
+});
+</script>
+
+<script>
+
+function callDeviceAPI(apiName, extraData = {}){
+
+    let devices = [];
+
+    document.querySelectorAll('.device_checkbox:checked').forEach(function(el){
+
+        if(el.value.trim() !== ""){
+
+            let obj = {
+                DEVICESLNO: el.value.trim()
+            };
+
+            // merge extra data (like dates)
+            Object.assign(obj, extraData);
+
+            devices.push(obj);
+        }
+    });
+
+    if(devices.length === 0){
+        alert("Select at least one device");
+        return;
+    }
+
+    document.getElementById("loader").style.display = "block";
+
+    fetch("<?php echo base_url('device/common_api'); ?>", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            api: apiName,
+            data: devices
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        document.getElementById("loader").style.display = "none";
+
+        console.log(data);
+
+        if(data.msg){
+            alert(data.msg);
+        } else {
+            alert("No response from API");
+        }
+
+    })
+    .catch(err => {
+        document.getElementById("loader").style.display = "none";
+        console.error(err);
+        alert("Error in API");
+    });
+}
+
+</script>
+
+<script>
+
+// Open modal
+function openLogModal(){
+
+    let selected = document.querySelectorAll('.device_checkbox:checked');
+
+    if(selected.length === 0){
+        alert("Select at least one device");
+        return;
+    }
+
+    document.getElementById("logModal").style.display = "block";
+}
+
+// Close modal
+function closeLogModal(){
+    document.getElementById("logModal").style.display = "none";
+}
+
+// Format date for API
+function formatDateTime(dt){
+    return dt.replace("T", " "); // fast & correct
+}
+
+// Submit function
+function submitAttendanceLog(){
+
+    let fromDate = document.getElementById("from_date").value;
+    let toDate   = document.getElementById("to_date").value;
+
+    if(!fromDate || !toDate){
+        alert("Select both dates");
+        return;
+    }
+
+    // Call COMMON API
+    callDeviceAPI("SENDCMDATTENDANCELOG", {
+        FROMDATE: formatDateTime(fromDate),
+        TODATE: formatDateTime(toDate)
+    });
+
+    closeLogModal();
+}
+
+</script>
+
+<script>
+
+let userTable = null;
+
+
+
+function getUserData(){
+
+    let devices = [];
+
+    document.querySelectorAll('.device_checkbox:checked').forEach(function(el){
+        if(el.value.trim() !== ""){
+            devices.push({ DEVICESLNO: el.value.trim() });
+        }
+    });
+
+    if(devices.length === 0){
+        alert("Select at least one device");
+        return;
+    }
+
+    document.getElementById("loader").style.display = "block";
+
+    fetch("<?php echo base_url('device/common_api'); ?>", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            api: "GETUSERDATA",
+            data: devices
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        console.log("FULL RESPONSE:", data);
+
+        document.getElementById("loader").style.display = "none";
+
+        // ? REMOVE THIS BLOCK (IMPORTANT)
+        // if(data.status !== "Success"){ return; }
+
+        let tbody = document.querySelector("#userDataTable tbody");
+        tbody.innerHTML = "";
+
+        if(data.data && data.data.length > 0){
+
+            data.data.forEach((row, index) => {
+
+    // Role
+    let role = (row.Admin == 0) ? "User" : "Admin";
+
+    // Finger check
+    let finger = (row.FingerData && Object.keys(row.FingerData).length > 0) 
+        ? "Yes" 
+        : "No";
+
+    // Face image
+    let faceHtml = "No";
+
+    if(row.FaceData && typeof row.FaceData === "object" && Object.keys(row.FaceData).length > 0){
+
+        // If API returns base64 inside object (example: FaceData.data)
+        let base64 = row.FaceData.data || "";
+
+        if(base64){
+            faceHtml = `<img src="data:image/png;base64,${base64}" width="40" height="40"/>`;
+        } else {
+            faceHtml = "Yes";
+        }
+    }
+
+    // Card
+    let card = row.Card && row.Card.data ? row.Card.data : "";
+
+    // Password
+    let pwd = row.PWD && row.PWD.data ? row.PWD.data : "";
+
+    let tr = `
+        <tr>
+            <td>${index+1}</td>
+            <td>${row.EnrollmentNo || ''}</td>
+            <td>${row.Name || ''}</td>
+            <td>${role}</td>
+            <td>${finger}</td>
+            <td>${faceHtml}</td>
+            <td>${card}</td>
+            <td>${pwd}</td>
+        </tr>
+    `;
+
+    tbody.innerHTML += tr;
+});
+        } else {
+            tbody.innerHTML = "<tr><td colspan='7'>No Data Found</td></tr>";
+        }
+
+        // ? FORCE SHOW MODAL (NO CONDITION)
+        document.getElementById("userDataModal").style.display = "block";
+
+        // ? SAFE DATATABLE INIT
+        try {
+            if($.fn.DataTable){
+                if($.fn.DataTable.isDataTable('#userDataTable')){
+                    $('#userDataTable').DataTable().destroy();
+                }
+
+                $('#userDataTable').DataTable({
+                    pageLength: 25
+                });
+            }
+        } catch(e){
+            console.log("DataTable error:", e);
+        }
+
+    })
+    .catch(err => {
+        document.getElementById("loader").style.display = "none";
+        console.error(err);
+        alert("Error in API");
+    });
+}
+
+
+
+
+
+function closeUserModal(){
+    document.getElementById("userDataModal").style.display = "none";
+}
+</script>
+
+
 </body>
 </html>

@@ -4379,6 +4379,38 @@ public function callCommonApi($apiName, $jsonData){
     return $response;
 }
 
+public function sendToApi($jsonData) {
+
+        $url = "http://31.97.230.189:7788/api/v1/ADDEDITDEVICE";
+
+        $ch = curl_init($url);
+
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+            'Content-Type: application/json',
+            'Content-Length: ' . strlen($jsonData)
+        ));
+
+        $response = curl_exec($ch);
+
+        if(curl_errno($ch)) {
+            return curl_error($ch);
+        }
+
+        curl_close($ch);
+
+        return $response;
+    }
+
+
+
+
+
+
 }
 
 ?>

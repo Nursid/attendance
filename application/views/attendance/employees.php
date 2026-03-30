@@ -252,14 +252,43 @@ function callDeviceAPI(apiName){
     <section class="content">
       <?php
       if($this->session->userdata()['type']=='B' || $role[0]->employee_list=="1" || $role[0]->type=="1"){?>
-      <div class="container-fluid">
-        <div class="row">
+      
+        
+<br>
+    <div class="row">
           <!-- left column -->
-          
-        </div>
- 
+       <div class="col-md-12">
+            <div class="card card-primary">
+  
+    <div class="mt-3">
+<div >
+       <!-- <button onclick="submitAddUser()" class="btn btn-primary">Submit ADDUSER</button>-->
+     <button onclick="callDeviceAPI('ADDUSERNAME')" class="btn btn-warning">Add User Name</button>
+    <button onclick="callDeviceAPI('DELETEUSER')" class="btn btn-danger">Delete User</button>
+  <button onclick="callDeviceAPI('ADDUSERWITHVALIDITY')" class="btn btn-info">Add User Validity</button>
+<button onclick="callDeviceAPI('SETVALIDITY')" class="btn btn-info">Add User Validity</button>
+
+<button onclick="callDeviceAPI('ENABLEUSER')" class="btn btn-info">Enable User</button>
+<button onclick="callDeviceAPI('ENABLEUSER')" class="btn btn-info">Disable User</button>
+<button onclick="callDeviceAPI('ADDADMIN')" class="btn btn-info">Add Admin</button>
+<button onclick="callDeviceAPI('DELETEADMIN')" class="btn btn-info">Delete Admin</button>
+</div>
+<br>
+<div>
+<button onclick="callDeviceAPI('REMOTEREGISTERFACE')" class="btn btn-info">Reg Face</button>
+<button onclick="callDeviceAPI('REMOTEREGISTERFINGER')" class="btn btn-info">Reg Thumb</button>
+<button onclick="callDeviceAPI('REMOTEREGISTERCARD')" class="btn btn-info">Reg Card</button>
+</div>
+
+    </div>
+<br>
+</div>
+</div>
+
+  </div>
+      <div class="container-fluid">
           <div align="right">
-          <br>
+          
                           <input type="button" onClick="export_datas()" value="Export To Excel" class="btn btn-secondary" />
                           <button onclick="openDevicePopup()" class="btn btn-info">Sync to Device</button>
                          <!-- <input type="button"  id="btnExport" value="Export To Pdf" onclick="exportPDF()" />-->
