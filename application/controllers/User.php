@@ -11386,7 +11386,6 @@ public function test_api()
         ]));
 }
 
-
 public function access_report_temp()
 {
     if(empty($this->session->userdata('id'))){
@@ -11403,18 +11402,19 @@ public function access_report_temp()
 
     $loginId = $this->session->userdata('login_id');
 
+    // ✅ GET FILTER VALUES
     if(isset($postdata['start_date']) && isset($postdata['end_date'])){
 
         $start_date = $postdata['start_date'];
         $end_date   = $postdata['end_date'];
 
         if(!empty($postdata['bio']) && $postdata['bio'] != 0){
-			$bio = $postdata['bio'];
-		}
+            $bio = $postdata['bio'];
+        }
 
         if(!empty($postdata['event_name']) && $postdata['event_name'] != 0){
-			$event_name = $postdata['event_name'];
-		}
+            $event_name = $postdata['event_name'];
+        }
 
         $true = 1;
     }
@@ -11422,7 +11422,19 @@ public function access_report_temp()
     $fromDate = $start_date . " 00:00";
     $toDate   = $end_date . " 23:59";
 
-    // API CALL
+    // ✅ PREPARE PAYLOAD (DON'T SEND DEVICE IF ALL)
+    $postPayload = [
+        [
+            "FROMDATE" => $fromDate,
+            "TODATE"   => $toDate
+        ]
+    ];
+
+    if(!empty($bio)){
+        $postPayload[0]["DEVICESLNO"] = $bio;
+    }
+
+    // ✅ API CALL
     $curl = curl_init();
 
     curl_setopt_array($curl, [
@@ -11432,13 +11444,7 @@ public function access_report_temp()
         CURLOPT_HTTPHEADER => [
             "Content-Type: application/json"
         ],
-        CURLOPT_POSTFIELDS => json_encode([
-            [
-                "DEVICESLNO" => $bio,
-                "FROMDATE"   => $fromDate,
-                "TODATE"     => $toDate
-            ]
-        ])
+        CURLOPT_POSTFIELDS => json_encode($postPayload)
     ]);
 
     $response = curl_exec($curl);
@@ -11449,25 +11455,32 @@ public function access_report_temp()
     $logs = [];
     $bioIds = [];
 
+    // ✅ FILTER DATA PROPERLY
     if(isset($result->data)){
 
         foreach($result->data as $row){
 
+            // skip dummy user
             if($row->EnrollmentNo == "99999996"){
                 continue;
             }
 
-            if(!empty($event_name) && $event_name != $row->Event_value){
+            // ✅ DEVICE FILTER (IMPORTANT)
+            if(!empty($bio) && (string)$row->DeviceSlno !== (string)$bio){
+                continue;
+            }
+
+            // ✅ EVENT FILTER (IMPORTANT)
+            if(!empty($event_name) && (string)$row->Event_value !== (string)$event_name){
                 continue;
             }
 
             $bioIds[] = $row->EnrollmentNo;
-
             $logs[] = $row;
         }
     }
 
-    // get employee details from DB
+    // ✅ GET EMPLOYEE DATA
     $employees = $this->web->getEmployeeByBioIds($bioIds, $loginId);
 
     $finalLogs = [];
@@ -11507,6 +11520,7 @@ public function access_report_temp()
         ];
     }
 
+    // ✅ PASS DATA TO VIEW
     $data['logs'] = $finalLogs;
     $data['pagination'] = "";
     $data['start_date'] = $start_date;
