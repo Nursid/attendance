@@ -192,7 +192,6 @@ date_default_timezone_set('Asia/Kolkata');
                       if($load) {
                         $stdate=strtotime($start_date);
                         $endate=strtotime($end_date);
-                              echo $bio;
                         ?>
                          <div align="right">
                           <!-- <input type="button"  class="btn btn-primary" onClick="exportDatas()" value="Export To Excel" /> -->

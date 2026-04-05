@@ -11268,7 +11268,7 @@ public function updateVisitorLocation()
 }
 
 
-public function access_report_search_api()
+public function access_report_search_api_old()
 {
     $postdata = $this->input->get();
 
@@ -11528,6 +11528,313 @@ public function access_report_temp()
 
     $this->load->view('attendance/access_report2', $data);
 }
+
+
+public function access_report_temp_api()
+{
+    $postdata = $this->input->get(NULL, TRUE);
+
+    // 🔐 LOGIN CHECK
+    $loginId = isset($postdata['login_id']) ? trim($postdata['login_id']) : '';
+
+    if(empty($loginId)){
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode([
+                'status' => 0,
+                'message' => 'login_id is required'
+            ]));
+    }
+
+    // 📅 DATE FILTER
+    $start_date = isset($postdata['start_date']) ? $postdata['start_date'] : date("Y-m-d");
+    $end_date   = isset($postdata['end_date']) ? $postdata['end_date'] : date("Y-m-d");
+
+    $fromDate = $start_date . " 00:00";
+    $toDate   = $end_date . " 23:59";
+
+    // 🔎 FILTERS
+    $bio        = isset($postdata['bio']) ? trim((string)$postdata['bio']) : '';
+    $event_name = isset($postdata['event_name']) ? trim((string)$postdata['event_name']) : '';
+    $search     = isset($postdata['search']) ? trim((string)$postdata['search']) : '';
+
+    // ✅ API PAYLOAD
+    $postPayload = [
+        [
+            "FROMDATE" => $fromDate,
+            "TODATE"   => $toDate
+        ]
+    ];
+
+    if(!empty($bio) && $bio != "0"){
+        $postPayload[0]["DEVICESLNO"] = $bio;
+    }
+
+    // 🌐 CURL API CALL
+    $curl = curl_init();
+
+    curl_setopt_array($curl, [
+        CURLOPT_URL => "http://103.30.72.34:7789/api/v1/GETATTENDANCELOG",
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CUSTOMREQUEST => "POST",
+        CURLOPT_HTTPHEADER => [
+            "Content-Type: application/json"
+        ],
+        CURLOPT_POSTFIELDS => json_encode($postPayload)
+    ]);
+
+    $response = curl_exec($curl);
+    curl_close($curl);
+
+    $result = json_decode($response);
+
+    $logs = [];
+    $bioIds = [];
+
+    // 🔍 FILTER LOOP
+    if(isset($result->data)){
+
+        foreach($result->data as $row){
+
+            if($row->EnrollmentNo == "99999996"){
+                continue;
+            }
+
+            // ✅ DEVICE FILTER
+            if(!empty($bio) && $bio != "0" && (string)$row->DeviceSlno !== (string)$bio){
+                continue;
+            }
+
+            // ✅ EVENT FILTER
+            if(!empty($event_name) && $event_name != "0" && (string)$row->Event_value !== (string)$event_name){
+                continue;
+            }
+
+            $bioIds[] = $row->EnrollmentNo;
+            $logs[] = $row;
+        }
+    }
+
+    // 👤 GET EMPLOYEES
+    $employees = $this->web->getEmployeeByBioIds($bioIds, $loginId);
+
+    $finalLogs = [];
+
+    foreach($logs as $row){
+
+        $emp = isset($employees[$row->EnrollmentNo])
+            ? $employees[$row->EnrollmentNo]
+            : null;
+
+        // 🔎 SEARCH FILTER (VERY IMPORTANT)
+        if(!empty($search)){
+            $searchLower = strtolower($search);
+
+            $match = false;
+
+            if(strpos(strtolower($row->EnrollmentNo), $searchLower) !== false){
+                $match = true;
+            }
+            elseif($emp && strpos(strtolower($emp->name), $searchLower) !== false){
+                $match = true;
+            }
+            elseif($emp && strpos(strtolower($emp->mobile), $searchLower) !== false){
+                $match = true;
+            }
+
+            if(!$match){
+                continue;
+            }
+        }
+
+        $finalLogs[] = [
+            "user_id"     => $row->EnrollmentNo,
+            "name"        => $emp->name ?? "",
+            "mobile"      => $emp->mobile ?? "",
+            "father_name" => $emp->father_name ?? "",
+            "designation" => $emp->designation ?? "",
+            "device_name" => $row->DeviceSlno,
+            "event_name"  => $row->Event_value,
+            "io_time"     => strtotime($row->PunchDateTime),
+            "latitude"    => $row->Latitude,
+            "longitude"   => $row->Longitude,
+            "location"    => (!empty($row->Latitude)) 
+                            ? $row->Latitude.",".$row->Longitude 
+                            : ""
+        ];
+    }
+
+    // 📤 RESPONSE
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+            'status' => 1,
+            'count'  => count($finalLogs),
+            'logs'   => $finalLogs,
+            'filters' => [
+                'start_date' => $start_date,
+                'end_date'   => $end_date,
+                'bio'        => $bio,
+                'event_name' => $event_name,
+                'search'     => $search
+            ]
+        ]));
+}
+
+public function access_report_search_api()
+{
+    $postdata = $this->input->get();
+
+    // Validate login_id or mobile
+    $loginId = isset($postdata['login_id']) ? trim($postdata['login_id']) : '';
+    $mobile  = isset($postdata['mobile']) ? trim($postdata['mobile']) : '';
+
+    if (!empty($mobile)) {
+        $this->db->select('id, name, mobile');
+        $this->db->from('login');
+        $this->db->where('mobile', $mobile);
+        $user_data = $this->db->get()->row();
+        
+        if (!empty($user_data)) {
+            $loginId = $user_data->id;
+        } else {
+            return $this->output
+                ->set_content_type('application/json')
+                ->set_output(json_encode([
+                    'status' => 0,
+                    'message' => 'Mobile number not found'
+                ]));
+        }
+    }
+
+    if (empty($loginId)) {
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode([
+                'status' => 0,
+                'message' => 'login_id or mobile is required'
+            ]));
+    }
+
+    // ✅ DATE SAME
+    $end_date = date("Y-m-d");
+    $start_date = date("Y-m-d", strtotime("-7 days"));
+
+    $fromDate = $start_date . " 00:00";
+    $toDate   = $end_date . " 23:59";
+
+    // ✅ FILTERS SAME
+    $bio        = isset($postdata['bio']) ? trim((string)$postdata['bio']) : '';
+    $search     = isset($postdata['search']) ? trim((string)$postdata['search']) : '';
+    $event_name = isset($postdata['event_name']) ? trim((string)$postdata['event_name']) : '';
+
+    // ✅ CURL PAYLOAD
+    $postPayload = [
+        [
+            "FROMDATE" => $fromDate,
+            "TODATE"   => $toDate
+        ]
+    ];
+
+    if (!empty($bio) && $bio != "0") {
+        $postPayload[0]["DEVICESLNO"] = $bio;
+    }
+
+    // ✅ CURL CALL
+    $curl = curl_init();
+
+    curl_setopt_array($curl, [
+        CURLOPT_URL => "http://103.30.72.34:7789/api/v1/GETATTENDANCELOG",
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CUSTOMREQUEST => "POST",
+        CURLOPT_HTTPHEADER => [
+            "Content-Type: application/json"
+        ],
+        CURLOPT_POSTFIELDS => json_encode($postPayload)
+    ]);
+
+    $response = curl_exec($curl);
+    curl_close($curl);
+
+    $result = json_decode($response);
+
+    $logs = [];
+    $bioIds = [];
+
+    // ✅ FILTER DATA (same logic)
+    if(isset($result->data)){
+
+        foreach($result->data as $row){
+
+            if($row->EnrollmentNo == "99999996"){
+                continue;
+            }
+
+            if(!empty($bio) && $bio != "0" && (string)$row->DeviceSlno !== (string)$bio){
+                continue;
+            }
+
+            if(!empty($event_name) && $event_name != "0" && (string)$row->Event_value !== (string)$event_name){
+                continue;
+            }
+
+            $bioIds[] = $row->EnrollmentNo;
+            $logs[] = $row;
+        }
+    }
+
+    // ✅ DB se employee data (same as temp)
+    $employees = $this->web->getEmployeeByBioIds($bioIds, $loginId);
+
+    $finalLogs = [];
+
+    foreach($logs as $row){
+
+        $emp = isset($employees[$row->EnrollmentNo])
+            ? $employees[$row->EnrollmentNo]
+            : null;
+
+        // ✅ SEARCH FILTER (same behaviour)
+        if (!empty($search)) {
+            if (
+                strpos(strtolower($row->EnrollmentNo), strtolower($search)) === false &&
+                (!$emp || strpos(strtolower($emp->name), strtolower($search)) === false) &&
+                (!$emp || strpos(strtolower($emp->mobile), strtolower($search)) === false)
+            ) {
+                continue;
+            }
+        }
+
+        // ✅ SAME FORMAT (VERY IMPORTANT)
+        $finalLogs[] = (object)[
+            "id" => null,
+            "user_id" => $row->EnrollmentNo,
+            "device_id" => $row->DeviceSlno,
+            "event" => $row->Event_value,
+            "io_time" => strtotime($row->PunchDateTime),
+            "latitude" => $row->Latitude,
+            "longitude" => $row->Longitude,
+            "location" => (!empty($row->Latitude)) ? $row->Latitude.",".$row->Longitude : "",
+            "name" => $emp->name ?? "",
+            "device_name" => $row->DeviceSlno,
+            "father_name" => $emp->father_name ?? "",
+            "mobile" => $emp->mobile ?? "",
+            "designation" => $emp->designation ?? "",
+            "event_name" => $row->Event_value
+        ];
+    }
+
+    // ✅ RESPONSE SAME (NO CHANGE)
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+            'status' => 1,
+            'logs'   => $finalLogs,
+            'start_date' => $start_date,
+            'end_date'   => $end_date,
+        ]));
+}
+
 }
 
 ?>
