@@ -4379,6 +4379,28 @@ public function callCommonApi($apiName, $jsonData){
     return $response;
 }
 
+public function getEmployeeByBioIds($bioIds, $companyId)
+{
+    if(empty($bioIds)){
+        return [];
+    }
+
+    $this->db->select("bio_id,name,father_name,mobile,designation");
+    $this->db->from("login");
+    $this->db->where("company", $companyId);
+    $this->db->where_in("bio_id", $bioIds);
+
+    $query = $this->db->get()->result();
+
+    $map = [];
+
+    foreach($query as $row){
+        $map[$row->bio_id] = $row;
+    }
+
+    return $map;
+}
+
 }
 
 ?>

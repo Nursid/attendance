@@ -77,7 +77,7 @@ $route['new-qr'] = 'User/activeNewQR';
 $route['qr'] = 'User/qrProfile';
 $route['attendance'] = 'User/attendance';
 $route['licence-qr'] = 'User/licence_qr';
-$route['business-users'] = 'User/businessUsers';
+$route['business-users'] = 'user/businessUsers';
 /////////////
 $route['employees'] = 'User/employees';
 $route['addemployee'] = 'User/addemployee';
@@ -108,7 +108,7 @@ $route['gps_report'] = 'User/gps_report';
 $route['attendance_option'] = 'User/attendanceOptions';
 $route['manual_report'] = 'User/manualReport';
 $route['device_list'] = 'User/device_list';
-$route['access_report'] = 'User/access_report';
+$route['access_report'] = 'User/access_report_temp';
 $route['left_employee'] = 'User/left_employee';
 /////
 $route['generate_login'] = 'User/generate_login';

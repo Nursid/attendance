@@ -11348,6 +11348,138 @@ public function test_api()
         ]));
 }
 
+
+public function access_report_temp()
+{
+    if(empty($this->session->userdata('id'))){
+        redirect('user-login');
+    }
+
+    $postdata = $this->input->get();
+
+    $start_date = date("Y-m-d");
+    $end_date   = date("Y-m-d");
+    $bio = '';
+    $event_name = '';
+    $true = 0;
+
+    $loginId = $this->session->userdata('login_id');
+
+    if(isset($postdata['start_date']) && isset($postdata['end_date'])){
+
+        $start_date = $postdata['start_date'];
+        $end_date   = $postdata['end_date'];
+
+        $bio = (!empty($postdata['bio']) && $postdata['bio'] != 0)
+                ? $postdata['bio']
+                : "";
+
+        $event_name = (!empty($postdata['event_name']) && $postdata['event_name'] != 0)
+                ? $postdata['event_name']
+                : "";
+
+        $true = 1;
+    }
+
+    $fromDate = $start_date . " 00:00";
+    $toDate   = $end_date . " 23:59";
+
+    // API CALL
+    $curl = curl_init();
+
+    curl_setopt_array($curl, [
+        CURLOPT_URL => "http://103.30.72.34:7789/api/v1/GETATTENDANCELOG",
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CUSTOMREQUEST => "POST",
+        CURLOPT_HTTPHEADER => [
+            "Content-Type: application/json"
+        ],
+        CURLOPT_POSTFIELDS => json_encode([
+            [
+                "DEVICESLNO" => $bio,
+                "FROMDATE"   => $fromDate,
+                "TODATE"     => $toDate
+            ]
+        ])
+    ]);
+
+    $response = curl_exec($curl);
+    curl_close($curl);
+
+    $result = json_decode($response);
+
+    $logs = [];
+    $bioIds = [];
+
+    if(isset($result->data)){
+
+        foreach($result->data as $row){
+
+            if($row->EnrollmentNo == "99999996"){
+                continue;
+            }
+
+            if(!empty($event_name) && $event_name != $row->Event_value){
+                continue;
+            }
+
+            $bioIds[] = $row->EnrollmentNo;
+
+            $logs[] = $row;
+        }
+    }
+
+    // get employee details from DB
+    $employees = $this->web->getEmployeeByBioIds($bioIds, $loginId);
+
+    $finalLogs = [];
+
+    foreach($logs as $row){
+
+        $emp = isset($employees[$row->EnrollmentNo])
+            ? $employees[$row->EnrollmentNo]
+            : null;
+
+        $finalLogs[] = (object)[
+
+            "user_id" => $row->EnrollmentNo,
+
+            "name" => $emp->name ?? "",
+
+            "mobile" => $emp->mobile ?? "",
+
+            "father_name" => $emp->father_name ?? "",
+
+            "designation" => $emp->designation ?? "",
+
+            "device_name" => $row->DeviceSlno,
+
+            "event_name" => $row->Event_value,
+
+            "io_time" => strtotime($row->PunchDateTime),
+
+            "latitude" => $row->Latitude,
+
+            "longitude" => $row->Longitude,
+
+            "location" => 
+                (!empty($row->Latitude))
+                ? $row->Latitude.",".$row->Longitude
+                : ""
+        ];
+    }
+
+    $data['logs'] = $finalLogs;
+    $data['pagination'] = "";
+    $data['start_date'] = $start_date;
+    $data['end_date'] = $end_date;
+    $data['bio'] = $bio;
+    $data['event_name'] = $event_name;
+    $data['load'] = $true;
+    $data['offset'] = 0;
+
+    $this->load->view('attendance/access_report2', $data);
+}
 }
 
 ?>
