@@ -11408,13 +11408,9 @@ public function access_report_temp()
         $start_date = $postdata['start_date'];
         $end_date   = $postdata['end_date'];
 
-        if(!empty($postdata['bio']) && $postdata['bio'] != 0){
-            $bio = $postdata['bio'];
-        }
+        $bio = isset($postdata['bio']) ? $postdata['bio'] : '';
 
-        if(!empty($postdata['event_name']) && $postdata['event_name'] != 0){
-            $event_name = $postdata['event_name'];
-        }
+        $event_name = isset($postdata['event_name']) ? $postdata['event_name'] : '';
 
         $true = 1;
     }
