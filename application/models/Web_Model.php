@@ -4358,7 +4358,7 @@ public function getvisitoraccessbyevent_api($start_time, $end_time, $bio, $searc
 
 
 public function callCommonApi($apiName, $jsonData){
-    $baseUrl = "http://31.97.230.189:7788/api/v1/";
+    $baseUrl = "http://103.30.72.34:7789/api/v1/";
     $url = $baseUrl . $apiName;
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -4381,7 +4381,7 @@ public function callCommonApi($apiName, $jsonData){
 
 public function sendToApi($jsonData) {
 
-        $url = "http://31.97.230.189:7788/api/v1/ADDEDITDEVICE";
+        $url = "http://103.30.72.34:7789/api/v1/ADDEDITDEVICE";
 
         $ch = curl_init($url);
 
