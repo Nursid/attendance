@@ -93,7 +93,7 @@
     <table class="table table-bordered">
         <thead>
             <tr>
-                <th>Select</th>
+                <th> <input type="checkbox" id="select_all_devices"></th>
                 <th>Device ID</th>
                 <th>Name</th>
             </tr>
@@ -111,11 +111,41 @@
         </tbody>
     </table>
     <div class="mt-3">
-        <button onclick="submitAddUser()" class="btn btn-primary">Submit ADDUSER</button>
-        <button onclick="callDeviceAPI('RESTARTDEVICE')" class="btn btn-warning">Restart</button>
-        <button onclick="callDeviceAPI('GETATTENDANCELOG')" class="btn btn-info">Get Logs</button>
-        <button onclick="callDeviceAPI('DELETEUSER')" class="btn btn-danger">Delete User</button>
-        <button onclick="closeDevicePopup()" class="btn btn-secondary">Close</button>
+<div>
+        <button onclick="submitAddUser()" class="btn btn-primary">ADD USER</button>
+       <button onclick="callCommonAPI('ADDUSERNAME')" class="btn btn-warning">Add User Name</button>
+    <button onclick="callCommonAPI('DELETEUSER')" class="btn btn-danger">Delete User</button>
+  <!--button onclick="callDeviceAPI('ADDUSERWITHVALIDITY')" class="btn btn-info">Add Username With Validity</button>-->
+<button onclick="openValidityPopup()" class="btn btn-info">Add User Validity</button>
+
+<button onclick="updateUserStatus('ENABLE')" class="btn btn-success">
+    Enable User
+</button>
+
+<button onclick="updateUserStatus('DISABLE')" class="btn btn-danger">
+    Disable User
+</button>
+</div>
+<br>
+<div>
+<button onclick="callCommonAPI('ADDADMIN')" class="btn btn-info">Add Admin</button>
+<button onclick="callCommonAPI('DELETEADMIN')" class="btn btn-info">Delete Admin</button>
+<button onclick="remoteRegister('REMOTEREGISTERFINGER')" class="btn btn-info">
+    Register Finger
+</button>
+
+<button onclick="remoteRegister('REMOTEREGISTERFACE')" class="btn btn-primary">
+    Register Face
+</button>
+
+<button onclick="remoteRegister('REMOTEREGISTERCARD')" class="btn btn-warning">
+    Register Card
+</button>
+
+  <button onclick="closeDevicePopup()" class="btn btn-secondary">Close</button>
+
+</div>
+
     </div>
 </div>
 
@@ -252,14 +282,11 @@ function callDeviceAPI(apiName){
     <section class="content">
       <?php
       if($this->session->userdata()['type']=='B' || $role[0]->employee_list=="1" || $role[0]->type=="1"){?>
+      
+        <br>
       <div class="container-fluid">
-        <div class="row">
-          <!-- left column -->
-          
-        </div>
- 
           <div align="right">
-          <br>
+          
                           <input type="button" onClick="export_datas()" value="Export To Excel" class="btn btn-secondary" />
                           <button onclick="openDevicePopup()" class="btn btn-info">Sync to Device</button>
                          <!-- <input type="button"  id="btnExport" value="Export To Pdf" onclick="exportPDF()" />-->
@@ -278,7 +305,9 @@ function callDeviceAPI(apiName){
               <table id="example1" class="table table-bordered table-striped">
                   <thead>
                   <tr>
-                    <th>Select</th>
+                    <th>
+                <input type="checkbox" id="select_all_users">
+            </th>
                     <th>S.No</th>
                     <th>EmpCode</th>
                     <th>Name</th>
@@ -331,10 +360,13 @@ function callDeviceAPI(apiName){
                       ?>
                       <tr>
                        <td>
-                        <?php $uname = $this->web->getNameByUserId($val->user_id); ?>
-                        <input type="checkbox" class="emp_checkbox" value="<?php echo $val->user_id; ?>" data-name="<?php echo $uname[0]->name; ?>">
-                       </td>
-                       <td><?php echo $count++; ?></td>
+    <?php $uname = $this->web->getNameByUserId($val->user_id); ?>
+    
+    <input type="checkbox" class="emp_checkbox"
+        data-id="<?php echo $uname[0]->bio_id; ?>"
+        data-name="<?php echo $uname[0]->name; ?>"
+        data-admin="0">
+</td>                       <td><?php echo $count++; ?></td>
                         
                         <td><?php $uname = $this->web->getNameByUserId($val->user_id);
                                 echo $uname[0]->emp_code;?> </td>
@@ -750,8 +782,32 @@ function callDeviceAPI(apiName){
   </div>
 </div>
 
+<div id="validityModal" style="
+    display:none;
+    position:fixed;
+    top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    width:280px;
+    background:#fff;
+    padding:15px;
+    border-radius:8px;
+    z-index:10000;
+">
 
+    <h4>Set Validity</h4>
 
+    <!-- FROM -->
+    <label>From Date:</label><br>
+    <input type="datetime-local" id="from_date"><br><br>
+
+    <!-- TO -->
+    <label>To Date:</label><br>
+    <input type="datetime-local" id="to_date"><br><br>
+
+    <button onclick="submitValidity()" class="btn btn-success">Submit</button>
+    <button onclick="closeValidityPopup()" class="btn btn-danger">Close</button>
+
+</div>
 
 
 <!-- jQuery -->
@@ -989,11 +1045,412 @@ function export_datas(){
 
 
 
+<script>
 
 
 
+function callCommonAPI(apiName){
+
+    let users = [];
+    let devices = [];
+
+    // USERS
+   document.querySelectorAll('.emp_checkbox:checked').forEach(el => {
+
+    users.push({
+        USERID: el.dataset.id || "",
+        USERNAME: el.dataset.name || "",
+        ADMIN: el.dataset.admin || "0"
+    });
+    });
+
+    // DEVICES
+    document.querySelectorAll('.popup_device_checkbox:checked').forEach(el => {
+        devices.push(el.value);
+    });
+
+    if(devices.length === 0){
+        alert("Select at least one device");
+        return;
+    }
+
+    let payload = [];
+
+    // ==========================
+    // DEVICE ONLY API
+    // ==========================
+    if(users.length === 0){
+
+        payload = devices.map(device => ({
+            DEVICESLNO: device
+        }));
+
+    }
+
+    // ==========================
+    // USER BASED API
+    // ==========================
+    else{
+
+        users.forEach(user => {
+            devices.forEach(device => {
+
+                let obj = {
+                    DEVICESLNO: device,
+                    USERID: String(user.USERID)
+                };
+
+                // ADDUSERNAME
+                if(apiName === "ADDUSERNAME"){
+                    obj.USERNAME = String(user.USERNAME);
+                    obj.ADMIN = String(user.ADMIN);
+                }
+
+                
+
+                payload.push(obj);
+
+            });
+        });
+
+    }
+
+    console.log("API:", apiName);
+    console.log("PAYLOAD:", payload);
+
+    document.getElementById("loader").style.display = "block";
+
+    fetch("<?php echo base_url('device/common_api'); ?>", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            api: apiName,
+            data: payload
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        document.getElementById("loader").style.display = "none";
+
+        alert(data.msg || "Action Completed");
+
+    })
+    .catch(err => {
+
+        document.getElementById("loader").style.display = "none";
+
+        console.error(err);
+        alert("Error calling " + apiName);
+
+    });
+
+}
+
+</script>
+
+<script>
+
+// ==============================
+// ? SELECT ALL USERS
+// ==============================
+document.getElementById("select_all_users").addEventListener("change", function(){
+
+    let isChecked = this.checked;
+
+    document.querySelectorAll('.emp_checkbox').forEach(cb => {
+        cb.checked = isChecked;
+    });
+
+});
 
 
+// ==============================
+// ? SELECT ALL DEVICES
+// ==============================
+document.getElementById("select_all_devices").addEventListener("change", function(){
 
+    let isChecked = this.checked;
+
+    document.querySelectorAll('.popup_device_checkbox').forEach(cb => {
+        cb.checked = isChecked;
+    });
+
+});
+</script>
+<script>
+
+// OPEN POPUP
+function openValidityPopup(){
+
+    let users = document.querySelectorAll('.emp_checkbox:checked');
+    let devices = document.querySelectorAll('.popup_device_checkbox:checked');
+
+    if(users.length === 0){
+        alert("Select at least one user");
+        return;
+    }
+
+    if(devices.length === 0){
+        alert("Select at least one device first");
+        return;
+    }
+
+    document.getElementById("validityModal").style.display = "block";
+}
+
+// CLOSE
+function closeValidityPopup(){
+    document.getElementById("validityModal").style.display = "none";
+}
+
+// FORMAT DATE
+function formatDateTime(val){
+
+    let d = new Date(val);
+
+    let yyyy = d.getFullYear();
+    let mm   = String(d.getMonth()+1).padStart(2,'0');
+    let dd   = String(d.getDate()).padStart(2,'0');
+
+    let hh   = String(d.getHours()).padStart(2,'0');
+    let min  = String(d.getMinutes()).padStart(2,'0');
+
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}:00`;
+}
+
+// SUBMIT
+function submitValidity(){
+
+    let from = document.getElementById("from_date").value;
+    let to   = document.getElementById("to_date").value;
+
+    if(!from || !to){
+        alert("Select both dates");
+        return;
+    }
+
+    if(new Date(from) > new Date(to)){
+        alert("From date must be smaller than To date");
+        return;
+    }
+
+    let fromDate = formatDateTime(from);
+    let toDate   = formatDateTime(to);
+
+    let users = [];
+    let devices = [];
+
+    // USERS
+    document.querySelectorAll('.emp_checkbox:checked').forEach(el => {
+        users.push(el.dataset.id);
+    });
+
+    // DEVICES (IMPORTANT: using existing list)
+    document.querySelectorAll('.popup_device_checkbox:checked').forEach(el => {
+        devices.push(el.value);
+    });
+
+    let payload = [];
+
+    users.forEach(user => {
+        devices.forEach(device => {
+
+            payload.push({
+                DEVICESLNO: device,
+                USERID: String(user),
+                FROMDATE: fromDate,
+                TODATE: toDate
+            });
+
+        });
+    });
+
+    console.log("SETVALIDITY PAYLOAD:", payload);
+
+    document.getElementById("loader").style.display = "block";
+
+    fetch("<?php echo base_url('device/common_api'); ?>", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            api: "SETVALIDITY",
+            data: payload
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        document.getElementById("loader").style.display = "none";
+        closeValidityPopup();
+
+        alert(data.msg || "Validity Updated");
+
+    })
+    .catch(err => {
+
+        document.getElementById("loader").style.display = "none";
+        console.error(err);
+        alert("Error in API");
+
+    });
+
+}
+
+</script>
+<script>
+
+function updateUserStatus(status){
+
+    let users = [];
+    let devices = [];
+
+    // USERS
+    document.querySelectorAll('.emp_checkbox:checked').forEach(el => {
+        users.push(el.dataset.id);
+    });
+
+    // DEVICES (already selected list)
+    document.querySelectorAll('.popup_device_checkbox:checked').forEach(el => {
+        devices.push(el.value);
+    });
+
+    if(users.length === 0){
+        alert("Select at least one user");
+        return;
+    }
+
+    if(devices.length === 0){
+        alert("Select at least one device");
+        return;
+    }
+
+    let payload = [];
+
+    users.forEach(user => {
+        devices.forEach(device => {
+
+            payload.push({
+                DEVICESLNO: device,
+                USERID: String(user),
+                STATUS: status   // ENABLE / DISABLE
+            });
+
+        });
+    });
+
+    console.log("ENABLEUSER PAYLOAD:", payload);
+
+    document.getElementById("loader").style.display = "block";
+
+    fetch("<?php echo base_url('device/common_api'); ?>", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            api: "ENABLEUSER",
+            data: payload
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        document.getElementById("loader").style.display = "none";
+        alert(data.msg || "Status Updated");
+
+    })
+    .catch(err => {
+
+        document.getElementById("loader").style.display = "none";
+        console.error(err);
+        alert("Error in API");
+
+    });
+
+}
+
+</script>
+<script>
+
+function remoteRegister(apiName){
+
+    let users = [];
+    let devices = [];
+
+    // USERS
+    document.querySelectorAll('.emp_checkbox:checked').forEach(el => {
+        users.push({
+            id: el.dataset.id,
+            name: el.dataset.name
+        });
+    });
+
+    // DEVICES
+    document.querySelectorAll('.popup_device_checkbox:checked').forEach(el => {
+        devices.push(el.value);
+    });
+
+    if(users.length === 0){
+        alert("Select at least one user");
+        return;
+    }
+
+    if(devices.length === 0){
+        alert("Select at least one device");
+        return;
+    }
+
+    // Optional confirm
+    if(!confirm("Proceed with " + apiName + " ?")){
+        return;
+    }
+
+    let payload = [];
+
+    users.forEach(user => {
+        devices.forEach(device => {
+
+            payload.push({
+                DEVICESLNO: device,
+                USERID: String(user.id),
+                USERNAME: String(user.name)
+            });
+
+        });
+    });
+
+    console.log(apiName + " PAYLOAD:", payload);
+
+    document.getElementById("loader").style.display = "block";
+
+    fetch("<?php echo base_url('device/common_api'); ?>", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            api: apiName,
+            data: payload
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        document.getElementById("loader").style.display = "none";
+
+        alert(data.msg || (apiName + " Sent Successfully"));
+
+    })
+    .catch(err => {
+
+        document.getElementById("loader").style.display = "none";
+
+        console.error(err);
+        alert("Error in " + apiName);
+
+    });
+
+}
+
+</script>
 </body>
 </html>
