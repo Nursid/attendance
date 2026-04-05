@@ -11408,13 +11408,13 @@ public function access_report_temp()
         $start_date = $postdata['start_date'];
         $end_date   = $postdata['end_date'];
 
-        $bio = (!empty($postdata['bio']) && $postdata['bio'] != 0)
-                ? $postdata['bio']
-                : "";
+        if(!empty($postdata['bio']) && $postdata['bio'] != 0){
+			$bio = $postdata['bio'];
+		}
 
-        $event_name = (!empty($postdata['event_name']) && $postdata['event_name'] != 0)
-                ? $postdata['event_name']
-                : "";
+        if(!empty($postdata['event_name']) && $postdata['event_name'] != 0){
+			$event_name = $postdata['event_name'];
+		}
 
         $true = 1;
     }
