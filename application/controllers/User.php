@@ -11717,11 +11717,28 @@ public function access_report_search_api()
     }
 
     // ✅ DATE SAME
-    $end_date = date("Y-m-d");
-    $start_date = date("Y-m-d", strtotime("-7 days"));
+    // $end_date = date("Y-m-d");
+    // $start_date = date("Y-m-d", strtotime("-7 days"));
 
-    $fromDate = $start_date . " 00:00";
-    $toDate   = $end_date . " 23:59";
+    // $fromDate = $start_date . " 00:00";
+    // $toDate   = $end_date . " 23:59";
+
+	$today = date("j"); // current day (1–31)
+
+	// End date same rahega
+	$end_date = date("Y-m-d");
+
+	if ($today <= 7) {
+		// 1 se current day tak
+		$start_date = date("Y-m-01");
+	} else {
+		// last 7 days window
+		$start_date = date("Y-m-d", strtotime("-6 days"));
+	}
+
+	// final datetime
+	$fromDate = $start_date . " 00:00";
+	$toDate   = $end_date . " 23:59";
 
     // ✅ FILTERS SAME
     $bio        = isset($postdata['bio']) ? trim((string)$postdata['bio']) : '';
