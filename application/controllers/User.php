@@ -11925,7 +11925,7 @@ public function updateVisitorLocation_new()
 }
 
 
-public function access_report_temp_api()
+public function access_report_search_api()
 {
     $postdata = $this->input->get(NULL, TRUE);
 
