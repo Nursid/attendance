@@ -1,4 +1,5 @@
 <?php if (!defined('BASEPATH')) exit('No direct script access allowed');
+date_default_timezone_set('Asia/Kolkata');
 class Web_Model extends CI_Model
 {
 	function __construct(){
@@ -4337,7 +4338,7 @@ public function getvisitoraccessbyevent_api($start_time, $end_time, $bio, $searc
 		LEFT JOIN Business_bioid bb 
             ON bb.deviceid = vl.device_id AND bb.active = '1'
         WHERE vl.user_id != 99999996
-        AND vl.io_time BETWEEN ? AND ?
+        AND vl.io_time >= ? AND vl.io_time < ?
     ";
 
     $params = [$loginId, $start_time, $end_time];

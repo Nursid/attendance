@@ -11267,9 +11267,11 @@ public function updateVisitorLocation()
     }
 }
 
-
 public function access_report_search_api_old()
 {
+    // ✅ Always set timezone (VERY IMPORTANT)
+    date_default_timezone_set('Asia/Kolkata');
+
     $postdata = $this->input->get();
 
     // Validate login_id or mobile
@@ -11303,18 +11305,24 @@ public function access_report_search_api_old()
             ]));
     }
 
-    // Default date range (last 7 days)
-    $end_date = date("Y-m-d");
-    $start_date = date("Y-m-d", strtotime("-7 days"));
+    // ✅ Date handling (user input OR default)
+    $start_date = !empty($postdata['start_date']) 
+        ? $postdata['start_date'] 
+        : date("Y-m-d", strtotime("-3 days"));
+
+    $end_date = !empty($postdata['end_date']) 
+        ? $postdata['end_date'] 
+        : date("Y-m-d");
+
+    // ✅ Convert to timestamp (NO manual -19800)
+    $start_time = strtotime($start_date . ' 00:00:00');
+    $end_time   = strtotime($end_date . ' 23:59:59');
 
     // Filters
     $bio = isset($postdata['bio']) ? trim((string)$postdata['bio']) : '';
     $search = isset($postdata['search']) ? trim((string)$postdata['search']) : '';
-    // Convert to timestamp
-    $start_time = strtotime($start_date . ' 00:00:00');
-    $end_time   = strtotime($end_date . ' 23:59:59');
 
-    // Fetch data (⚠️ correct param order)
+    // Fetch data
     $logs = $this->web->getvisitoraccessbyevent_api(
         $start_time,
         $end_time,
@@ -11328,8 +11336,17 @@ public function access_report_search_api_old()
         ->set_output(json_encode([
             'status' => 1,
             'logs'   => $logs,
+
+            // ✅ Clean debug info
             'start_date' => $start_date,
             'end_date'   => $end_date,
+
+            'start_time' => $start_time,
+            'end_time'   => $end_time,
+
+            // ✅ Human readable (VERY HELPFUL)
+            'start_time_readable' => date('Y-m-d H:i:s', $start_time),
+            'end_time_readable'   => date('Y-m-d H:i:s', $end_time),
         ]));
 }
 
@@ -11681,7 +11698,7 @@ public function access_report_temp_api()
         ]));
 }
 
-public function access_report_search_api()
+public function access_report_search_api_new()
 {
     $postdata = $this->input->get();
 
@@ -11716,23 +11733,12 @@ public function access_report_search_api()
             ]));
     }
 
-    // ✅ DATE SAME
-    // $end_date = date("Y-m-d");
-    // $start_date = date("Y-m-d", strtotime("-7 days"));
-
-    // $fromDate = $start_date . " 00:00";
-    // $toDate   = $end_date . " 23:59";
-
-	$today = date("j"); // current day (1–31)
-
-	// End date same rahega
+	$today = date("j");
 	$end_date = date("Y-m-d");
 
 	if ($today <= 7) {
-		// 1 se current day tak
 		$start_date = date("Y-m-01");
 	} else {
-		// last 7 days window
 		$start_date = date("Y-m-d", strtotime("-6 days"));
 	}
 
@@ -11849,6 +11855,296 @@ public function access_report_search_api()
             'logs'   => $finalLogs,
             'start_date' => $start_date,
             'end_date'   => $end_date,
+        ]));
+}
+
+public function updateVisitorLocation_new()
+{
+    $post = $this->input->post();
+
+    if (
+        empty($post['user_id']) ||
+        empty($post['device_id']) ||
+        empty($post['io_time']) ||
+        empty($post['latitude']) ||
+        empty($post['longitude'])
+    ) {
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode([
+                'status' => 0,
+                'message' => 'Required fields missing'
+            ]));
+    }
+
+    $user_id   = $post['user_id'];
+    $device_id = $post['device_id'];
+    $io_time   = $post['io_time'];
+    $latitude  = $post['latitude'];
+    $longitude = $post['longitude'];
+
+    // 🔍 check exist
+    $this->db->where('user_id', $user_id);
+    $this->db->where('device_id', $device_id);
+    $this->db->where('io_time', $io_time);
+
+    $existing = $this->db->get('visitor_log')->row();
+
+    if ($existing) {
+        // ✅ UPDATE
+        $this->db->where('id', $existing->id);
+        $this->db->update('visitor_log', [
+            'latitude'  => $latitude,
+            'longitude' => $longitude
+        ]);
+
+        $msg = "Location updated";
+    } else {
+        // ✅ INSERT (full record)
+        $insertData = [
+            'user_id'   => $user_id,
+            'device_id' => $device_id,
+            'event'     => $post['event'] ?? 0,
+            'io_time'   => $io_time,
+            'latitude'  => $latitude,
+            'longitude' => $longitude,
+            'location'  => $latitude . ',' . $longitude
+        ];
+
+        $this->db->insert('visitor_log', $insertData);
+
+        $msg = "Location inserted";
+    }
+
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+            'status' => 1,
+            'message' => $msg
+        ]));
+}
+
+
+public function access_report_temp_api()
+{
+    $postdata = $this->input->get(NULL, TRUE);
+
+    // 🔐 LOGIN CHECK
+    $loginId = isset($postdata['login_id']) ? trim($postdata['login_id']) : '';
+
+	 $mobile  = isset($postdata['mobile']) ? trim($postdata['mobile']) : '';
+
+    if (!empty($mobile)) {
+        $this->db->select('id, name, mobile');
+        $this->db->from('login');
+        $this->db->where('mobile', $mobile);
+        $user_data = $this->db->get()->row();
+        
+        if (!empty($user_data)) {
+            $loginId = $user_data->id;
+        } else {
+            return $this->output
+                ->set_content_type('application/json')
+                ->set_output(json_encode([
+                    'status' => 0,
+                    'message' => 'Mobile number not found'
+                ]));
+        }
+    }
+
+    if(empty($loginId)){
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode([
+                'status' => 0,
+                'message' => 'login_id is required'
+            ]));
+    }
+
+    // 📅 DATE FILTER
+   	$today = date("j");
+	$end_date = date("Y-m-d");
+
+	if ($today <= 7) {
+		$start_date = date("Y-m-01");
+	} else {
+		$start_date = date("Y-m-d", strtotime("-6 days"));
+	}
+
+	// final datetime
+	$fromDate = $start_date . " 00:00";
+	$toDate   = $end_date . " 23:59";
+    // 🔎 FILTERS
+    $bio        = isset($postdata['bio']) ? trim((string)$postdata['bio']) : '';
+    $event_name = isset($postdata['event_name']) ? trim((string)$postdata['event_name']) : '';
+    $search     = isset($postdata['search']) ? trim((string)$postdata['search']) : '';
+
+    // ✅ API PAYLOAD
+    $postPayload = [
+        [
+            "FROMDATE" => $fromDate,
+            "TODATE"   => $toDate
+        ]
+    ];
+
+    if(!empty($bio) && $bio != "0"){
+        $postPayload[0]["DEVICESLNO"] = $bio;
+    }
+
+    // 🌐 CURL API CALL
+    $curl = curl_init();
+
+    curl_setopt_array($curl, [
+        CURLOPT_URL => "http://103.30.72.34:7789/api/v1/GETATTENDANCELOG",
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CUSTOMREQUEST => "POST",
+        CURLOPT_HTTPHEADER => [
+            "Content-Type: application/json"
+        ],
+        CURLOPT_POSTFIELDS => json_encode($postPayload)
+    ]);
+
+    $response = curl_exec($curl);
+    curl_close($curl);
+
+    $result = json_decode($response);
+
+    $logs = [];
+    $bioIds = [];
+    $keys = [];
+
+    // 🔍 FILTER LOOP
+    if(isset($result->data)){
+
+        foreach($result->data as $row){
+
+            if($row->EnrollmentNo == "99999996"){
+                continue;
+            }
+
+            if(!empty($bio) && $bio != "0" && (string)$row->DeviceSlno !== (string)$bio){
+                continue;
+            }
+
+            if(!empty($event_name) && $event_name != "0" && (string)$row->Event_value !== (string)$event_name){
+                continue;
+            }
+
+            $logs[] = $row;
+            $bioIds[] = $row->EnrollmentNo;
+
+            // 🔑 keys collect
+            $keys[] = [
+                'user_id'   => $row->EnrollmentNo,
+                'device_id' => $row->DeviceSlno,
+                'io_time'   => strtotime($row->PunchDateTime)
+            ];
+        }
+    }
+
+    // 👤 GET EMPLOYEES
+    $employees = $this->web->getEmployeeByBioIds($bioIds, $loginId);
+
+    // ==============================
+    // 🔥 OVERRIDE DATA FETCH (ONE QUERY)
+    // ==============================
+
+    $overrideMap = [];
+
+    if(!empty($keys)){
+
+        $this->db->from('visitor_log');
+
+        foreach($keys as $k){
+            $this->db->or_group_start()
+                ->where('user_id', $k['user_id'])
+                ->where('device_id', $k['device_id'])
+                ->where('io_time', $k['io_time'])
+            ->group_end();
+        }
+
+        $dbLogs = $this->db->get()->result();
+
+        foreach($dbLogs as $d){
+            $mapKey = $d->user_id . '_' . $d->device_id . '_' . $d->io_time;
+            $overrideMap[$mapKey] = $d;
+        }
+    }
+
+    // ==============================
+    // 🔥 FINAL LOOP WITH OVERRIDE
+    // ==============================
+
+    $finalLogs = [];
+
+    foreach($logs as $row){
+
+        $emp = isset($employees[$row->EnrollmentNo])
+            ? $employees[$row->EnrollmentNo]
+            : null;
+
+        $io_time = strtotime($row->PunchDateTime);
+
+        $mapKey = $row->EnrollmentNo . '_' . $row->DeviceSlno . '_' . $io_time;
+
+        $override = isset($overrideMap[$mapKey]) ? $overrideMap[$mapKey] : null;
+
+        // ✅ override logic
+        $latitude  = $override->latitude  ?? $row->Latitude;
+        $longitude = $override->longitude ?? $row->Longitude;
+
+        // 🔎 SEARCH FILTER
+        if(!empty($search)){
+            $searchLower = strtolower($search);
+
+            $match = false;
+
+            if(strpos(strtolower($row->EnrollmentNo), $searchLower) !== false){
+                $match = true;
+            }
+            elseif($emp && strpos(strtolower($emp->name), $searchLower) !== false){
+                $match = true;
+            }
+            elseif($emp && strpos(strtolower($emp->mobile), $searchLower) !== false){
+                $match = true;
+            }
+
+            if(!$match){
+                continue;
+            }
+        }
+
+        $finalLogs[] = [
+            "user_id"     => $row->EnrollmentNo,
+            "name"        => $emp->name ?? "",
+            "mobile"      => $emp->mobile ?? "",
+            "father_name" => $emp->father_name ?? "",
+            "designation" => $emp->designation ?? "",
+            "device_name" => $row->DeviceSlno,
+            "event_name"  => $row->Event_value,
+            "io_time"     => $io_time,
+            "latitude"    => $latitude,
+            "longitude"   => $longitude,
+            "location"    => (!empty($latitude)) 
+                            ? $latitude.",".$longitude 
+                            : ""
+        ];
+    }
+
+    // 📤 RESPONSE
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+            'status' => 1,
+            'count'  => count($finalLogs),
+            'logs'   => $finalLogs,
+            'filters' => [
+                'start_date' => $start_date,
+                'end_date'   => $end_date,
+                'bio'        => $bio,
+                'event_name' => $event_name,
+                'search'     => $search
+            ]
         ]));
 }
 
