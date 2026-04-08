@@ -11540,6 +11540,14 @@ public function access_report_temp()
 			$eventMap[$e->id] = $e->event_name;
 		}
 
+		 $devicename = $this->web->getdevicebysn($bio);
+
+		 $deviceMap = [];
+
+		foreach($devicename as $d){
+			$deviceMap[$d->deviceid] = $d->name;
+		}
+
     // ✅ GET EMPLOYEE DATA
     $employees = $this->web->getEmployeeByBioIds($bioIds, $loginId);
 
@@ -11566,6 +11574,8 @@ public function access_report_temp()
 		$eventName = isset($eventMap[$eventId]) 
 			? $eventMap[$eventId] 
 			: $eventId;
+		
+		$deviceId = $deviceMap[$row->DeviceSlno];
 
         $finalLogs[] = (object)[
 
@@ -11579,7 +11589,7 @@ public function access_report_temp()
 
             "designation" => $emp->designation ?? "",
 
-            "device_name" => $row->DeviceSlno,
+            "device_name" => $deviceId,
 
             "event_name" => $eventName,
 
