@@ -11465,8 +11465,12 @@ public function access_report_temp()
 
     $result = json_decode($response);
 
-    $logs = [];
-    $bioIds = [];
+    // $logs = [];
+    // $bioIds = [];
+
+	$logs = [];
+	$bioIds = [];
+	$keys = [];
 
     // ✅ FILTER DATA PROPERLY
     if(isset($result->data)){
@@ -11488,10 +11492,53 @@ public function access_report_temp()
                 continue;
             }
 
-            $bioIds[] = $row->EnrollmentNo;
-            $logs[] = $row;
+
+			$logs[] = $row;
+			$bioIds[] = $row->EnrollmentNo;
+
+			$keys[] = [
+				'user_id'   => $row->EnrollmentNo,
+				'device_id' => $row->DeviceSlno,
+				'io_time'   => strtotime($row->PunchDateTime)
+			];
         }
     }
+
+
+	// ==============================
+// 🔥 OVERRIDE DATA FETCH
+// ==============================
+
+		$overrideMap = [];
+
+		if(!empty($keys)){
+
+			$this->db->from('visitor_log');
+
+			foreach($keys as $k){
+				$this->db->or_group_start()
+					->where('user_id', $k['user_id'])
+					->where('device_id', $k['device_id'])
+					->where('io_time', $k['io_time'])
+				->group_end();
+			}
+
+			$dbLogs = $this->db->get()->result();
+
+			foreach($dbLogs as $d){
+				$mapKey = $d->user_id . '_' . $d->device_id . '_' . $d->io_time;
+				$overrideMap[$mapKey] = $d;
+			}
+		}
+
+		$eventList = $this->web->getUniqueEvent($bio);
+
+		// map bana lo
+		$eventMap = [];
+
+		foreach($eventList as $e){
+			$eventMap[$e->id] = $e->event_name;
+		}
 
     // ✅ GET EMPLOYEE DATA
     $employees = $this->web->getEmployeeByBioIds($bioIds, $loginId);
@@ -11503,6 +11550,22 @@ public function access_report_temp()
         $emp = isset($employees[$row->EnrollmentNo])
             ? $employees[$row->EnrollmentNo]
             : null;
+
+		$io_time = strtotime($row->PunchDateTime);
+
+		$mapKey = $row->EnrollmentNo . '_' . $row->DeviceSlno . '_' . $io_time;
+
+		$override = isset($overrideMap[$mapKey]) ? $overrideMap[$mapKey] : null;
+
+		// ✅ SAME override logic
+		$latitude  = $override->latitude  ?? $row->Latitude;
+		$longitude = $override->longitude ?? $row->Longitude;
+
+		$eventId = $row->Event_value;
+
+		$eventName = isset($eventMap[$eventId]) 
+			? $eventMap[$eventId] 
+			: $eventId;
 
         $finalLogs[] = (object)[
 
@@ -11518,18 +11581,15 @@ public function access_report_temp()
 
             "device_name" => $row->DeviceSlno,
 
-            "event_name" => $row->Event_value,
+            "event_name" => $eventName,
 
             "io_time" => strtotime($row->PunchDateTime),
-
-            "latitude" => $row->Latitude,
-
-            "longitude" => $row->Longitude,
-
-            "location" => 
-                (!empty($row->Latitude))
-                ? $row->Latitude.",".$row->Longitude
-                : ""
+				
+			"latitude" => $latitude,
+			"longitude" => $longitude,
+			"location" => (!empty($latitude)) 
+				? $latitude.",".$longitude 
+				: ""	
         ];
     }
 
@@ -11542,7 +11602,6 @@ public function access_report_temp()
     $data['event_name'] = $event_name;
     $data['load'] = $true;
     $data['offset'] = 0;
-
     $this->load->view('attendance/access_report2', $data);
 }
 

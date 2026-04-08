@@ -151,17 +151,21 @@ date_default_timezone_set('Asia/Kolkata');
                             
                               
                               
-                              <select name="event_name" class="form-control" id="event_name" required>
+                             <select name="event_name" class="form-control" id="event_name" required>
 
     <!-- Default option -->
-    <option value="0">All Train</option>
+    <option value="0" <?= ($event_name == "0" || empty($event_name)) ? 'selected' : '' ?>>
+        All Train
+    </option>
 
     <?php
         $events = $this->web->getUniqueEvent($loginId);
         if (!empty($events)) {
             foreach ($events as $row) {
+
+                $selected = ($event_name == $row->id) ? 'selected' : '';
     ?>
-                <option value="<?php echo $row->event_name; ?>">
+                <option value="<?php echo $row->id; ?>" <?= $selected; ?>>
                     <?php echo $row->event_name; ?>
                 </option>
     <?php

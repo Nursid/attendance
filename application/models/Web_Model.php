@@ -4080,7 +4080,7 @@ public function getdevicebysn($bio){
 
 
 public function getUniqueEvent($bid){
-$sql = "SELECT DISTINCT event_name FROM bio_event";
+$sql = "SELECT DISTINCT id, event_name FROM bio_event";
 $res = $this->db->query($sql);
 return $res->result();
 }
