@@ -11995,6 +11995,24 @@ public function access_report_search_api()
 
     $finalLogs = [];
 
+	
+$eventList = $this->web->getUniqueEvent($bio);
+
+		// map bana lo
+		$eventMap = [];
+
+		foreach($eventList as $e){
+			$eventMap[$e->id] = $e->event_name;
+		}
+
+		 $devicename = $this->web->getdevicebysn($bio);
+
+		 $deviceMap = [];
+
+		foreach($devicename as $d){
+			$deviceMap[$d->deviceid] = $d->name;
+		}
+
     foreach($logs as $row){
 
         $emp = isset($employees[$row->EnrollmentNo])
@@ -12010,6 +12028,14 @@ public function access_report_search_api()
         // ✅ override logic
         $latitude  = $override->latitude  ?? $row->Latitude;
         $longitude = $override->longitude ?? $row->Longitude;
+
+		$eventId = $row->Event_value;
+
+		$eventName = isset($eventMap[$eventId]) 
+			? $eventMap[$eventId] 
+			: $eventId;
+		
+		$deviceId = $deviceMap[$row->DeviceSlno];
 
         // 🔎 SEARCH FILTER
         if(!empty($search)){
@@ -12038,8 +12064,9 @@ public function access_report_search_api()
             "mobile"      => $emp->mobile ?? "",
             "father_name" => $emp->father_name ?? "",
             "designation" => $emp->designation ?? "",
-            "device_name" => $row->DeviceSlno,
-            "event_name"  => $row->Event_value,
+            "device_name" => $deviceId,
+            "event_name"  => $eventName,
+			"device_id" =>  $row->DeviceSlno,
             "io_time"     => $io_time,
             "latitude"    => $latitude,
             "longitude"   => $longitude,
