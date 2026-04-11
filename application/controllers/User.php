@@ -11996,22 +11996,22 @@ public function access_report_search_api()
     $finalLogs = [];
 
 	
-$eventList = $this->web->getUniqueEvent($bio);
+	$eventList = $this->web->getUniqueEvent($event_name);
 
-		// map bana lo
-		$eventMap = [];
+	// map bana lo
+	$eventMap = [];
 
-		foreach($eventList as $e){
-			$eventMap[$e->id] = $e->event_name;
-		}
+	foreach($eventList as $e){
+		$eventMap[$e->id] = $e->event_name;
+	}
 
-		 $devicename = $this->web->getdevicebysn($bio);
+	$devicename = $this->web->getdevicebysn($bio);
 
-		 $deviceMap = [];
+	$deviceMap = [];
 
-		foreach($devicename as $d){
-			$deviceMap[$d->deviceid] = $d->name;
-		}
+	foreach($devicename as $d){
+		$deviceMap[$d->deviceid] = $d->name;
+	}
 
     foreach($logs as $row){
 

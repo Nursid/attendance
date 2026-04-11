@@ -4073,9 +4073,17 @@ public function getNameByuserbio_id($uid,$bid){
 }
 
 public function getdevicebysn($bio){
-	$sql = "SELECT * FROM Business_bioid where deviceid='$bio'and active='1'";
-	$res = $this->db->query($sql);
-	return $res->result();
+
+    if(!empty($bio)){
+        $sql = "SELECT * FROM Business_bioid 
+                WHERE deviceid='$bio' 
+                AND active='1'";
+    }else{
+        $sql = "SELECT * FROM Business_bioid 
+                WHERE active='1'";
+    }
+
+	return $this->db->query($sql)->result();
 }
 
 
