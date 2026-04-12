@@ -631,11 +631,11 @@ $('#bio').on('change', function () {
     $.ajax({
         url: "<?= base_url('User/get_events_by_device') ?>",
         type: "POST",
+        dataType: "json", // Explicitly expect JSON
         data: { device_id: device_id },
-        success: function (res) {
-            let response = JSON.parse(res);
+        success: function (response) {
+            // response is already parsed because of dataType: "json"
             let data = response.data;
-
             let html = '<option value="0">All Event</option>';
 
             if (data && Array.isArray(data)) {
@@ -645,10 +645,13 @@ $('#bio').on('change', function () {
             }
 
             $('#event_name').html(html);
+        },
+        error: function() {
+            console.error("Failed to fetch events for device: " + device_id);
         }
     });
 });
 </script>
-
+  
 </body>
 </html>
