@@ -11531,16 +11531,38 @@ public function access_report_temp()
 			}
 		}
 
-		$eventList = $this->web->getUniqueEvent($bio);
 
-		// map bana lo
 		$eventMap = [];
 
-		foreach($eventList as $e){
-			$eventMap[$e->id] = $e->event_name;
+		$this->db->select('device_id, event_id, event_name');
+		$this->db->from('bio_event');
+
+		// 👉 agar specific device hai
+		if(!empty($bio) && $bio != "0"){
+			$this->db->where('device_id', $bio);
 		}
 
-		 $devicename = $this->web->getdevicebysn($bio);
+		$eventList = $this->db->get()->result();
+
+		// 👉 mapping
+		foreach($eventList as $e){
+			$eventMap[$e->device_id][$e->event_id] = $e->event_name;
+		}
+		// $eventMap = [];
+
+		// if(!empty($bio) && $bio != "0"){
+		// 	$this->db->select('event_id, event_name');
+		// 	$this->db->from('bio_event');
+		// 	$this->db->where('device_id', $bio);
+
+		// 	$eventList = $this->db->get()->result();
+
+		// 	foreach($eventList as $e){
+		// 		$eventMap[$e->event_id] = $e->event_name;
+		// 	}
+		// }
+
+		$devicename = $this->web->getdevicebysn($bio);
 
 		 $deviceMap = [];
 
@@ -11928,11 +11950,11 @@ public function access_report_search_api()
     $result = json_decode($response);
 
     $logs = [];
-    $bioIds = [];
-    $keys = [];
+$bioIds = [];
+$keys = [];
 
     // 🔍 FILTER LOOP
-    if(isset($result->data)){
+if(isset($result->data)){
 
         foreach($result->data as $row){
 
@@ -11996,13 +12018,22 @@ public function access_report_search_api()
     $finalLogs = [];
 
 	
-	$eventList = $this->web->getUniqueEvent($event_name);
-
-	// map bana lo
+	// 🔥 bio_event se mapping (device_id = bio)
 	$eventMap = [];
 
+	$this->db->select('device_id, event_id, event_name');
+	$this->db->from('bio_event');
+
+	// 👉 agar specific device hai
+	if(!empty($bio) && $bio != "0"){
+		$this->db->where('device_id', $bio);
+	}
+
+	$eventList = $this->db->get()->result();
+
+	// 👉 mapping
 	foreach($eventList as $e){
-		$eventMap[$e->id] = $e->event_name;
+		$eventMap[$e->device_id][$e->event_id] = $e->event_name;
 	}
 
 	$devicename = $this->web->getdevicebysn($bio);
