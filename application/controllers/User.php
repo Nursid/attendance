@@ -11593,9 +11593,7 @@ public function access_report_temp()
 
 		$eventId = $row->Event_value;
 
-		$eventName = isset($eventMap[$eventId]) 
-			? $eventMap[$eventId] 
-			: $eventId;
+		$eventName = $eventMap[$row->DeviceSlno][$eventId] ?? $eventId;
 		
 		$deviceId = $deviceMap[$row->DeviceSlno];
 
