@@ -12062,9 +12062,7 @@ if(isset($result->data)){
 
 		$eventId = $row->Event_value;
 
-		$eventName = isset($eventMap[$eventId]) 
-			? $eventMap[$eventId] 
-			: $eventId;
+		$eventName = $eventMap[$row->DeviceSlno][$eventId] ?? $eventId;
 		
 		$deviceId = $deviceMap[$row->DeviceSlno];
 
@@ -12113,6 +12111,7 @@ if(isset($result->data)){
         ->set_output(json_encode([
             'status' => 1,
             'count'  => count($finalLogs),
+			'eventMap' =>$eventMap,
             'logs'   => $finalLogs,
             'filters' => [
                 'start_date' => $start_date,
