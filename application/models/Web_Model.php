@@ -4439,7 +4439,19 @@ public function sendToApi($jsonData) {
 
 
 
+public function getEventsByDevice($device_id)
+{
+    $this->db->select('event_id, event_name');
+    $this->db->from('bio_event');
 
+    if(!empty($device_id) && $device_id != "0"){
+        $this->db->where('device_id', $device_id);
+    }
+
+    $this->db->group_by('event_id'); // duplicate avoid
+
+    return $this->db->get()->result();
+}
 
 }
 

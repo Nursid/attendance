@@ -118,63 +118,29 @@ date_default_timezone_set('Asia/Kolkata');
                             <div class="col-sm-2">
                               <input type="date" name="end_date" id="end_date"  value="<?php echo $end_date; ?>"class="form-control" max="<?php echo date('Y-m-d'); ?>" min="<?php echo $start_date;?>" onchange="endChange(event);">
                             </div>
-                           <div class="col-sm-2 ">
-                             
-                              <select name="bio" class="form-control"  id="bio" >
-                                  
-                                <?php   
-                                  if (!empty ($bio)){
-                                       $devicename = $this->web->getdevicebysn($bio);
-                                  ?>
-                                  <option value="<?php echo $devicename[0]->deviceid;  ?>"><?php echo $devicename[0]->name;  ?></option>
-                                  <?php
-                                } else { ?>
-                                  <option value="0"> All Device </option>
-                                
-                                  
-                                   <?php 
-                                }
-                                   
-                                   $device = $this->web->getdevice($loginId);
-                               
-                                  ?>
-                                 <option value="0"> All Device </option>
-                               <?php  foreach($device as $device){ ?>
-                                  <option value="<?php echo $device->deviceid  ?>"><?php echo $device->name;  ?></option>
-                                  
-                               
-                                <?php }?>
+                              <div class="col-sm-2">
+                                <select name="bio" class="form-control" id="bio">
+                                    <option value="0" <?= ($bio == "0" || empty($bio)) ? "selected" : "" ?>>All Device</option>
+                                    <?php 
+                                    $deviceList = $this->web->getdevice($loginId);
+                                    foreach($deviceList as $d){ 
+                                        $sel = ($bio == $d->deviceid) ? "selected" : "";
+                                        echo "<option value='$d->deviceid' $sel>$d->name</option>";
+                                    } ?>
                                 </select>
                               </div>
                               
-                              <div class="col-sm-2 ">
-                            
-                              
-                              
-                             <select name="event_name" class="form-control" id="event_name" required>
-
-    <!-- Default option -->
-    <option value="0" <?= ($event_name == "0" || empty($event_name)) ? 'selected' : '' ?>>
-        All Train
-    </option>
-
-    <?php
-        $events = $this->web->getUniqueEvent($loginId);
-        if (!empty($events)) {
-            foreach ($events as $row) {
-
-                $selected = ($event_name == $row->id) ? 'selected' : '';
-    ?>
-                <option value="<?php echo $row->id; ?>" <?= $selected; ?>>
-                    <?php echo $row->event_name; ?>
-                </option>
-    <?php
-            }
-        }
-    ?>
-
-</select>
-
+                              <div class="col-sm-2">
+                                <select name="event_name" class="form-control" id="event_name">
+                                    <option value="0">All Event</option>
+                                    <?php 
+                                    if(!empty($events_list)){
+                                        foreach($events_list as $ev){ 
+                                            $sel = ($ev->event_id == $event_name) ? "selected" : "";
+                                            echo "<option value='$ev->event_id' $sel>$ev->event_name</option>";
+                                        }
+                                    } ?>
+                                </select>
                               </div>
                               
                               <div class="col-sm-2">
@@ -657,6 +623,31 @@ wb.xlsx.writeBuffer().then(function (buffer) {
 });
 }
 
+</script>
+<script>
+$('#bio').on('change', function () {
+    let device_id = $(this).val();
+
+    $.ajax({
+        url: "<?= base_url('User/get_events_by_device') ?>",
+        type: "POST",
+        data: { device_id: device_id },
+        success: function (res) {
+            let response = JSON.parse(res);
+            let data = response.data;
+
+            let html = '<option value="0">All Event</option>';
+
+            if (data && Array.isArray(data)) {
+                data.forEach(function (item) {
+                    html += `<option value="${item.event_id}">${item.event_name}</option>`;
+                });
+            }
+
+            $('#event_name').html(html);
+        }
+    });
+});
 </script>
 
 </body>

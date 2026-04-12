@@ -11488,9 +11488,13 @@ public function access_report_temp()
             }
 
             // ✅ EVENT FILTER (IMPORTANT)
-            if(!empty($event_name) && (string)$row->Event_value !== (string)$event_name){
-                continue;
-            }
+            // if(!empty($event_name) && (string)$row->Event_value !== (string)$event_name){
+            //     continue;
+            // }
+
+			if(!empty($event_name) && $event_name != "0" && (string)$row->Event_value !== (string)$event_name){
+				continue;
+			}
 
 
 			$logs[] = $row;
@@ -11548,19 +11552,7 @@ public function access_report_temp()
 		foreach($eventList as $e){
 			$eventMap[$e->device_id][$e->event_id] = $e->event_name;
 		}
-		// $eventMap = [];
-
-		// if(!empty($bio) && $bio != "0"){
-		// 	$this->db->select('event_id, event_name');
-		// 	$this->db->from('bio_event');
-		// 	$this->db->where('device_id', $bio);
-
-		// 	$eventList = $this->db->get()->result();
-
-		// 	foreach($eventList as $e){
-		// 		$eventMap[$e->event_id] = $e->event_name;
-		// 	}
-		// }
+		
 
 		$devicename = $this->web->getdevicebysn($bio);
 
@@ -11630,6 +11622,7 @@ public function access_report_temp()
     $data['end_date'] = $end_date;
     $data['bio'] = $bio;
     $data['event_name'] = $event_name;
+    $data['events_list'] = $this->web->getEventsByDevice($bio);
     $data['load'] = $true;
     $data['offset'] = 0;
     $this->load->view('attendance/access_report2', $data);
@@ -12121,6 +12114,19 @@ if(isset($result->data)){
         ]));
 }
 
+public function get_events_by_device()
+{
+    $device_id = $this->input->post('device_id');
+
+    $events = $this->web->getEventsByDevice($device_id);
+
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+            'status' => 1,
+            'data'   => $events
+        ]));
+}
 }
 
 ?>
