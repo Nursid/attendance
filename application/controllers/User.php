@@ -12127,6 +12127,87 @@ public function get_events_by_device()
             'data'   => $events
         ]));
 }
+
+public function studentLogin()
+{
+    $data = json_decode(file_get_contents("php://input"));
+    $mobile = $data->mobile;
+
+    // ✅ Check student exists
+    $this->db->where('parent_mobile', $mobile);
+    $student = $this->db->get('student')->row_array();
+
+    if(empty($student)){
+        echo json_encode(['status'=>false,'msg'=>'Mobile not registered']);
+        return;
+    }
+
+    // ✅ Generate OTP
+    // $otp = rand(1000,9999);
+    $otp = 4444;
+
+    // ✅ Insert into OTP table
+    $this->db->insert('student_login_otp', [
+        'parent_mobile' => $mobile,
+        'otp' => $otp,
+        'created_at' => time()
+    ]);
+
+    // ✅ Send SMS
+    // $this->sendsms($mobile, "Your OTP is $otp");
+
+    echo json_encode([
+        'status'=>true,
+        'msg'=>'OTP sent'
+    ]);
+}
+
+public function verifyStudentOtp()
+{
+    $data = json_decode(file_get_contents("php://input"));
+    $mobile = $data->mobile;
+    $otp    = $data->otp;
+
+    // ✅ Get latest OTP
+    $this->db->where('parent_mobile', $mobile);
+    $this->db->order_by('id','DESC');
+    $otpData = $this->db->get('student_login_otp')->row_array();
+
+    if(empty($otpData)){
+        echo json_encode(['status'=>false,'msg'=>'OTP not found']);
+        return;
+    }
+
+    // ✅ Check OTP
+    if($otpData['otp'] != $otp){
+        echo json_encode(['status'=>false,'msg'=>'Invalid OTP']);
+        return;
+    }
+
+    // ✅ Expiry check (5 min)
+    if(time() - $otpData['created_at'] > 300){
+        echo json_encode(['status'=>false,'msg'=>'OTP expired']);
+        return;
+    }
+
+    // ✅ Mark verified
+    $this->db->where('id', $otpData['id']);
+    $this->db->update('student_login_otp', ['is_verified'=>1]);
+
+    // ✅ Get student data
+    $this->db->where('parent_mobile', $mobile);
+    // $students = $this->db->get('student')->result_array();
+	$student = $this->db->get('student')->row_array();
+
+	 return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode([
+           'status'=>true,
+			'msg'=>'Login success',
+			'student'=>$student
+        ]));
+}
+
 }
 
 ?>
