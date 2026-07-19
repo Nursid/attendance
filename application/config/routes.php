@@ -153,3 +153,16 @@ $route['students_checkin'] = 'User/student_checkin';
 $route['get_user_from_device'] = 'User/getUserFromDevice';
 $route['add_user_to_device'] = 'User/addUserToDevice';
 $route['leave_history'] = 'User/leave_history';
+
+//// OBHS Feedback System
+$route['obhs-dashboard'] = 'Obhs/dashboard';
+$route['obhs-master-search'] = 'Obhs/master_search';
+$route['obhs-train-report'] = 'Obhs/train_report';
+$route['obhs-coach-report'] = 'Obhs/coach_report';
+$route['obhs-janitor-report'] = 'Obhs/janitor_report';
+$route['obhs-psi-report'] = 'Obhs/psi_report';
+$route['obhs-monthly-report'] = 'Obhs/monthly_report';
+$route['obhs-complaints'] = 'Obhs/complaint_report';
+$route['obhs-feedback/(:num)'] = 'Obhs/feedback_detail/$1';
+$route['obhs-update-feedback'] = 'Obhs/update_feedback';
+$route['obhs-export/(:any)'] = 'Obhs/export/$1';

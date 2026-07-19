@@ -340,6 +340,66 @@
              </ul>
              </li>
              
+          <li class="nav-item has-treeview">
+            <a href="#" class="nav-link">
+              <i class="nav-icon fa fa-train"></i>
+              <p>
+                OBHS Feedback
+                <i class="fas fa-angle-left right"></i>
+              </p>
+            </a>
+            <ul class="nav nav-treeview">
+              <li class="nav-item">
+                <a href="<?php echo base_url('obhs-dashboard')?>" class="nav-link">
+                  <i class="fa fa-tachometer-alt nav-icon"></i>
+                  <p>OBHS Dashboard</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="<?php echo base_url('obhs-master-search')?>" class="nav-link">
+                  <i class="fa fa-search nav-icon"></i>
+                  <p>Master Search</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="<?php echo base_url('obhs-train-report')?>" class="nav-link">
+                  <i class="fa fa-train nav-icon"></i>
+                  <p>Train Wise Report</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="<?php echo base_url('obhs-coach-report')?>" class="nav-link">
+                  <i class="fa fa-th-large nav-icon"></i>
+                  <p>Coach Wise Report</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="<?php echo base_url('obhs-janitor-report')?>" class="nav-link">
+                  <i class="fa fa-user-check nav-icon"></i>
+                  <p>Janitor Performance</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="<?php echo base_url('obhs-psi-report')?>" class="nav-link">
+                  <i class="fa fa-chart-line nav-icon"></i>
+                  <p>PSI Report</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="<?php echo base_url('obhs-monthly-report')?>" class="nav-link">
+                  <i class="fa fa-calendar-alt nav-icon"></i>
+                  <p>Monthly Report</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="<?php echo base_url('obhs-complaints')?>" class="nav-link">
+                  <i class="fa fa-exclamation-circle nav-icon"></i>
+                  <p>Complaint Tracking</p>
+                </a>
+              </li>
+             </ul>
+             </li>
+             
             
               <li class="nav-item has-treeview">
             <a href="#" class="nav-link">
