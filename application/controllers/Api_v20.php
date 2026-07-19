@@ -7,6 +7,7 @@ class Api_v20 extends CI_Controller {
    $this->load->database();
    $this->load->model('Api_Model_v13','app');
    $this->load->model('Web_Model','web');
+   $this->load->model('Obhs_Model','obhs');
    $this->load->helper('url');
 
  }
@@ -9681,6 +9682,247 @@ function addRfid(){
           echo $response= json_encode(array('checkon'=>$sendRes));
         }
       }
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  // OBHS Feedback System APIs
+  //--------------------------------------------------------------------------
+
+  /**
+   * Resolve authenticated user + business id from checkon payload.
+   * user_group 2 (staff/janitor) -> bid from user_request company.
+   * user_group 1 (business)      -> bid is own login id.
+   */
+  private function obhsAuth($data){
+    if(key($data)!="checkon"){ return false; }
+    $check=$this->obhs->checkMobile($data->checkon->mobile);
+    if(empty($check['id'])){ return false; }
+    if($check['user_group']==2){
+      $userCmp = $this->obhs->getUserCompany($check['id']);
+      if(empty($userCmp)){ return false; }
+      $check['bid'] = $userCmp['business_id'];
+    }else{
+      $check['bid'] = $check['id'];
+    }
+    return $check;
+  }
+
+  private function obhsRatingsFromPayload($checkon){
+    $ratings = array();
+    foreach($this->obhs->rating_fields as $field => $label){
+      $ratings[$field] = isset($checkon->$field) ? (int)$checkon->$field : 0;
+    }
+    return $ratings;
+  }
+
+  private function obhsFilltersFromPayload($checkon){
+    $keys = array('start_date','end_date','train_no','coach_no','uid','feedback_type','status','psi_min','psi_max','search');
+    $filters = array();
+    foreach($keys as $k){
+      if(isset($checkon->$k) && $checkon->$k !== ''){ $filters[$k] = $checkon->$k; }
+    }
+    return $filters;
+  }
+
+  /**
+   * Save OBHS feedback from mobile app.
+   * Body: {"checkon":{"mobile":"...","train_no":"...","train_name":"...","coach_no":"...",
+   *   "journey_date":"YYYY-MM-DD","boarding_station":"...","destination_station":"...",
+   *   "pnr_no":"...","seat_no":"...","passenger_name":"...","passenger_mobile":"...","passenger_email":"...",
+   *   "rating_coach_cleanliness":1-5,"rating_toilet_cleanliness":1-5,"rating_doorway_cleanliness":1-5,
+   *   "rating_bedroll":1-5,"rating_staff_behaviour":1-5,"rating_pest_control":1-5,
+   *   "feedback_type":"Feedback|Complaint","remarks":"...","janitor_name":"...",
+   *   "latitude":"...","longitude":"...","location":"...","photo":"<base64>"}}
+   * PSI is always recalculated on the server (avg of rated categories x 20).
+   */
+  function addObhsFeedback(){
+    $data=json_decode(file_get_contents("php://input"));
+    $check=$this->obhsAuth($data);
+    if($check===false){
+      echo json_encode(array('checkon'=>array('msg'=>'Unauthorized','status'=>'0')));
+      return;
+    }
+    $c = $data->checkon;
+    if(empty($c->train_no) || empty($c->coach_no) || empty($c->journey_date) || empty($c->passenger_name)){
+      echo json_encode(array('checkon'=>array('msg'=>'train_no, coach_no, journey_date and passenger_name are required','status'=>'0')));
+      return;
+    }
+
+    $ratings = $this->obhsRatingsFromPayload($c);
+    $psi = $this->obhs->calculatePsi($ratings);
+
+    // Photo: base64 -> upload/obhs/ (existing attendance selfie pattern)
+    $photoPath = '';
+    if(!empty($c->photo)){
+      $img = base64_decode($c->photo);
+      if($img !== false){
+        if(!is_dir('upload/obhs')){ mkdir('upload/obhs',0755,true); }
+        $imgs = imagecreatefromstring($img);
+        if($imgs !== false){
+          $photoPath = 'upload/obhs/'.time().'_'.rand(1000,9999).'.jpg';
+          imagejpeg($imgs,$photoPath);
+          imagedestroy($imgs);
+        }
+      }
+    }
+
+    $feedbackType = (isset($c->feedback_type) && $c->feedback_type=='Complaint') ? 'Complaint' : 'Feedback';
+    $saveData = array_merge(array(
+      'bid'=>$check['bid'],
+      'uid'=>$check['id'],
+      'janitor_name'=>isset($c->janitor_name) ? $c->janitor_name : $check['name'],
+      'train_no'=>$c->train_no,
+      'train_name'=>isset($c->train_name) ? $c->train_name : '',
+      'coach_no'=>$c->coach_no,
+      'journey_date'=>$c->journey_date,
+      'boarding_station'=>isset($c->boarding_station) ? $c->boarding_station : '',
+      'destination_station'=>isset($c->destination_station) ? $c->destination_station : '',
+      'pnr_no'=>isset($c->pnr_no) ? $c->pnr_no : '',
+      'seat_no'=>isset($c->seat_no) ? $c->seat_no : '',
+      'passenger_name'=>$c->passenger_name,
+      'passenger_mobile'=>isset($c->passenger_mobile) ? $c->passenger_mobile : '',
+      'passenger_email'=>isset($c->passenger_email) ? $c->passenger_email : '',
+      'psi_score'=>$psi,
+      'feedback_type'=>$feedbackType,
+      'remarks'=>isset($c->remarks) ? $c->remarks : '',
+      'latitude'=>isset($c->latitude) ? $c->latitude : '',
+      'longitude'=>isset($c->longitude) ? $c->longitude : '',
+      'location'=>isset($c->location) ? $c->location : '',
+      'photo'=>$photoPath,
+      'status'=>'Pending',
+      'date_time'=>time()
+    ),$ratings);
+
+    $feedbackId = $this->obhs->addFeedback($saveData);
+    if($feedbackId > 0){
+      $complaintId = 0;
+      if($feedbackType=='Complaint'){
+        // Auto-create complaint record in existing complain table
+        $complaintText = "OBHS | Train ".$c->train_no." Coach ".$c->coach_no." | ".(isset($c->remarks) ? $c->remarks : 'Service complaint');
+        $complaintId = $this->obhs->addComplaint(array(
+          'bid'=>$check['bid'],
+          'uid'=>$check['id'],
+          'complain'=>$complaintText,
+          'category'=>'OBHS',
+          'status'=>'Pending',
+          'date_time'=>time()
+        ));
+        if($complaintId > 0){
+          $this->obhs->updateFeedback($feedbackId,$check['bid'],array('complaint_id'=>$complaintId));
+        }
+      }
+      $sendRes = array('msg'=>'Feedback Saved Successfully','status'=>'1','feedback_id'=>$feedbackId,'psi_score'=>$psi,'complaint_id'=>$complaintId);
+    }else{
+      $sendRes = array('msg'=>'Failed to Save Feedback','status'=>'0');
+    }
+    echo $response= json_encode(array('checkon'=>$sendRes));
+  }
+
+  /**
+   * List feedback. Business (user_group 1) gets company-wide list with
+   * search/filter/sort/pagination; staff (user_group 2) gets own submissions.
+   * Optional checkon params: page, limit, search, start_date, end_date, train_no,
+   * coach_no, feedback_type, status, psi_min, psi_max, sort_by, sort_dir.
+   */
+  function getObhsFeedbackList(){
+    $data=json_decode(file_get_contents("php://input"));
+    $check=$this->obhsAuth($data);
+    if($check===false){
+      echo json_encode(array('checkon'=>array('msg'=>'Unauthorized','status'=>'0')));
+      return;
+    }
+    $c = $data->checkon;
+    $limit = (isset($c->limit) && (int)$c->limit > 0) ? (int)$c->limit : 50;
+    $page  = (isset($c->page) && (int)$c->page > 0) ? (int)$c->page : 1;
+    $offset = ($page-1)*$limit;
+
+    if($check['user_group']==1){
+      $filters = $this->obhsFilltersFromPayload($c);
+      $sort_by  = isset($c->sort_by) ? $c->sort_by : 'id';
+      $sort_dir = isset($c->sort_dir) ? $c->sort_dir : 'DESC';
+      $total = $this->obhs->countFeedbackList($check['bid'],$filters);
+      $list  = $this->obhs->getFeedbackList($check['bid'],$filters,$limit,$offset,$sort_by,$sort_dir);
+    }else{
+      $total = count($this->obhs->getUserFeedbackList($check['id'],1000000,0));
+      $list  = $this->obhs->getUserFeedbackList($check['id'],$limit,$offset);
+    }
+    echo $response= json_encode(array('checkon'=>array(
+      'status'=>'1','total'=>$total,'page'=>$page,'limit'=>$limit,'list'=>$list
+    )));
+  }
+
+  /** View single feedback. Body: {"checkon":{"mobile":"...","id":123}} */
+  function getObhsFeedbackDetail(){
+    $data=json_decode(file_get_contents("php://input"));
+    $check=$this->obhsAuth($data);
+    if($check===false || empty($data->checkon->id)){
+      echo json_encode(array('checkon'=>array('msg'=>'Unauthorized','status'=>'0')));
+      return;
+    }
+    $row = $this->obhs->getFeedbackById((int)$data->checkon->id,$check['bid']);
+    if(!empty($row) && ($check['user_group']==1 || $row['uid']==$check['id'])){
+      if(!empty($row['photo'])){
+        $row['photo'] = base_url($row['photo']);
+      }
+      echo json_encode(array('checkon'=>array('status'=>'1','feedback'=>$row)));
+    }else{
+      echo json_encode(array('checkon'=>array('msg'=>'No Data Found','status'=>'0')));
+    }
+  }
+
+  /**
+   * Update feedback status/remarks (business only). Keeps linked complaint in sync.
+   * Body: {"checkon":{"mobile":"...","id":123,"status":"Pending|Working|Done","remarks":"..."}}
+   */
+  function updateObhsFeedback(){
+    $data=json_decode(file_get_contents("php://input"));
+    $check=$this->obhsAuth($data);
+    if($check===false || $check['user_group']!=1 || empty($data->checkon->id)){
+      echo json_encode(array('checkon'=>array('msg'=>'Unauthorized','status'=>'0')));
+      return;
+    }
+    $c = $data->checkon;
+    $updateData = array();
+    if(isset($c->status) && in_array($c->status,array('Pending','Working','Done'))){ $updateData['status'] = $c->status; }
+    if(isset($c->remarks)){ $updateData['remarks'] = $c->remarks; }
+    if(empty($updateData)){
+      echo json_encode(array('checkon'=>array('msg'=>'Nothing to Update','status'=>'0')));
+      return;
+    }
+    $row = $this->obhs->getFeedbackById((int)$c->id,$check['bid']);
+    if(empty($row)){
+      echo json_encode(array('checkon'=>array('msg'=>'No Data Found','status'=>'0')));
+      return;
+    }
+    $this->obhs->updateFeedback((int)$c->id,$check['bid'],$updateData);
+    if(isset($updateData['status']) && !empty($row['complaint_id'])){
+      $this->obhs->updateComplaintStatus($row['complaint_id'],$updateData['status']);
+    }
+    echo json_encode(array('checkon'=>array('msg'=>'Feedback Updated Successfully','status'=>'1')));
+  }
+
+  /**
+   * Export filtered feedback as Excel (business only).
+   * Same filter params as getObhsFeedbackList; streams .xls attachment.
+   */
+  function exportObhsFeedback(){
+    $data=json_decode(file_get_contents("php://input"));
+    $check=$this->obhsAuth($data);
+    if($check===false || $check['user_group']!=1){
+      echo json_encode(array('checkon'=>array('msg'=>'Unauthorized','status'=>'0')));
+      return;
+    }
+    $filters = $this->obhsFilltersFromPayload($data->checkon);
+    $list = $this->obhs->getFeedbackList($check['bid'],$filters,0,0,'id','DESC');
+
+    header("Content-Type: application/vnd.ms-excel");
+    header("Content-Disposition: attachment; filename=OBHS_Feedback_".date('Ymd').".xls");
+    echo "S.No\tDate\tTrain No\tTrain Name\tCoach\tJourney Date\tPNR\tSeat\tPassenger\tMobile\tCoach Clean\tToilet Clean\tDoorway\tBedroll\tStaff Behaviour\tPest Control\tPSI\tType\tStatus\tJanitor\tRemarks\tLocation\n";
+    $i=1;
+    foreach($list as $row){
+      $remarks = str_replace(array("\t","\n","\r"),' ',(string)$row['remarks']);
+      echo $i++."\t".date('d-m-Y',(int)$row['date_time'])."\t".$row['train_no']."\t".$row['train_name']."\t".$row['coach_no']."\t".$row['journey_date']."\t".$row['pnr_no']."\t".$row['seat_no']."\t".$row['passenger_name']."\t".$row['passenger_mobile']."\t".$row['rating_coach_cleanliness']."\t".$row['rating_toilet_cleanliness']."\t".$row['rating_doorway_cleanliness']."\t".$row['rating_bedroll']."\t".$row['rating_staff_behaviour']."\t".$row['rating_pest_control']."\t".$row['psi_score']."\t".$row['feedback_type']."\t".$row['status']."\t".$row['janitor_name']."\t".$remarks."\t".$row['location']."\n";
     }
   }
 }
