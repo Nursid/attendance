@@ -12,7 +12,7 @@ class Obhs extends CI_Controller {
 	function __construct(){
 		parent::__construct();
 		$this->load->database();
-		$this->load->helper('url');
+		$this->load->helper(array('url','text'));
 		$this->load->library('session');
 		$this->load->model('Web_Model','web');
 		$this->load->model('Obhs_Model','obhs');
