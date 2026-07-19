@@ -5,6 +5,10 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * OBHS Feedback System model.
  * Tables: obhs_feedback (new), complain (existing - auto complaint records),
  *         login / user_request (existing - auth & company resolution).
+ *
+ * Business scope: pass the business id to limit results to one company.
+ * Pass '' (empty) as $bid for a global admin (web_login type 'A') to see
+ * every business's data.
  */
 class Obhs_Model extends CI_Model {
 
@@ -28,7 +32,7 @@ class Obhs_Model extends CI_Model {
 		return $this->db->order_by('id','DESC')->limit(1)->get_where('user_request',array('user_id'=>$id))->row_array();
 	}
 
-	// ------------------------------------------------------------------- psi
+	// ------------------------------------------------------------------ psi
 
 	/**
 	 * PSI = average of rated (non-zero) categories x 20  => 0-100.
@@ -46,6 +50,18 @@ class Obhs_Model extends CI_Model {
 		return round(($sum / $count) * 20, 2);
 	}
 
+	// --------------------------------------------------------------- scope
+
+	/**
+	 * Business scope. Empty/null/false bid = global admin (type 'A') => no filter,
+	 * so every business's feedback is included.
+	 */
+	private function scopeBid($bid,$alias='f'){
+		if($bid !== '' && $bid !== null && $bid !== false){
+			$this->db->where($alias.'.bid',$bid);
+		}
+	}
+
 	// ------------------------------------------------------------------ crud
 
 	public function addFeedback($data){
@@ -54,7 +70,9 @@ class Obhs_Model extends CI_Model {
 	}
 
 	public function updateFeedback($id,$bid,$data){
-		$this->db->where('id',$id)->where('bid',$bid)->update('obhs_feedback',$data);
+		$this->db->where('id',$id);
+		if($bid !== '' && $bid !== null && $bid !== false){ $this->db->where('bid',$bid); }
+		$this->db->update('obhs_feedback',$data);
 		return $this->db->affected_rows();
 	}
 
@@ -63,7 +81,7 @@ class Obhs_Model extends CI_Model {
 			->from('obhs_feedback f')
 			->join('login l','l.id=f.uid','left')
 			->where('f.id',$id);
-		if($bid !== ''){ $this->db->where('f.bid',$bid); }
+		$this->scopeBid($bid);
 		return $this->db->get()->row_array();
 	}
 
@@ -112,8 +130,8 @@ class Obhs_Model extends CI_Model {
 	public function getFeedbackList($bid,$filters=array(),$limit=0,$offset=0,$sort_by='id',$sort_dir='DESC'){
 		$this->db->select('f.*, l.name as staff_name')
 			->from('obhs_feedback f')
-			->join('login l','l.id=f.uid','left')
-			->where('f.bid',$bid);
+			->join('login l','l.id=f.uid','left');
+		$this->scopeBid($bid);
 		$this->applyFilters($filters);
 		$sort_by  = in_array($sort_by,$this->sortable) ? $sort_by : 'id';
 		$sort_dir = (strtoupper($sort_dir)=='ASC') ? 'ASC' : 'DESC';
@@ -123,7 +141,8 @@ class Obhs_Model extends CI_Model {
 	}
 
 	public function countFeedbackList($bid,$filters=array()){
-		$this->db->from('obhs_feedback f')->where('f.bid',$bid);
+		$this->db->from('obhs_feedback f');
+		$this->scopeBid($bid);
 		$this->applyFilters($filters);
 		return $this->db->count_all_results();
 	}
@@ -148,7 +167,8 @@ class Obhs_Model extends CI_Model {
 			SUM(f.feedback_type='Complaint' AND f.status='Done') as resolved_complaints,
 			COUNT(DISTINCT f.train_no) as trains_covered,
 			COUNT(DISTINCT f.uid) as active_janitors",FALSE)
-			->from('obhs_feedback f')->where('f.bid',$bid);
+			->from('obhs_feedback f');
+		$this->scopeBid($bid);
 		$this->applyFilters($filters);
 		return $this->db->get()->row_array();
 	}
@@ -160,7 +180,8 @@ class Obhs_Model extends CI_Model {
 			$select[] = "ROUND(AVG(NULLIF(f.$field,0)),2) as $field";
 		}
 		$this->db->select(implode(',',$select),FALSE)
-			->from('obhs_feedback f')->where('f.bid',$bid);
+			->from('obhs_feedback f');
+		$this->scopeBid($bid);
 		$this->applyFilters($filters);
 		$row = $this->db->get()->row_array();
 		$out = array();
@@ -177,8 +198,8 @@ class Obhs_Model extends CI_Model {
 			ROUND(AVG(NULLIF(f.psi_score,0)),2) as avg_psi,
 			SUM(f.feedback_type='Complaint') as complaints,
 			SUM(f.feedback_type='Complaint' AND f.status='Done') as resolved",FALSE)
-			->from('obhs_feedback f')
-			->where('f.bid',$bid);
+			->from('obhs_feedback f');
+		$this->scopeBid($bid);
 		if(empty($filters['start_date']) && empty($filters['end_date'])){
 			$this->db->where('f.journey_date >=',date('Y-m-01',strtotime("-".($months-1)." months")));
 		}
@@ -196,7 +217,8 @@ class Obhs_Model extends CI_Model {
 			SUM(f.feedback_type='Complaint') as complaints,
 			SUM(f.feedback_type='Complaint' AND f.status='Done') as resolved,
 			COUNT(DISTINCT f.coach_no) as coaches",FALSE)
-			->from('obhs_feedback f')->where('f.bid',$bid);
+			->from('obhs_feedback f');
+		$this->scopeBid($bid);
 		$this->applyFilters($filters);
 		$this->db->group_by('f.train_no');
 		$allowed = array('train_no','total_feedback','avg_psi','complaints');
@@ -208,7 +230,8 @@ class Obhs_Model extends CI_Model {
 	}
 
 	public function countTrainWiseReport($bid,$filters=array()){
-		$this->db->select('f.train_no')->from('obhs_feedback f')->where('f.bid',$bid);
+		$this->db->select('f.train_no')->from('obhs_feedback f');
+		$this->scopeBid($bid);
 		$this->applyFilters($filters);
 		$this->db->group_by('f.train_no');
 		return $this->db->get()->num_rows();
@@ -221,7 +244,8 @@ class Obhs_Model extends CI_Model {
 			ROUND(AVG(NULLIF(f.rating_coach_cleanliness,0)),2) as avg_coach_clean,
 			ROUND(AVG(NULLIF(f.rating_toilet_cleanliness,0)),2) as avg_toilet_clean,
 			SUM(f.feedback_type='Complaint') as complaints",FALSE)
-			->from('obhs_feedback f')->where('f.bid',$bid);
+			->from('obhs_feedback f');
+		$this->scopeBid($bid);
 		$this->applyFilters($filters);
 		$this->db->group_by(array('f.train_no','f.coach_no'));
 		$allowed = array('train_no','coach_no','total_feedback','avg_psi','complaints');
@@ -233,7 +257,8 @@ class Obhs_Model extends CI_Model {
 	}
 
 	public function countCoachWiseReport($bid,$filters=array()){
-		$this->db->select('f.train_no')->from('obhs_feedback f')->where('f.bid',$bid);
+		$this->db->select('f.train_no')->from('obhs_feedback f');
+		$this->scopeBid($bid);
 		$this->applyFilters($filters);
 		$this->db->group_by(array('f.train_no','f.coach_no'));
 		return $this->db->get()->num_rows();
@@ -248,8 +273,8 @@ class Obhs_Model extends CI_Model {
 			SUM(f.feedback_type='Complaint') as complaints,
 			COUNT(DISTINCT f.train_no) as trains_served",FALSE)
 			->from('obhs_feedback f')
-			->join('login l','l.id=f.uid','left')
-			->where('f.bid',$bid);
+			->join('login l','l.id=f.uid','left');
+		$this->scopeBid($bid);
 		$this->applyFilters($filters);
 		$this->db->group_by('f.uid');
 		$allowed = array('janitor_name','total_feedback','avg_psi','complaints');
@@ -261,7 +286,8 @@ class Obhs_Model extends CI_Model {
 	}
 
 	public function countJanitorReport($bid,$filters=array()){
-		$this->db->select('f.uid')->from('obhs_feedback f')->where('f.bid',$bid);
+		$this->db->select('f.uid')->from('obhs_feedback f');
+		$this->scopeBid($bid);
 		$this->applyFilters($filters);
 		$this->db->group_by('f.uid');
 		return $this->db->get()->num_rows();
@@ -273,7 +299,8 @@ class Obhs_Model extends CI_Model {
 			SUM(f.psi_score >= 60 AND f.psi_score < 80) as good,
 			SUM(f.psi_score >= 40 AND f.psi_score < 60) as average,
 			SUM(f.psi_score > 0 AND f.psi_score < 40) as poor",FALSE)
-			->from('obhs_feedback f')->where('f.bid',$bid);
+			->from('obhs_feedback f');
+		$this->scopeBid($bid);
 		$this->applyFilters($filters);
 		return $this->db->get()->row_array();
 	}
@@ -290,15 +317,19 @@ class Obhs_Model extends CI_Model {
 
 	/** Distinct train/coach values for filter dropdowns. */
 	public function getFilterOptions($bid){
-		$trains = $this->db->select('train_no, MAX(train_name) as train_name',FALSE)
-			->from('obhs_feedback')->where('bid',$bid)
-			->group_by('train_no')->order_by('train_no','ASC')->get()->result_array();
-		$coaches = $this->db->distinct()->select('coach_no')
-			->from('obhs_feedback')->where('bid',$bid)
-			->order_by('coach_no','ASC')->get()->result_array();
-		$janitors = $this->db->select("f.uid, COALESCE(NULLIF(MAX(f.janitor_name),''),MAX(l.name)) as name",FALSE)
-			->from('obhs_feedback f')->join('login l','l.id=f.uid','left')
-			->where('f.bid',$bid)->group_by('f.uid')->get()->result_array();
+		$this->db->select('train_no, MAX(train_name) as train_name',FALSE)->from('obhs_feedback f');
+		$this->scopeBid($bid);
+		$trains = $this->db->group_by('train_no')->order_by('train_no','ASC')->get()->result_array();
+
+		$this->db->distinct()->select('coach_no')->from('obhs_feedback f');
+		$this->scopeBid($bid);
+		$coaches = $this->db->order_by('coach_no','ASC')->get()->result_array();
+
+		$this->db->select("f.uid, COALESCE(NULLIF(MAX(f.janitor_name),''),MAX(l.name)) as name",FALSE)
+			->from('obhs_feedback f')->join('login l','l.id=f.uid','left');
+		$this->scopeBid($bid);
+		$janitors = $this->db->group_by('f.uid')->get()->result_array();
+
 		return array('trains'=>$trains,'coaches'=>$coaches,'janitors'=>$janitors);
 	}
 }

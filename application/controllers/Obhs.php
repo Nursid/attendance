@@ -18,10 +18,16 @@ class Obhs extends CI_Controller {
 		$this->load->model('Obhs_Model','obhs');
 	}
 
-	/** Session guard + business id resolution (same convention as User/Payroll). */
+	/**
+	 * Session guard + business scope (same convention as User/Payroll).
+	 * Super admin (web_login type 'A') gets '' => sees every business.
+	 */
 	private function bid(){
 		if(empty($this->session->userdata('id'))){
 			redirect('user-login');
+		}
+		if($this->session->userdata('type')=='A'){
+			return '';
 		}
 		if($this->session->userdata('type')=='P'){
 			return $this->session->userdata('empCompany');
