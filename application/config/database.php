@@ -90,7 +90,7 @@ $query_builder = TRUE;
 // 	'swap_pre' => '',
 // 	'encrypt' => FALSE,
 // 	'compress' => FALSE,
-// 	'stricton' => FALSE,
+// // 	'stricton' => FALSE,
 // 	'failover' => array(),
 // 	'save_queries' => TRUE
 // );
