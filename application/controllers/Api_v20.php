@@ -9925,4 +9925,66 @@ function addRfid(){
       echo $i++."\t".date('d-m-Y',(int)$row['date_time'])."\t".$row['train_no']."\t".$row['train_name']."\t".$row['coach_no']."\t".$row['journey_date']."\t".$row['pnr_no']."\t".$row['seat_no']."\t".$row['passenger_name']."\t".$row['passenger_mobile']."\t".$row['rating_coach_cleanliness']."\t".$row['rating_toilet_cleanliness']."\t".$row['rating_doorway_cleanliness']."\t".$row['rating_bedroll']."\t".$row['rating_staff_behaviour']."\t".$row['rating_pest_control']."\t".$row['psi_score']."\t".$row['feedback_type']."\t".$row['status']."\t".$row['janitor_name']."\t".$remarks."\t".$row['location']."\n";
     }
   }
+
+  /** Master row -> API shape (coach position also split into an array). */
+  private function obhsTrainPayload($train){
+    return array(
+      'id'             => $train['id'],
+      'train_no'       => $train['train_no'],
+      'train_no_return'=> $train['train_no_return'],
+      'train_no_pair'  => trim($train['train_no'].'/'.$train['train_no_return'],'/'),
+      'train_name'     => $train['train_name'],
+      'coach_position' => $train['coach_position'],
+      'total_coaches'  => (int)$train['total_coaches'],
+      'coaches'        => $this->obhs->splitCoaches($train['coach_position'])
+    );
+  }
+
+  /**
+   * Train master list with coach position (global list, same for every business).
+   * Body: {"checkon":{"mobile":"...","search":"optional train no / name / coach"}}
+   */
+  function getObhsTrainList(){
+    $data=json_decode(file_get_contents("php://input"));
+    $check=$this->obhsAuth($data);
+    if($check===false){
+      echo json_encode(array('checkon'=>array('msg'=>'Unauthorized','status'=>'0')));
+      return;
+    }
+    $search = isset($data->checkon->search) ? trim($data->checkon->search) : '';
+    $list = array();
+    foreach($this->obhs->getTrainMaster($search) as $train){
+      $list[] = $this->obhsTrainPayload($train);
+    }
+    if(empty($list)){
+      echo json_encode(array('checkon'=>array('msg'=>'No Data Found','status'=>'0','total'=>0,'list'=>array())));
+      return;
+    }
+    echo json_encode(array('checkon'=>array('status'=>'1','total'=>count($list),'list'=>$list)));
+  }
+
+  /**
+   * Coach position of one train. Either direction number resolves the same
+   * rake, e.g. 12155 and 12156 both return Bhopal Express.
+   * Body: {"checkon":{"mobile":"...","train_no":"12155"}}
+   */
+  function getObhsTrainCoaches(){
+    $data=json_decode(file_get_contents("php://input"));
+    $check=$this->obhsAuth($data);
+    if($check===false){
+      echo json_encode(array('checkon'=>array('msg'=>'Unauthorized','status'=>'0')));
+      return;
+    }
+    $train_no = isset($data->checkon->train_no) ? trim($data->checkon->train_no) : '';
+    if($train_no === ''){
+      echo json_encode(array('checkon'=>array('msg'=>'train_no is required','status'=>'0')));
+      return;
+    }
+    $train = $this->obhs->getTrainByNo($train_no);
+    if(empty($train)){
+      echo json_encode(array('checkon'=>array('msg'=>'No Data Found','status'=>'0','coaches'=>array())));
+      return;
+    }
+    echo json_encode(array('checkon'=>array_merge(array('status'=>'1'),$this->obhsTrainPayload($train))));
+  }
 }

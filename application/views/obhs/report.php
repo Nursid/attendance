@@ -75,20 +75,21 @@ $export_qs = obhs_qs();
                     <input type="date" name="end_date" class="form-control form-control-sm" value="<?php echo isset($filters['end_date']) ? $filters['end_date'] : '';?>">
                   </div>
                   <div class="col-sm-2 mb-2">
-                    <select name="train_no" class="form-control form-control-sm">
+                    <select name="train_no" id="obhsTrain" class="form-control form-control-sm">
                       <option value="">All Trains</option>
                       <?php foreach($options['trains'] as $t){
                         $sel = (isset($filters['train_no']) && $filters['train_no']==$t['train_no']) ? 'selected' : '';
-                        echo "<option value='".$t['train_no']."' $sel>".$t['train_no']." ".$t['train_name']."</option>";
+                        $label = trim($t['train_no'].' - '.$t['train_name']," -");
+                        echo "<option value='".html_escape($t['train_no'])."' $sel>".html_escape($label)."</option>";
                       }?>
                     </select>
                   </div>
                   <div class="col-sm-2 mb-2">
-                    <select name="coach_no" class="form-control form-control-sm">
+                    <select name="coach_no" id="obhsCoach" class="form-control form-control-sm">
                       <option value="">All Coaches</option>
                       <?php foreach($options['coaches'] as $co){
                         $sel = (isset($filters['coach_no']) && $filters['coach_no']==$co['coach_no']) ? 'selected' : '';
-                        echo "<option value='".$co['coach_no']."' $sel>".$co['coach_no']."</option>";
+                        echo "<option value='".html_escape($co['coach_no'])."' $sel>".html_escape($co['coach_no'])."</option>";
                       }?>
                     </select>
                   </div>
@@ -239,6 +240,38 @@ $export_qs = obhs_qs();
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script>
+// Train master: coach codes in rake order, keyed by both direction numbers.
+var obhsCoachMap  = <?php echo json_encode((object)(isset($options['coach_map']) ? $options['coach_map'] : array()));?>;
+var obhsAllCoach  = <?php echo json_encode(array_column($options['coaches'],'coach_no'));?>;
+
+/** Limit the coach list to the selected train's rake (all coaches when unknown). */
+function obhsSyncCoaches(){
+  var train = document.getElementById('obhsTrain');
+  var coach = document.getElementById('obhsCoach');
+  if(!train || !coach){ return; }
+  var list = (train.value && obhsCoachMap[train.value]) ? obhsCoachMap[train.value] : obhsAllCoach;
+  var keep = coach.value;
+  coach.innerHTML = '';
+  var all = document.createElement('option');
+  all.value = '';
+  all.text  = 'All Coaches';
+  coach.appendChild(all);
+  for(var i=0;i<list.length;i++){
+    var opt = document.createElement('option');
+    opt.value = list[i];
+    opt.text  = list[i];
+    if(list[i] === keep){ opt.selected = true; }
+    coach.appendChild(opt);
+  }
+}
+document.addEventListener('DOMContentLoaded', function(){
+  var train = document.getElementById('obhsTrain');
+  if(train){
+    obhsSyncCoaches();
+    train.addEventListener('change', obhsSyncCoaches);
+  }
+});
+
 function exportPdf(){
   var doc = new jspdf.jsPDF('l','pt','a4');
   doc.text("<?php echo addslashes($title);?> - <?php echo date('d-m-Y');?>", 40, 30);

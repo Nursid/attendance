@@ -97,8 +97,8 @@ class Obhs extends CI_Controller {
 			'train' => array(
 				'title'   => 'Train Wise Report',
 				'columns' => array(
-					'train_no'=>'Train No','train_name'=>'Train Name','coaches'=>'Coaches','total_feedback'=>'Feedbacks',
-					'avg_psi'=>'Avg PSI','complaints'=>'Complaints','resolved'=>'Resolved'
+					'train_no'=>'Train No','train_name'=>'Train Name','coaches'=>'Coaches Covered','total_coaches'=>'Rake Coaches',
+					'total_feedback'=>'Feedbacks','avg_psi'=>'Avg PSI','complaints'=>'Complaints','resolved'=>'Resolved'
 				),
 				'sortable'=> array('train_no','total_feedback','avg_psi','complaints'),
 				'default_sort'=>'total_feedback',

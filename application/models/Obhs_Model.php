@@ -82,7 +82,10 @@ class Obhs_Model extends CI_Model {
 			->join('login l','l.id=f.uid','left')
 			->where('f.id',$id);
 		$this->scopeBid($bid);
-		return $this->db->get()->row_array();
+		$row = $this->db->get()->row_array();
+		if(empty($row)){ return $row; }
+		$rows = $this->fillTrainInfo(array($row));
+		return $rows[0];
 	}
 
 	public function addComplaint($data){
@@ -127,6 +130,41 @@ class Obhs_Model extends CI_Model {
 
 	private $sortable = array('id','journey_date','train_no','coach_no','passenger_name','psi_score','feedback_type','status','date_time');
 
+	/**
+	 * Feedback stores one direction number while the master keeps the pair
+	 * (e.g. 12155 / 12156), so both numbers key the same master row.
+	 * Cached per request - the master is a small global list.
+	 */
+	private $train_master_map = null;
+
+	private function trainMasterMap(){
+		if($this->train_master_map === null){
+			$this->train_master_map = array();
+			foreach($this->getTrainMaster() as $train){
+				foreach(array($train['train_no'],$train['train_no_return']) as $no){
+					if($no === '' || $no === null || isset($this->train_master_map[$no])){ continue; }
+					$this->train_master_map[$no] = $train;
+				}
+			}
+		}
+		return $this->train_master_map;
+	}
+
+	/** Attach master coach position, and the master name when the row has none. */
+	private function fillTrainInfo($rows){
+		$map = $this->trainMasterMap();
+		foreach($rows as &$row){
+			$no = isset($row['train_no']) ? $row['train_no'] : '';
+			$master = isset($map[$no]) ? $map[$no] : array();
+			if(!empty($master) && trim((string)$row['train_name']) === ''){
+				$row['train_name'] = $master['train_name'];
+			}
+			$row['coach_position'] = empty($master) ? '' : $master['coach_position'];
+		}
+		unset($row);
+		return $rows;
+	}
+
 	public function getFeedbackList($bid,$filters=array(),$limit=0,$offset=0,$sort_by='id',$sort_dir='DESC'){
 		$this->db->select('f.*, l.name as staff_name')
 			->from('obhs_feedback f')
@@ -137,7 +175,7 @@ class Obhs_Model extends CI_Model {
 		$sort_dir = (strtoupper($sort_dir)=='ASC') ? 'ASC' : 'DESC';
 		$this->db->order_by('f.'.$sort_by,$sort_dir);
 		if($limit > 0){ $this->db->limit($limit,$offset); }
-		return $this->db->get()->result_array();
+		return $this->fillTrainInfo($this->db->get()->result_array());
 	}
 
 	public function countFeedbackList($bid,$filters=array()){
@@ -149,12 +187,13 @@ class Obhs_Model extends CI_Model {
 
 	/** Janitor's own submissions (mobile app list). */
 	public function getUserFeedbackList($uid,$limit=50,$offset=0){
-		return $this->db->select('f.*')
+		$rows = $this->db->select('f.*')
 			->from('obhs_feedback f')
 			->where('f.uid',$uid)
 			->order_by('f.id','DESC')
 			->limit($limit,$offset)
 			->get()->result_array();
+		return $this->fillTrainInfo($rows);
 	}
 
 	// ------------------------------------------------------------- dashboard
@@ -226,7 +265,19 @@ class Obhs_Model extends CI_Model {
 		$sort_dir = (strtoupper($sort_dir)=='ASC') ? 'ASC' : 'DESC';
 		$this->db->order_by($sort_by,$sort_dir);
 		if($limit > 0){ $this->db->limit($limit,$offset); }
-		return $this->db->get()->result_array();
+		$rows = $this->db->get()->result_array();
+
+		// Master name (when feedback left it blank) + full rake size for context
+		$map = $this->trainMasterMap();
+		foreach($rows as &$row){
+			$master = isset($map[$row['train_no']]) ? $map[$row['train_no']] : array();
+			if(!empty($master) && trim((string)$row['train_name'])===''){
+				$row['train_name'] = $master['train_name'];
+			}
+			$row['total_coaches'] = empty($master) ? '' : $master['total_coaches'];
+		}
+		unset($row);
+		return $rows;
 	}
 
 	public function countTrainWiseReport($bid,$filters=array()){
@@ -315,21 +366,101 @@ class Obhs_Model extends CI_Model {
 		return $this->countFeedbackList($bid,$filters);
 	}
 
-	/** Distinct train/coach values for filter dropdowns. */
+	// ---------------------------------------------------------- train master
+
+	/**
+	 * Active trains from obhs_train_master (global list, not business scoped).
+	 * Each row carries both direction numbers, e.g. 12155 / 12156.
+	 */
+	public function getTrainMaster($search=''){
+		$this->db->select('id, train_no, train_no_return, train_name, coach_position, total_coaches')
+			->from('obhs_train_master')
+			->where('status',1);
+		if($search !== '' && $search !== null){
+			$this->db->group_start()
+				->like('train_no',$search)->or_like('train_no_return',$search)
+				->or_like('train_name',$search)->or_like('coach_position',$search)
+				->group_end();
+		}
+		return $this->db->order_by('train_no','ASC')->get()->result_array();
+	}
+
+	/** One train, matched on either the up or the return number. */
+	public function getTrainByNo($train_no){
+		if($train_no === '' || $train_no === null){ return array(); }
+		$row = $this->db->from('obhs_train_master')
+			->where('status',1)
+			->group_start()->where('train_no',$train_no)->or_where('train_no_return',$train_no)->group_end()
+			->get()->row_array();
+		return empty($row) ? array() : $row;
+	}
+
+	/** Coach codes of a train in rake order (empty when the train is unknown). */
+	public function getTrainCoaches($train_no){
+		$row = $this->getTrainByNo($train_no);
+		return empty($row) ? array() : $this->splitCoaches($row['coach_position']);
+	}
+
+	/** "H1,A1,A2" => array('H1','A1','A2') */
+	public function splitCoaches($coach_position){
+		$out = array();
+		foreach(explode(',',(string)$coach_position) as $coach){
+			$coach = trim($coach);
+			if($coach !== ''){ $out[] = $coach; }
+		}
+		return $out;
+	}
+
+	/**
+	 * Distinct train/coach values for filter dropdowns.
+	 * Trains and coaches come from the train master first, then any extra
+	 * values that only exist in recorded feedback are appended so historic
+	 * rows stay filterable. `coach_map` drives the train -> coach dependency
+	 * in the report filter form.
+	 */
 	public function getFilterOptions($bid){
+		$trains = array();
+		$coach_map = array();
+		$coaches = array();
+
+		foreach($this->getTrainMaster() as $t){
+			$train_coaches = $this->splitCoaches($t['coach_position']);
+			foreach(array($t['train_no'],$t['train_no_return']) as $no){
+				if($no === '' || $no === null){ continue; }
+				$trains[$no] = array('train_no'=>$no,'train_name'=>$t['train_name']);
+				$coach_map[$no] = $train_coaches;
+			}
+			foreach($train_coaches as $c){ $coaches[$c] = true; }
+		}
+
 		$this->db->select('train_no, MAX(train_name) as train_name',FALSE)->from('obhs_feedback f');
 		$this->scopeBid($bid);
-		$trains = $this->db->group_by('train_no')->order_by('train_no','ASC')->get()->result_array();
+		foreach($this->db->group_by('train_no')->get()->result_array() as $t){
+			if(!isset($trains[$t['train_no']])){ $trains[$t['train_no']] = $t; }
+		}
+		ksort($trains);
 
 		$this->db->distinct()->select('coach_no')->from('obhs_feedback f');
 		$this->scopeBid($bid);
-		$coaches = $this->db->order_by('coach_no','ASC')->get()->result_array();
+		foreach($this->db->get()->result_array() as $c){
+			if($c['coach_no'] !== ''){ $coaches[$c['coach_no']] = true; }
+		}
+		$coach_list = array_keys($coaches);
+		sort($coach_list,SORT_NATURAL);   // B1,B2..B10 rather than B1,B10,B2
 
 		$this->db->select("f.uid, COALESCE(NULLIF(MAX(f.janitor_name),''),MAX(l.name)) as name",FALSE)
 			->from('obhs_feedback f')->join('login l','l.id=f.uid','left');
 		$this->scopeBid($bid);
 		$janitors = $this->db->group_by('f.uid')->get()->result_array();
 
-		return array('trains'=>$trains,'coaches'=>$coaches,'janitors'=>$janitors);
+		$coach_options = array();
+		foreach($coach_list as $c){ $coach_options[] = array('coach_no'=>$c); }
+
+		return array(
+			'trains'   => array_values($trains),
+			'coaches'  => $coach_options,
+			'coach_map'=> $coach_map,
+			'janitors' => $janitors
+		);
 	}
 }

@@ -182,12 +182,95 @@ In Postman use **Send and Download** so the file is saved.
 
 ---
 
+## 6. Train Master List (train no + name + coach position)
+
+`POST /Api_v20/getObhsTrainList`
+
+Returns the global train master (`obhs_train_master`) - same list for every business.
+Each train carries **both direction numbers** of the pair: the source sheet lists
+`12155/56`, which is stored as `train_no = 12155` and `train_no_return = 12156`.
+`coach_position` is the rake order as printed on the sheet; `coaches` is the same list
+already split into an array. Optional `search` matches train number, name or coach code.
+
+```bash
+curl -X POST "http://localhost/attendence/index.php/Api_v20/getObhsTrainList" \
+  -H "Content-Type: application/json" \
+  -d '{"checkon":{"mobile":"9876543210","search":"humsafar"}}'
+```
+
+**Response**
+
+```json
+{"checkon":{"status":"1","total":1,"list":[{
+  "id":"6",
+  "train_no":"22169",
+  "train_no_return":"22170",
+  "train_no_pair":"22169/22170",
+  "train_name":"Santragachhi Humsafar Express",
+  "coach_position":"B1,B2,B3,B4,B5,B6,B7,B8,B9,B10,B11,B12,B13,B14,S1,S2,S3,S4,S5,S6",
+  "total_coaches":20,
+  "coaches":["B1","B2","B3","B4","B5","B6","B7","B8","B9","B10","B11","B12","B13","B14","S1","S2","S3","S4","S5","S6"]
+}]}}
+```
+
+Use this to populate the train picker in the app; drop `search` to get all trains.
+
+---
+
+## 7. Coaches of One Train
+
+`POST /Api_v20/getObhsTrainCoaches`
+
+Resolves a single train from **either** direction number - `12155` and `12156` both
+return Bhopal Express - and returns its coaches in rake order. Use it to fill the coach
+dropdown once the janitor has picked a train.
+
+```bash
+curl -X POST "http://localhost/attendence/index.php/Api_v20/getObhsTrainCoaches" \
+  -H "Content-Type: application/json" \
+  -d '{"checkon":{"mobile":"9876543210","train_no":"12156"}}'
+```
+
+**Response**
+
+```json
+{"checkon":{"status":"1","id":"1","train_no":"12155","train_no_return":"12156",
+  "train_no_pair":"12155/12156","train_name":"Bhopal Express",
+  "coach_position":"H1,A1,A2,B1,B2,B3,B4,M1,S1,S2,S3,S4,S5,S6,S7","total_coaches":15,
+  "coaches":["H1","A1","A2","B1","B2","B3","B4","M1","S1","S2","S3","S4","S5","S6","S7"]}}
+```
+
+An unknown train number returns `{"checkon":{"msg":"No Data Found","status":"0","coaches":[]}}`.
+
+---
+
+## Train master table
+
+`obhs_train_master` is created and seeded by `obhs_train_master.sql` (14 trains).
+It is a global list - not scoped by `bid` - and rows with `status = 0` are hidden
+from both APIs and the portal filters.
+
+| Column | Notes |
+|--------|-------|
+| `train_no` | up direction number, unique |
+| `train_no_return` | down/return direction number |
+| `train_name` | e.g. `Bhopal Express` |
+| `coach_position` | comma separated coach codes in rake order |
+| `total_coaches` | derived from `coach_position` |
+| `status` | `1` active, `0` disabled |
+
+Feedback rows store a single `train_no`; the portal and APIs match it against either
+column, so a record saved as `12156` still shows the Bhopal Express name and rake.
+
+---
+
 ## Error responses
 
 | Situation | Response |
 |-----------|----------|
 | Unknown mobile / wrong user_group | `{"checkon":{"msg":"Unauthorized","status":"0"}}` |
 | Missing required save fields | `{"checkon":{"msg":"train_no, coach_no, journey_date and passenger_name are required","status":"0"}}` |
+| Coach lookup without a train | `{"checkon":{"msg":"train_no is required","status":"0"}}` |
 | Detail/record not found | `{"checkon":{"msg":"No Data Found","status":"0"}}` |
 | Update with no valid fields | `{"checkon":{"msg":"Nothing to Update","status":"0"}}` |
 
@@ -211,5 +294,7 @@ Session-authenticated pages under the `Obhs` controller (sidebar menu "OBHS Feed
 | Excel export | `obhs-export/{report}` |
 
 Each report supports filtering, search, pagination, sorting, Excel export, PDF export, and print.
+The Train and Coach filters are driven by `obhs_train_master`, so picking a train narrows the
+coach dropdown to that train's rake; train numbers seen only in old feedback rows are still listed.
 A `web_login` account of type `A` (super admin) sees all businesses; types `B`/`P` are scoped to
 their own company.
