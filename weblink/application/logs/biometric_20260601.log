@@ -1,0 +1,2 @@
+2026-06-01 23:42:24 {"cmd":"sendlog","sn":"ZYTC04021097","count":1,"logindex":0,"record":[{"enrollid":1,"name":"","time":"2026-05-04 23:02:44","mode":8,"inout":0,"event":2,"note":{"4gsignal":0,"satellites":23,"location":"29.93242,78.13277"}}]}
+2026-06-01 23:43:04 {"cmd":"sendlog","sn":"ZYTC04021097","count":1,"logindex":0,"record":[{"enrollid":1,"name":"","time":"2026-05-04 23:02:44","mode":8,"inout":0,"event":2,"note":{"4gsignal":0,"satellites":23,"location":"29.93242,78.13277"}}]}

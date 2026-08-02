@@ -7885,4 +7885,291 @@ function getCompanyUsersByStatus(){
       }
     }
   }
+
+
+public function insert_bio_log()
+{
+    $json = file_get_contents("php://input");
+
+    // Optional Log
+    file_put_contents(
+        APPPATH.'logs/biometric_'.date('Ymd').'.log',
+        date('Y-m-d H:i:s')." ".$json.PHP_EOL,
+        FILE_APPEND
+    );
+
+    $result = json_decode($json, true);
+
+    if(empty($result['record']))
+    {
+        echo json_encode(array(
+            'status' => 0,
+            'message' => 'No Record Found'
+        ));
+        return;
+    }
+
+    // Device SN
+    $devicesn = isset($result['sn']) ? trim($result['sn']) : '';
+
+    if(empty($devicesn))
+    {
+        echo json_encode(array(
+            'status' => 0,
+            'message' => 'Device SN Missing'
+        ));
+        return;
+    }
+
+    $getBusinessByDeviceId = $this->app->getBusinessByDeviceId($devicesn);
+
+    if(empty($getBusinessByDeviceId))
+    {
+        echo json_encode(array(
+            'status' => 0,
+            'message' => 'Device Not Registered'
+        ));
+        return;
+    }
+
+    $loginids  = $getBusinessByDeviceId['bid'];
+    $deviceMode = $getBusinessByDeviceId['mode'];
+    $deviceid  = $getBusinessByDeviceId['id'];
+
+    foreach($result['record'] as $row)
+    {
+        $uid   = isset($row['enrollid']) ? $row['enrollid'] : 0;
+        $event = isset($row['event']) ? $row['event'] : 0;
+
+        if(empty($uid))
+        {
+            continue;
+        }
+
+        // Attendance Time
+        $io_timenew = strtotime($row['time']);
+
+        if(empty($io_timenew))
+        {
+            continue;
+        }
+
+        $io_time    = date("d/m/Y H:i:s", $io_timenew);
+        $io_timedubb = $io_timenew - 180;
+
+        /*
+        |--------------------------------------------------------------------------
+        | GPS & Address
+        |--------------------------------------------------------------------------
+        */
+        $lat = '';
+        $long = '';
+        $location = '';
+
+        if(
+            isset($row['note']['location']) &&
+            !empty($row['note']['location'])
+        )
+        {
+            $gps = explode(',', $row['note']['location']);
+
+            $lat  = isset($gps[0]) ? trim($gps[0]) : '';
+            $long = isset($gps[1]) ? trim($gps[1]) : '';
+
+            // Call Google only if valid coordinates
+            if(
+                !empty($lat) &&
+                !empty($long) &&
+                $lat != '0' &&
+                $long != '0' &&
+                $lat != '0.0' &&
+                $long != '0.0'
+            )
+            {
+                try
+                {
+                    $location = $this->latLongToAddress($lat,$long);
+                }
+                catch(Exception $e)
+                {
+                    $location = '';
+                }
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | User Lookup
+        |--------------------------------------------------------------------------
+        */
+        $getUserByBioId = $this->app->getUserByBioId($uid,$loginids);
+
+        if(empty($getUserByBioId))
+        {
+            continue;
+        }
+
+        $usid = $getUserByBioId['id'];
+
+        /*
+        |--------------------------------------------------------------------------
+        | Student Attendance
+        |--------------------------------------------------------------------------
+        */
+        if($deviceMode == 5)
+        {
+            $getStudentByBioId = $this->web->getStudentByBioId(
+                $uid,
+                $loginids
+            );
+
+            if(!empty($getStudentByBioId))
+            {
+                $stuid = $getStudentByBioId['id'];
+
+                $datas = array(
+                    'bid'            => $loginids,
+                    'student_id'     => $stuid,
+                    'student_status' => '1',
+                    'device'         => $deviceid,
+                    'time'           => $io_time,
+                    'update_date'    => time(),
+                    'date_time'      => time()
+                );
+
+                $this->web->insertstudentbioAttendance($datas);
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Employee Attendance
+        |--------------------------------------------------------------------------
+        */
+        $user_status = $this->app->userCmpStatus(
+            $usid,
+            $loginids
+        );
+
+        $userCmp = $this->app->getUserCompany($usid);
+
+        if(empty($userCmp))
+        {
+            continue;
+        }
+
+        if(
+            empty($userCmp['business_id']) ||
+            $userCmp['business_id'] != $loginids
+        )
+        {
+            continue;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Duplicate Check
+        |--------------------------------------------------------------------------
+        */
+        $checkOffline = $this->app->checkIoTime(
+            $usid,
+            $loginids,
+            $io_timenew,
+            $io_timedubb
+        );
+
+        if(!empty($checkOffline))
+        {
+            continue;
+        }
+
+        $start_time = strtotime(
+            date("d-m-Y 00:00:00",$io_timenew)
+        );
+
+        $end_time = strtotime(
+            date("d-m-Y 23:59:59",$io_timenew)
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | IN / OUT Logic
+        |--------------------------------------------------------------------------
+        */
+        $mode = "in";
+
+        if($deviceMode == 0)
+        {
+            $offline_at = $this->app->checkOfflineAt(
+                $usid,
+                $loginids,
+                $start_time,
+                $end_time
+            );
+
+            if($userCmp['hostel'] == 1)
+            {
+                $mode = "out";
+            }
+
+            if(!empty($offline_at))
+            {
+                if($offline_at['mode'] == "in")
+                {
+                    $mode = "out";
+                }
+                else
+                {
+                    $mode = "in";
+                }
+            }
+        }
+        else if($deviceMode == 1)
+        {
+            $mode = "in";
+        }
+        else if($deviceMode == 2)
+        {
+            $mode = "out";
+        }
+        else if($deviceMode == 3)
+        {
+            $mode = "Log";
+        }
+
+        $night = 0;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Final Attendance Insert
+        |--------------------------------------------------------------------------
+        */
+        $data = array(
+            'bussiness_id' => $loginids,
+            'user_id'      => $usid,
+            'mode'         => $mode,
+            'comment'      => '',
+            'device'       => $deviceid,
+            'manual'       => '4',
+            'event'        => $event,
+            'night'        => $night,
+            'latitude'     => $lat,
+            'longitude'    => $long,
+            'location'     => $location,
+            'hostel'       => isset($userCmp['hostel']) ? $userCmp['hostel'] : 0,
+            'io_time'      => $io_time,
+            'date'         => $io_timenew
+        );
+
+        $this->db->insert('attendance', $data);
+    }
+
+    echo json_encode(array(
+        'status' => 1,
+        'message' => 'Attendance Synced Successfully'
+    ));
+}
+
+
+
 }

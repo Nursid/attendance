@@ -1,0 +1,837 @@
+<?php if (!defined('BASEPATH')) exit('No direct script access allowed');
+class Api_Model_f4 extends CI_Model
+{
+	function __construct(){
+        parent::__construct();
+		$this->load->database();
+	}
+		public function checkMobile($mobile){
+		return $this->db->where('mobile',$mobile)->where('deleted',0)->get('login')->row_array();
+	}
+
+
+	public function getMaxMid(){
+		return $this->db->query("SELECT m_id FROM login order by id desc limit 1")->row_array();
+	}
+
+	public function getMidByMobile($m){
+		return $this->db->query("SELECT m_id AS m_id FROM login WHERE mobile = '$m' and deleted=0")->row_array();
+	}
+
+	public function getIdByMid($id){
+	    $sql="SELECT id from login WHERE m_id ='$id'";
+		return $this->db->query($sql)->row_array();
+	}
+
+	public function userdetails($id){
+		return $this->db->where('id',$id)->get('login')->row_array();
+	}
+
+	public function userdetailsnew($id){
+		return $this->db->where('id',$id)->get('login')->result();
+	}
+
+	public function offerdetails($id){
+		//return $this->db->where('shopid',$id)->get('offer')->result();
+		$sql="SELECT * FROM `offer` WHERE shopid='$id' and status='0'";
+	   $query=$this->db->query($sql);
+		return $query->result();
+	}
+	public function AddUser($data){
+		return $this->db->insert('login',$data);
+	}
+	public function checkotp($mobile,$otp){
+		$this->db->select('*');
+		$this->db->where('mobile',$mobile);
+		$this->db->where('otp',$otp);
+		$this->db->where('deleted',0);
+		$this->db->from('login');
+		$get=$this->db->get();
+		return $get->row_array();
+	}
+
+	public function registered($mobile){
+		$this->db->select('*');
+		$this->db->where('mobile',$mobile);
+		$this->db->where('deleted',0);
+		$this->db->from('login');
+		$get=$this->db->get();
+		return $get->row_array();
+	}
+	public function getGroups(){
+		return $this->db->get('groups')->result();
+	}
+
+	public function getBussiness(){
+		return $this->db->get('bussinesstype')->result();
+	}
+	public function getUserData($id){
+		$this->db->select('*');
+		$this->db->where('scanid',$id);
+		$this->db->from('userqrdetails');
+		$this->db->order_by('id','DESC');
+		$this->db->limit('5');
+		$get=$this->db->get();
+		return $get->result();
+
+	}
+	public function getUserDetail($id){
+		$this->db->select('*');
+		$this->db->where('id',$id);
+		$this->db->from('login');
+		$this->db->limit('20');
+		$get=$this->db->get();
+		return $get->result();
+	}
+	public function getHistory($id){
+// 		// return $this->db->where('scanid',$id)->get('userqrdetails')->result();
+// 		$this->db->select('*');
+// 		$this->db->where('scanid',$id);
+
+// 		$this->db->from('userqrdetails');
+// 		$get=$this->db->get();
+
+
+	//	return $get->result();
+$sqll="select * FROM `userqrdetails` WHERE scanid='$id' ORDER BY id DESC";
+	$query=$this->db->query($sqll);
+		return $query->result();
+	}
+	public function getConatctData($id){
+		$this->db->select('*');
+		$this->db->where('scanby',$id);
+
+		$this->db->from('userqrdetails');
+		$this->db->group_by('scanid','DESC');
+
+		$get=$this->db->get();
+		return $get->result();
+
+	}
+
+	public function getShopDetail($id){
+		$this->db->select('*');
+
+// 		$this->db->where('user_group','2');
+		$this->db->where('id',$id);
+		$this->db->from('login');
+
+			$this->db->limit('20');
+		$get=$this->db->get();
+		return $get->result();
+	}
+
+
+
+	public function search($id,$from,$to){
+	     $sql="SELECT * FROM userqrdetails WHERE scanid='$id' AND date between '$from' and '$to'";
+		$query=$this->db->query($sql);
+		return $query->result();
+	}
+
+	//
+
+	public function getUserscan($id){
+		$query=$this->db->query("SELECT * FROM `userqrdetails` WHERE scanby='$id' GROUP by scanid");
+		return $query->result();
+	}
+
+	public function getUsersoffers($id){
+		$query=$this->db->query("SELECT * FROM `offer` WHERE shopid='$id' and status='0'");
+		return $query->result();
+	}
+
+	public function getBussinessname($id){
+		 $query=$this->db->query("SELECT * FROM `bussinesstype` WHERE id='$id'");
+		return $query->result();
+	}
+
+	public function userdetailscheck($userid,$mobileno){
+		 $sql="SELECT * FROM `login` WHERE (mobile='$mobileno' OR id='$userid') and deleted=0";
+		 $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+	public function usertypescheck($userid,$mobileno){
+	 $sql="SELECT * FROM `login` WHERE  (id='$userid' or mobile='$mobileno') and deleted=0";
+		 $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+
+
+
+	public function getassigneddept($userid){
+		$sql="SELECT * FROM `assigned_department` WHERE  user_bussiness_id='$userid'";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+
+		public function getappointdept($userid){
+		$sql="SELECT * FROM `appoint_setting` WHERE  bussiness_id='$userid'";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+
+	public function getdept($id){
+		  $sql="SELECT * FROM `department` WHERE  id='$id'";
+		 $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+	public function getdeptnew($id){
+		  $sql="SELECT * FROM `department` WHERE  id='$id'";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+
+	public function getsubdept($id){
+		 $sql="SELECT * FROM `department_sub` WHERE  department_id='$id'";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+	public function getsubdeptnew($id){
+		 $sql="SELECT * FROM `department_sub` WHERE  id='$id'";
+		 $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+
+
+	public function gettokendate($today,$depid){
+		  $sql="SELECT * FROM `token` WHERE date='$today'  AND Dept_id='$depid'";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+	public function getMaxtoken($depid){
+		  $sql="SELECT MAX(token) as token FROM `token` WHERE Dept_id='$depid'";
+		 $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+
+	public function getlivetoken($depid){
+		 $sql="SELECT MAX(token) as token FROM `token` WHERE Dept_id='$depid' AND status='1'";
+		 $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+
+	public function gettoken($loginid,$today){
+		    $sql="SELECT * FROM `token` WHERE userid='$loginid' AND date='$today'";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+
+	public function getBussinesstoken($loginid,$today){
+		    $sql="SELECT * FROM `token` WHERE user_bussiness_id='$loginid' AND date='$today'";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+
+	//
+
+	public function Qrimageupdate($i,$loginid){
+		 $sql="UPDATE  login SET   qrimage = '$i' WHERE  id = '$loginid'";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+
+	public function shopuser($loginid){
+		 $sql="Select * from userqrdetails where scanid='$loginid' GROUP BY scanby";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+		public function getCounter($loginid){
+		 $sql="SELECT * FROM `counters` WHERE login='$loginid'";
+		 $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+	public function getappointmenttime($loginid,$departmentid,$subdepartmentid){
+		   $sql="SELECT * FROM `appoint_setting` WHERE bussiness_id='$loginid' and department='$departmentid' and subdepart='$subdepartmentid'";
+		 $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+	public function getbookedtime($loginid,$departmentid,$subdepartmentid,$day){
+		 $sql="SELECT * FROM `book_appointment` WHERE bussiness_id ='$loginid' and bookingdate='$day' and departmentid='$departmentid' and subdepartment='$subdepartmentid' and status='0'";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+
+	public function getappointmentdata(){
+		 $sql="SELECT * FROM `appoint_setting` group by bussiness_id";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+
+	public function getappointsub($bussinessid,$depid){
+		  $sql="SELECT * FROM `assigned_sdepartment` where user_business_id='$bussinessid' and depart_id='$depid'";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+
+
+	public function getappointsubss($bussinessid,$depid){
+		   $sql="SELECT * FROM `appoint_setting` where bussiness_id='$bussinessid' and department='$depid'";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+	public function getAppointmenthistory($loginid){
+		  $sql="SELECT * FROM `book_appointment` where user_id='$loginid' ORDER BY `id` DESC";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+	public function getAppointmentbussiness($loginid){
+		  $sql="SELECT * FROM `book_appointment` where 	bussiness_id='$loginid' ORDER BY `id` DESC";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+	public function getbussnames($id){
+		  $sql="SELECT id,name,address,user_group,image,mac,strength FROM `login` where id='$id'";
+		 $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+
+	public function getappoitmentdate($bookingdate,$departmentid){
+		  $sql="SELECT * FROM `book_appointment` WHERE bookingdate='$bookingdate'  AND departmentid='$departmentid'";
+		 $query=$this->db->query($sql);
+		return $query->result();
+	}
+		public function getappoitmentcancel($bookingdate, $departmentid,$subdepartmentid,$bookingtime){
+		    $sql="SELECT * FROM `book_appointment` WHERE bookingdate='$bookingdate'  AND departmentid='$departmentid' AND booking_time='$bookingtime' AND subdepartment='$subdepartmentid'";
+		 $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+	public function getMaxappoint($bookingdate,$departmentid){
+		  $sql="SELECT MAX(appointmenttoken) as appointmenttoken FROM `book_appointment` WHERE 	bookingdate='$bookingdate ' and departmentid='$departmentid'";
+		 $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+	public function getappointmentno(){
+		 $sql="SELECT MAX(appointmenttoken) as  appointmenttoken from book_appointment";
+		 $query=$this->db->query($sql);
+		 return $query->row_array();
+	}
+	///
+
+	// RITIK
+
+	public function getUserAttendance($id,$start,$end){
+		$res = $this->db->query("SELECT * FROM attendance WHERE user_id='$id' AND status='1' AND io_time >=$start AND io_time <$end and manual!='2' order by id DESC");
+		return $res->result();
+	}
+
+	public function insertAttendance($data){
+		$res = $this->db->insert("attendance",$data);
+		return $res;
+	}
+
+	public function updateUserCompany($id,$bussinessid,$doj){
+		$res = $this->db->query("UPDATE login SET company = '$bussinessid',doj='$doj' WHERE  id = '$id'");
+		return $res;
+	}
+
+	public function getbyMid($mid){
+		$sql="SELECT id,name,address,user_group FROM `login` where m_id='$mid'";
+	   $query=$this->db->query($sql);
+	  return $query->row_array();
+  	}
+
+  	public function userCmpStatus($userid,$businessid){
+		$sql="SELECT user_status FROM `user_request` WHERE user_id='$userid' AND business_id='$businessid'";
+	    $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+
+	public function addUserCmpStatus($data){
+		$res = $this->db->insert("user_request",$data);
+		return $res;
+	}
+
+	public function getCompanyUsers($id){
+		$sql = "SELECT user_request.user_id,user_request.doj,user_request.left_date,user_request.rule_id,user_request.hostel,(select name from login WHERE login.id = user_request.user_id) as name,(select image from login WHERE login.id = user_request.user_id) as image,(select business_group from login WHERE login.id = user_request.user_id) as business_group,user_request.user_status,(select login.designation from login WHERE login.id = user_request.user_id) as designation,(select login.m_id from login WHERE login.id = user_request.user_id) as mid,(select login.emp_code from login WHERE login.id = user_request.user_id) as emp_code FROM `user_request` WHERE user_request.business_id='$id'";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+	public function getUserAttendanceByDate($start_time,$end_time,$uid,$bid,$verified,$hostel){
+		$sql = "SELECT * FROM `attendance` WHERE status=1 and io_time BETWEEN $start_time and $end_time and user_id='$uid' and bussiness_id='$bid' and manual!='2' and hostel=$hostel order by io_time DESC";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+
+	public function getUserAttendanceReportByDate($start_time,$end_time,$uid,$bid,$verified){
+		$sql = "SELECT * FROM `attendance` WHERE status=1 and io_time BETWEEN $start_time and $end_time and user_id='$uid' and bussiness_id='$bid' and verified='$verified' and manual!='2' order by io_time DESC";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+
+	public function updateCompanyMac($id,$ssid,$mac,$strength){
+		$sql = "UPDATE login SET ssid='$ssid', mac='$mac' , strength='$strength' WHERE  id = '$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function getCompanyMac($id){
+		$sql = "SELECT ssid,mac,strength FROM `login` WHERE id='$id'";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+
+	public function changeUserStatus($status,$id,$bid){
+		$sql = "UPDATE user_request SET user_status='$status' WHERE user_id='$id' and business_id='$bid'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function attStartMonth($id){
+		$sql = "SELECT io_time FROM attendance WHERE user_id='$id' AND status='1' and manual!='2' order by id ASC LIMIT 1";
+		$res = $this->db->query($sql);
+		return $res->row();
+	}
+
+	public function getCompanyUsersByStatus($id,$status){
+		$sql = "SELECT user_request.user_id,user_request.doj,user_request.left_date,user_request.rule_id,user_request.hostel,(select name from login WHERE login.id = user_request.user_id) as name,(select image from login WHERE login.id = user_request.user_id) as image,user_request.user_status,(select login.designation from login WHERE login.id = user_request.user_id) as designation,(select business_group from login WHERE login.id = user_request.user_id) as business_group FROM `user_request` WHERE user_request.business_id='$id' AND user_request.user_status='$status'";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+	public function getEmpProfile($id,$bid){
+		$sql = "SELECT *,(select business_groups.name FROM business_groups WHERE business_groups.id = login.business_group) as business_group_name,(SELECT user_request.doj FROM user_request WHERE user_request.user_id='$id' and user_request.business_id='$bid') as user_doj FROM `login` where id ='$id' and user_group ='2'";
+		$res = $this->db->query($sql);
+		return $res->row();
+	}
+
+	public function addBusinessGroup($data){
+		$res = $this->db->insert("business_groups",$data);
+		return $res;
+	}
+
+	public function getBusinessGroups($bid){
+		$sql = "SELECT * FROM business_groups where business_id='$bid' AND status='1'";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+
+	public function removeBusinessGroup($id){
+		$sql = "UPDATE `business_groups` SET `status` = '0' WHERE `business_groups`.`id` = '$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function updateBusinessGroup($id,$name,$startTime,$endTime,$weekOff){
+		$sql = "UPDATE `business_groups` SET name ='$name',shift_start='$startTime',shift_end='$endTime',weekly_off='$weekOff' WHERE `business_groups`.`id` = '$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function removeHoliday($id){
+		$sql = "UPDATE `holiday` SET `status` = '0' WHERE `business_id` = '$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function addHoliday($data){
+		$res = $this->db->insert_batch("holiday",$data);
+		return $res;
+	}
+
+	public function getHoliday($bid){
+		$sql = "SELECT * FROM holiday where business_id='$bid' AND status='1'";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+
+	public function getUserGroup($gid){
+		$sql = "SELECT * FROM business_groups where id='$gid' AND status='1'";
+		$res = $this->db->query($sql);
+		return $res->row();
+	}
+	public function updateEmpProfile($id,$name,$address,$email,$group,$designation,$dob,$gender,$doj,$education,$bluetoothSsid,$bluetoothMac,$empCode,$manager){
+		$sql = "UPDATE login SET name ='$name',address='$address',email='$email',business_group='$group',designation='$designation',dob='$dob',gender='$gender',doj='$doj',education='$education',bluetooth_ssid='$bluetoothSsid',bluetooth_mac='$bluetoothMac',emp_code='$empCode',manager='$manager' WHERE `login`.`id` = '$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+	public function getCompanyUserById($id,$empid){
+		$sql = "SELECT user_request.user_id,user_request.doj,user_request.left_date,(select name from login WHERE login.id = user_request.user_id) as name,(select image from login WHERE login.id = user_request.user_id) as image,(select business_group from login WHERE login.id = user_request.user_id) as business_group,user_request.user_status,(select login.designation from login WHERE login.id = user_request.user_id) as designation,(select login.m_id from login WHERE login.id = user_request.user_id) as mid,(select login.emp_code from login WHERE login.id = user_request.user_id) as emp_code FROM `user_request` WHERE user_request.business_id='$id' AND user_request.user_id='$empid'";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+	public function getBusinessToken($bid,$date){
+		$sql = "SELECT id,Dept_id,(SELECT department.department FROM department WHERE department.id=token.Dept_id) as department,(SELECT department.Dep_code FROM department WHERE department.id=token.Dept_id) as depcode,(SELECT department_sub.depart_name FROM department_sub WHERE department_sub.id=token.Sub_deptid) as subdepartment,(SELECT login.name FROM login WHERE login.id=token.userid) as username,(SELECT login.mobile FROM login WHERE login.id=token.userid) as mobile,date,token,Query,status,counter_id FROM token where user_bussiness_id='$bid' and date='$date' ORDER by case status when 0 then 'B' when 1 then 'A' WHEN 2 THEN 'C' end";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+
+	public function changeTokenStatus($id,$cid,$bid,$status){
+		$sql = "UPDATE token SET status = '$status', counter_id = '$cid' WHERE id = '$id' and user_bussiness_id='$bid'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function businessTokenStatus($id,$status){
+		$sql = "UPDATE login SET token_status = '$status' WHERE id = '$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function closeAllToken($depid,$date){
+	    	$sql = "UPDATE token SET status = '2' WHERE status = '1' and Dep_id ='$depid' and date='$date'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function getBusinessTokenStatus($id){
+		$sql = "SELECT token_status FROM login where id='$id'";
+		$res = $this->db->query($sql);
+		return $res->row();
+	}
+
+	public function getUserIdByToken($id){
+		$sql = "SELECT userid FROM token where id='$id'";
+		$res = $this->db->query($sql);
+		return $res->row();
+	}
+
+	public function getDepNullToken(){
+		  $sql="SELECT MAX(token) as token FROM `token` WHERE Dept_id is NULL";
+		 $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+
+	public function closeAccount($id){
+		$sql = "UPDATE login SET deleted = '1' WHERE id = '$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function changeMobileNumber($id,$mobile){
+		$sql = "UPDATE login SET mobile = '$mobile' WHERE id = '$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function checkNewQR($qr){
+		$sql = "SELECT * FROM new_qr WHERE qr_code='$qr' and login_id IS NULL";
+		$res = $this->db->query($sql);
+		return $res->row_array();
+	}
+
+	public function assignNewQR($id,$qr){
+		$sql = "UPDATE new_qr SET login_id = '$id' WHERE qr_code = '$qr'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function getLoginIdByQr($qr){
+		$sql = "SELECT login_id,(SELECT login.user_group FROM login WHERE login.id=new_qr.login_id) as user_group,(SELECT login.mobile FROM login WHERE login.id=new_qr.login_id) as mobile FROM new_qr WHERE qr_code='$qr' and login_id IS NOT NULL";
+		$res = $this->db->query($sql);
+		return $res->row_array();
+	}
+
+	public function getCompanyUsersByBluetooth($id){
+		$sql = "SELECT user_request.user_id,user_request.doj,user_request.left_date,user_request.rule_id,user_request.hostel,(select name from login WHERE login.id = user_request.user_id) as name,(select mobile from login WHERE login.id = user_request.user_id) as mobile,(select image from login WHERE login.id = user_request.user_id) as image,(select business_group from login WHERE login.id = user_request.user_id) as business_group,user_request.user_status,(select login.designation from login WHERE login.id = user_request.user_id) as designation,(select login.m_id from login WHERE login.id = user_request.user_id) as mid,(select login.bluetooth_ssid from login WHERE login.id = user_request.user_id) as bluetooth_ssid,(select login.bluetooth_mac from login WHERE login.id = user_request.user_id) as bluetooth_mac FROM `user_request` WHERE user_request.business_id='$id'";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+
+	public function getAttendanceByVerify($start_time,$end_time,$uid,$bid){
+		$sql = "SELECT * FROM `attendance` WHERE status=1 and io_time BETWEEN $start_time and $end_time and user_id='$uid' and bussiness_id='$bid' and location='' and manual!='2' order by id DESC";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+
+	public function verifyAttendance($id){
+		$sql = "UPDATE attendance SET verified = '1' WHERE id = '$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function cancelAttendance($id){
+		$sql = "UPDATE attendance SET status = '0' WHERE id = '$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+	public function checkUserAlready($bid,$uid){
+		$sql = "SELECT * FROM `user_request` WHERE business_id=$bid and user_id=$uid";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+	public function userLeft($id,$bid){
+		$sql = "UPDATE login SET company='' WHERE id='$id' and company='$bid'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+	public function bannerAds(){
+		$sql = "SELECT * FROM banner_ads WHERE status=1";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+	
+	public function features(){
+		$sql = "SELECT * FROM features WHERE status=1";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+	public function requestPremium($id){
+		$sql = "UPDATE login SET premium='3' WHERE id='$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+	public function getEmpLeaves($uid){
+		$sql = "SELECT * FROM `leaves` WHERE uid=$uid order by id desc";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+	public function insertLeave($data){
+		$res = $this->db->insert("leaves",$data);
+		return $res;
+	}
+	public function userLeftRequest($id,$bid,$left){
+		$sql = "UPDATE user_request SET left_date='$left' WHERE user_id='$id' and business_id='$bid'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function getDoj($id,$bid){
+		$sql = "SELECT doj from user_request where business_id='$bid' and user_id='$id'";
+		$res = $this->db->query($sql);
+		return $res->row_array();
+	}
+	
+	
+		public function getDojt($id,$bid){
+		$sql = "SELECT doj from  class_teacher where bid='$bid' and uid='$id'";
+		$res = $this->db->query($sql);
+		return $res->row_array();
+	}
+
+	public function getUserCompany($id){
+	$sql = "SELECT * from user_request where user_id='$id' order by id DESC LIMIT 1";
+		$res = $this->db->query($sql);
+		return $res->row_array();
+	}
+	public function getUserCompanys($id){
+		$sql = "SELECT * from user_request where user_id='$id' LIMIT 1";
+		$res = $this->db->query($sql);
+			return $res->result();
+	}
+		public function getTeacherCompany($id){
+		$sql = "SELECT * from class_teacher where uid='$id' LIMIT 1";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+
+	public function updateEmpLeave($id,$from,$to,$reason){
+		$sql = "UPDATE leaves SET from_date='$from',to_date='$to',reason='$reason' WHERE id='$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function updateUserDoj($id,$bid,$left,$doj){
+		$sql = "UPDATE user_request SET left_date='$left',doj='$doj' WHERE user_id='$id' and business_id='$bid'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+	
+	public function updateUserDojHostel($id,$bid,$left,$doj,$hostel){
+		$sql = "UPDATE user_request SET left_date='$left',doj='$doj',hostel='$hostel' WHERE user_id='$id' and business_id='$bid'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function updateDoj($id,$bid,$doj){
+		$sql = "UPDATE user_request SET doj='$doj' WHERE user_id='$id' and business_id='$bid'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function allUserRequest(){
+		$sql = "SELECT * FROM user_request";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+
+	public function checkLicence($qr){
+		$sql = "SELECT * FROM new_qr WHERE qr_code='$qr' and login_id IS NULL and licence=1";
+		$res = $this->db->query($sql);
+		return $res->row_array();
+	}
+
+	public function updateValidity($id,$start,$validity){
+		$sql = "UPDATE login SET validity='$validity',prime_att=1,premium=2 WHERE id='$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+
+	public function updatePrimeAtt($id,$prime){
+		$sql = "UPDATE login SET prime_att=$prime WHERE id='$id'";
+		$res = $this->db->query($sql);
+		return $res;
+	}
+	public function getUserOdAttendanceByDate($start_time,$end_time,$uid,$bid){
+		$sql = "SELECT * FROM `attendance` WHERE status=1 and io_time BETWEEN $start_time and $end_time and user_id='$uid' and bussiness_id='$bid' and manual='2' order by io_time DESC";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+	
+	public function getAllLinked($mobile){
+		$this->db->select('*');
+		$this->db->where('linked',$mobile);
+		$this->db->where('active',0);
+		$this->db->where('deleted',0);
+		$this->db->from('login');
+		$get=$this->db->get();
+		return $get->result();
+	}
+	
+	public function getAllAdmins($id){
+		$sql = "SELECT * from login WHERE login.id in (SELECT emp_role.bid FROM emp_role WHERE emp_role.uid='$id' and emp_role.status=1 and emp_role.type=1 and emp_role.deleted=0) and login.active=0 and login.deleted=0";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+	
+	public function insertCmpOptions($data){
+		$res = $this->db->insert("business_at_option",$data);
+		return $res;
+	}
+	
+	
+// new student attendance
+
+public function getperiodTimeByteacher($period, $day, $teacher) {
+    $this->db->select('p.id, p.bid, p.name, tt.subject,tt.class_room, tt.teacher, p.start_time, p.end_time, p.status, p.date_time, tt.timetable_id, ttn.section,ttn.dept,ttn.semester_id, ss.name as section_name');
+    $this->db->from('S_period p');
+    $this->db->join('time_table tt', 'tt.period = p.id', 'left');
+    $this->db->join('time_table_name ttn', 'tt.timetable_id = ttn.id', 'left');
+    $this->db->join('S_section ss', 'ttn.section = ss.id', 'left');
+    $this->db->where('p.id', $period);
+    $this->db->where('tt.teacher', $teacher);
+    $this->db->where('tt.days', $day);
+    return $this->db->get()->row();
+}
+
+public function getAllAssignedClassesByTeacher($teacher) {
+    $this->db->select('time_table.id, time_table.bid, time_table.days, time_table.period, time_table.subject, time_table.class_room, time_table.teacher, time_table.timetable_id, S_period.start_time, S_period.end_time, subject.name as subject_name, time_table_name.section, S_section.name as section_name,class.name as class_name,department_section.name as dept_name,S_Semester.semestar_name as semester_name');
+    $this->db->from('time_table');
+    $this->db->join('S_period', 'time_table.period = S_period.id');
+    $this->db->join('subject', 'time_table.subject = subject.id', 'left');
+    $this->db->join('time_table_name', 'time_table.timetable_id = time_table_name.id', 'left');
+    $this->db->join('S_section', 'time_table_name.section = S_section.id', 'left');
+     $this->db->join('department_section', 'time_table_name.dept = department_section.id', 'left');
+     $this->db->join('S_Semester', 'time_table_name.semester_id = S_Semester.id', 'left');
+     $this->db->join('class', 'time_table.class_room = class.id', 'left');
+    $this->db->where('time_table.teacher', $teacher);
+    return $this->db->get()->result();
+}
+
+
+public function getSchoolStudentListbysection_new_api($section,$dept_id,$semester_id){
+	return $this->db->query("SELECT * FROM student WHERE section = '$section' and department=$dept_id and semester=$semester_id and left_date = '' and status = '1' order by roll_no")->result();
+}  
+
+
+public function getAllPeriods($bid) {
+    $this->db->select('*');
+    $this->db->from('S_period');
+    $this->db->where('bid', $bid);
+    $this->db->where('status', 1);
+    $query = $this->db->get();
+    return $query->result();
+}
+	
+public function getHolidayByBusinessId_new($buid, $i) {
+    // Convert input timestamp to date string
+    $inputDate = date('Y-m-d', $i);
+    
+    // Use query builder to prevent potential SQL errors
+    $this->db->select('name');
+    $this->db->from('holiday');
+    $this->db->where('business_id', $buid);
+    $this->db->where('DATE(FROM_UNIXTIME(date))', $inputDate);
+    $this->db->where('status', 1);
+    $query = $this->db->get();
+    
+	if ($query->num_rows() > 0) {
+        return $query->row()->name;
+    }
+    return '';
+}
+
+
+  	public function getStudentAttendanceReportByDate($start_time,$end_time,$uid,$bid){
+		$sql = "SELECT * FROM `student_attendance` WHERE status=1 and time BETWEEN $start_time and $end_time and student_id='$uid' and bid='$bid' order by time DESC";
+		$res = $this->db->query($sql);
+		return $res->result();
+	}
+	
+	public function getBusinessById($id){
+		return $this->db->query("SELECT * FROM login WHERE id = '$id'")->row_array();
+	}
+		public function getsectionById($id){
+	return $this->db->query("SELECT * FROM S_section WHERE id='$id' ")->row_array();
+	
+}
+
+ public function getBusinessDepById($id){
+        return $this->db->query("SELECT * FROM department_section WHERE id = '$id' ")->row_array();
+		// return $this->db->query("SELECT * FROM login WHERE id = '$id'")->row_array();
+    }
+    
+    public function getSemesterById($id){
+	return $this->db->query("SELECT * FROM S_Semester WHERE id = '$id'  ")->row_array();
+}
+public function getsubjectnamebyid($id){
+	return $this->db->query("SELECT * FROM subject WHERE id = '$id' ")->row_array();
+	 //return $this->db->query("SELECT * FROM login WHERE id = '$id'")->row_array();
+}
+public function getclassById($id){
+	return $this->db->query("SELECT * FROM class WHERE id='$id' ")->row_array();
+}
+
+public function userCmpDetail($userid,$businessid){
+		$sql="SELECT * FROM `user_request` WHERE user_id='$userid' AND business_id='$businessid'";
+	    $query=$this->db->query($sql);
+		return $query->row_array();
+	}
+
+public function getvisitoraccessbyevent_api($start_time, $end_time, $bio, $search, $loginId)
+{
+    $sql = "
+        SELECT DISTINCT
+            vl.id,
+            vl.user_id,
+            vl.device_id,
+            vl.event,
+            vl.io_time,
+            vl.latitude,
+            vl.longitude,
+            vl.location,
+            l.name,
+			bb.name as device_name,
+            l.father_name,
+            l.mobile,
+            l.designation,
+            be.event_name
+        FROM visitor_log vl
+         JOIN login l 
+            ON l.bio_id = vl.user_id 
+            AND l.company = ?
+        LEFT JOIN bio_event be
+            ON be.event_id = vl.event 
+            AND be.device_id = vl.device_id
+		LEFT JOIN Business_bioid bb 
+            ON bb.deviceid = vl.device_id AND bb.active = '1'
+        WHERE vl.user_id != 99999996
+        AND vl.io_time BETWEEN ? AND ?
+    ";
+
+    $params = [$loginId, $start_time, $end_time];
+
+	if (!empty($bio)) {
+		$sql .= " AND TRIM(CAST(vl.device_id AS CHAR)) = ?";
+		$params[] = trim((string)$bio);
+	}
+
+    if (!empty($search)) {
+        $sql .= " AND (l.name LIKE ? OR l.mobile LIKE ?)";
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
+    }
+
+    return $this->db->query($sql, $params)->result();
+}
+}
+?>

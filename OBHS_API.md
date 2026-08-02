@@ -90,6 +90,25 @@ auto-created `complain` row id.
 Staff (`user_group 2`) get their own submissions. Business (`user_group 1`) get the whole
 company with all filters. Every field except `mobile` is optional.
 
+**Basic request (no filters — returns all feedback for the business):**
+
+```bash
+curl -X POST "http://localhost/attendence/index.php/Api_v20/getObhsFeedbackList" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "checkon": {
+      "mobile": "9876543210",
+      "page": 1,
+      "limit": 20
+    }
+  }'
+```
+
+**With filters.** All filters are combined with AND — a record must match every filter you
+send, so only include the ones you actually want. For example `"feedback_type": "Complaint"`
+will hide all records saved as `"Feedback"`, and `"psi_max": 60` will hide records with a
+higher PSI score:
+
 ```bash
 curl -X POST "http://localhost/attendence/index.php/Api_v20/getObhsFeedbackList" \
   -H "Content-Type: application/json" \

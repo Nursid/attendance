@@ -8275,7 +8275,7 @@ public function add_device(){
             "MODELNO"     => $this->input->post('model'),
             "TIMEZONEID"  => "57",
             "LOCATION"    => "Delhi",
-            "ENDPOINT_URL"=> ""
+            "ENDPOINT_URL"=> "https://midapp.in/web/Api_v17/insert_bio_log"
         );
 
         // API expects array of objects
@@ -8797,7 +8797,7 @@ $data2= array(
             "MODELNO"     => $this->input->post('model'),
             "TIMEZONEID"  => "57",
             "LOCATION"    => "Delhi",
-            "ENDPOINT_URL"=> ""
+            "ENDPOINT_URL"=> "https://midapp.in/web/Api_v17/insert_bio_log"
         );
 
 			print_r($data);
