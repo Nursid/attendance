@@ -109,7 +109,7 @@ class Obhs extends CI_Controller {
 				'title'   => 'Coach Wise Report',
 				'columns' => array(
 					'train_no'=>'Train No','coach_no'=>'Coach','total_feedback'=>'Feedbacks','avg_psi'=>'Avg PSI',
-					'avg_coach_clean'=>'Avg Coach Cleanliness','avg_toilet_clean'=>'Avg Toilet Cleanliness','complaints'=>'Complaints'
+					'avg_toilet_clean'=>'Avg Toilet Cleaning','avg_compartment_clean'=>'Avg Compartment Cleaning','complaints'=>'Complaints'
 				),
 				'sortable'=> array('train_no','coach_no','total_feedback','avg_psi','complaints'),
 				'default_sort'=>'total_feedback',
@@ -129,9 +129,10 @@ class Obhs extends CI_Controller {
 				'title'   => 'PSI Report',
 				'columns' => array(
 					'id'=>'ID','journey_date'=>'Journey Date','train_no'=>'Train No','coach_no'=>'Coach',
-					'passenger_name'=>'Passenger','rating_coach_cleanliness'=>'Coach Clean','rating_toilet_cleanliness'=>'Toilet Clean',
-					'rating_doorway_cleanliness'=>'Doorway','rating_bedroll'=>'Bedroll','rating_staff_behaviour'=>'Behaviour',
-					'rating_pest_control'=>'Pest Control','psi_score'=>'PSI'
+					'passenger_name'=>'Passenger','rating_toilet_cleaning'=>'Cleaning of Toilet',
+					'rating_compartment_cleaning'=>'Cleaning of Compartment',
+					'rating_toiletries_availability'=>'Availability of Toiletries',
+					'rating_behaviour'=>'Behaviour','psi_score'=>'PSI'
 				),
 				'sortable'=> array('id','journey_date','train_no','coach_no','psi_score'),
 				'default_sort'=>'psi_score',
@@ -253,7 +254,8 @@ class Obhs extends CI_Controller {
 		if(empty($row)){ show_404(); }
 		$data['title']    = 'Feedback #'.$row['id'];
 		$data['feedback'] = $row;
-		$data['rating_fields'] = $this->obhs->rating_fields;
+		$data['rating_fields']  = $this->obhs->rating_fields;
+		$data['rating_options'] = $this->obhs->rating_options;
 		$this->load->view('obhs/feedback_detail',$data);
 	}
 
@@ -299,6 +301,9 @@ class Obhs extends CI_Controller {
 			$line = array($i++);
 			foreach(array_keys($config['columns']) as $key){
 				$val = isset($row[$key]) ? $row[$key] : '';
+				if(strpos($key,'rating_')===0){
+					$val = isset($this->obhs->rating_options[(int)$val]) ? $this->obhs->rating_options[(int)$val] : '';
+				}
 				$line[] = str_replace(array("\t","\n","\r"),' ',(string)$val);
 			}
 			echo implode("\t",$line)."\n";

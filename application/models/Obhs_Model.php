@@ -14,13 +14,22 @@ class Obhs_Model extends CI_Model {
 
 	// Rating columns => report labels (single source of truth)
 	public $rating_fields = array(
-		'rating_coach_cleanliness'  => 'Coach Cleanliness',
-		'rating_toilet_cleanliness' => 'Toilet Cleanliness',
-		'rating_doorway_cleanliness'=> 'Doorway Cleanliness',
-		'rating_bedroll'            => 'Bedroll Quality',
-		'rating_staff_behaviour'    => 'Staff Behaviour',
-		'rating_pest_control'       => 'Pest Control'
+		'rating_toilet_cleaning'         => 'Cleaning of Toilet',
+		'rating_compartment_cleaning'    => 'Cleaning of Compartment',
+		'rating_toiletries_availability' => 'Availability of Toiletries',
+		'rating_behaviour'               => 'Behaviour'
 	);
+
+	// Allowed rating values => labels (only these 4 values are accepted)
+	public $rating_options = array(
+		4 => 'Very Good',
+		3 => 'Good',
+		2 => 'Poor',
+		1 => 'Not Attended'
+	);
+
+	// PSI denominator fixed at 12 (business rule: PSI = total score / 12 x 100)
+	const PSI_MAX_SCORE = 12;
 
 	// ------------------------------------------------------------------ auth
 
@@ -35,19 +44,30 @@ class Obhs_Model extends CI_Model {
 	// ------------------------------------------------------------------ psi
 
 	/**
-	 * PSI = average of rated (non-zero) categories x 20  => 0-100.
+	 * Score contribution of one rating value.
+	 * Very Good=4, Good=3, Poor=2, Not Attended (1) = 0.
+	 */
+	public function ratingScore($val){
+		$val = (int)$val;
+		return ($val >= 2 && $val <= 4) ? $val : 0;
+	}
+
+	/**
+	 * PSI = (total score / 12) x 100 (capped at 100).
+	 * "Not Attended" contributes 0 but the denominator stays 12.
+	 * Example: 4 + 3 + 2 + 0 = 9 => (9/12)*100 = 75.00
 	 */
 	public function calculatePsi($ratings){
-		$sum = 0; $count = 0;
+		$sum = 0;
 		foreach($this->rating_fields as $field => $label){
-			$val = isset($ratings[$field]) ? (int)$ratings[$field] : 0;
-			if($val > 0){
-				$sum += min($val,5);
-				$count++;
-			}
+			$sum += $this->ratingScore(isset($ratings[$field]) ? $ratings[$field] : 0);
 		}
-		if($count == 0){ return 0.00; }
-		return round(($sum / $count) * 20, 2);
+		return round(min(100, ($sum / self::PSI_MAX_SCORE) * 100), 2);
+	}
+
+	/** SQL expression for a rating's score (Not Attended = 0) - keeps SQL aggregates in sync with ratingScore(). */
+	public function ratingScoreSql($col){
+		return "(CASE WHEN $col BETWEEN 2 AND 4 THEN $col ELSE 0 END)";
 	}
 
 	// --------------------------------------------------------------- scope
@@ -212,11 +232,11 @@ class Obhs_Model extends CI_Model {
 		return $this->db->get()->row_array();
 	}
 
-	/** Avg score per rating category (for dashboard chart). */
+	/** Avg score per rating category (for dashboard chart). Not Attended counts as 0, unrated rows excluded. */
 	public function getCategoryAverages($bid,$filters=array()){
 		$select = array();
 		foreach($this->rating_fields as $field => $label){
-			$select[] = "ROUND(AVG(NULLIF(f.$field,0)),2) as $field";
+			$select[] = "ROUND(AVG(CASE WHEN f.$field=0 THEN NULL ELSE ".$this->ratingScoreSql("f.$field")." END),2) as $field";
 		}
 		$this->db->select(implode(',',$select),FALSE)
 			->from('obhs_feedback f');
@@ -292,8 +312,8 @@ class Obhs_Model extends CI_Model {
 		$this->db->select("f.train_no, f.coach_no,
 			COUNT(*) as total_feedback,
 			ROUND(AVG(NULLIF(f.psi_score,0)),2) as avg_psi,
-			ROUND(AVG(NULLIF(f.rating_coach_cleanliness,0)),2) as avg_coach_clean,
-			ROUND(AVG(NULLIF(f.rating_toilet_cleanliness,0)),2) as avg_toilet_clean,
+			ROUND(AVG(CASE WHEN f.rating_toilet_cleaning=0 THEN NULL ELSE ".$this->ratingScoreSql('f.rating_toilet_cleaning')." END),2) as avg_toilet_clean,
+			ROUND(AVG(CASE WHEN f.rating_compartment_cleaning=0 THEN NULL ELSE ".$this->ratingScoreSql('f.rating_compartment_cleaning')." END),2) as avg_compartment_clean,
 			SUM(f.feedback_type='Complaint') as complaints",FALSE)
 			->from('obhs_feedback f');
 		$this->scopeBid($bid);
@@ -320,7 +340,7 @@ class Obhs_Model extends CI_Model {
 			MAX(l.mobile) as mobile,
 			COUNT(*) as total_feedback,
 			ROUND(AVG(NULLIF(f.psi_score,0)),2) as avg_psi,
-			ROUND(AVG(NULLIF(f.rating_staff_behaviour,0)),2) as avg_behaviour,
+			ROUND(AVG(CASE WHEN f.rating_behaviour=0 THEN NULL ELSE ".$this->ratingScoreSql('f.rating_behaviour')." END),2) as avg_behaviour,
 			SUM(f.feedback_type='Complaint') as complaints,
 			COUNT(DISTINCT f.train_no) as trains_served",FALSE)
 			->from('obhs_feedback f')

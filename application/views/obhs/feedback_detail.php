@@ -83,11 +83,14 @@ date_default_timezone_set('Asia/Kolkata');
                 <table class="table table-sm">
                   <?php foreach($rating_fields as $field => $label){
                     $val = (int)$feedback[$field];
-                    $stars = '';
-                    for($s=1;$s<=5;$s++){
-                      $stars .= ($s <= $val) ? '<i class="fas fa-star text-warning"></i>' : '<i class="far fa-star text-muted"></i>';
+                    if(isset($rating_options[$val])){
+                      $text  = $rating_options[$val];
+                      $badge = ($val==4)?'success':(($val==3)?'info':(($val==2)?'danger':'secondary'));
+                      $cell  = "<span class='badge badge-$badge'>$text</span>".($val>1 ? " ($val/4)" : '');
+                    }else{
+                      $cell = '<span class="text-muted">Not rated</span>';
                     }
-                    echo "<tr><th width='40%'>$label</th><td>$stars ".($val>0 ? "($val/5)" : '(Not rated)')."</td></tr>";
+                    echo "<tr><th width='40%'>$label</th><td>$cell</td></tr>";
                   }?>
                   <tr class="bg-light">
                     <th>PSI Score</th>

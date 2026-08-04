@@ -9695,7 +9695,7 @@ function addRfid(){
    * user_group 1 (business)      -> bid is own login id.
    */
   private function obhsAuth($data){
-    if(key($data)!="checkon"){ return false; }
+    if(!is_object($data) || !isset($data->checkon->mobile)){ return false; }
     $check=$this->obhs->checkMobile($data->checkon->mobile);
     if(empty($check['id'])){ return false; }
     if($check['user_group']==2){
@@ -9708,12 +9708,82 @@ function addRfid(){
     return $check;
   }
 
-  private function obhsRatingsFromPayload($checkon){
+  /**
+   * Request payload for OBHS endpoints. Supports both:
+   *  - application/json  : {"checkon":{...}} raw body (photo as base64 string)
+   *  - multipart/form-data: flat form fields + photo file upload; a `checkon`
+   *    form field holding the JSON payload string is also accepted.
+   */
+  private function obhsRequestPayload(){
+    if(!empty($_POST)){
+      if(isset($_POST['checkon'])){
+        $decoded = json_decode($_POST['checkon']);
+        if(is_object($decoded)){
+          return isset($decoded->checkon) ? $decoded : (object)array('checkon'=>$decoded);
+        }
+      }
+      return (object)array('checkon'=>(object)$_POST);
+    }
+    return json_decode(file_get_contents("php://input"));
+  }
+
+  /**
+   * Validate the 4 rating fields. Every field is required and only the
+   * values 4 (Very Good), 3 (Good), 2 (Poor), 1 (Not Attended) are accepted.
+   * Returns the ratings array, or false with $error set.
+   */
+  private function obhsValidateRatings($checkon,&$error){
     $ratings = array();
     foreach($this->obhs->rating_fields as $field => $label){
-      $ratings[$field] = isset($checkon->$field) ? (int)$checkon->$field : 0;
+      $val = isset($checkon->$field) ? filter_var($checkon->$field,FILTER_VALIDATE_INT) : false;
+      if($val === false || !isset($this->obhs->rating_options[$val])){
+        $error = "$field must be one of 4 (Very Good), 3 (Good), 2 (Poor), 1 (Not Attended)";
+        return false;
+      }
+      $ratings[$field] = $val;
     }
     return $ratings;
+  }
+
+  /**
+   * Store the feedback photo. Priority: multipart file upload ($_FILES['photo']),
+   * then base64 string in the payload. The image is validated with
+   * getimagesizefromstring (no GD required) and stored in its original format.
+   * Returns the stored relative path ('' when no photo was sent),
+   * or false with $error set on a bad upload.
+   */
+  private function obhsSavePhoto($c,&$error){
+    $error = '';
+    $img = null;
+    if(isset($_FILES['photo']) && $_FILES['photo']['error'] != UPLOAD_ERR_NO_FILE){
+      if($_FILES['photo']['error'] != UPLOAD_ERR_OK){
+        $error = 'Photo upload failed (upload error '.$_FILES['photo']['error'].')';
+        return false;
+      }
+      $img = file_get_contents($_FILES['photo']['tmp_name']);
+    }elseif(!empty($c->photo)){
+      $b64 = preg_replace('/^data:image\/\w+;base64,/','',$c->photo);
+      $img = base64_decode($b64,true);
+      if($img === false){
+        $error = 'photo must be a valid base64 encoded image';
+        return false;
+      }
+    }else{
+      return '';
+    }
+    $info = @getimagesizefromstring($img);
+    $extensions = array(IMAGETYPE_JPEG=>'jpg',IMAGETYPE_PNG=>'png',IMAGETYPE_GIF=>'gif',IMAGETYPE_WEBP=>'webp');
+    if($info === false || !isset($extensions[$info[2]])){
+      $error = 'photo is not a valid image file (jpg, png, gif or webp)';
+      return false;
+    }
+    if(!is_dir('upload/obhs')){ mkdir('upload/obhs',0755,true); }
+    $photoPath = 'upload/obhs/'.time().'_'.rand(1000,9999).'.'.$extensions[$info[2]];
+    if(file_put_contents($photoPath,$img) === false){
+      $error = 'Failed to store photo on server';
+      return false;
+    }
+    return $photoPath;
   }
 
   private function obhsFilltersFromPayload($checkon){
@@ -9727,17 +9797,20 @@ function addRfid(){
 
   /**
    * Save OBHS feedback from mobile app.
-   * Body: {"checkon":{"mobile":"...","train_no":"...","train_name":"...","coach_no":"...",
-   *   "journey_date":"YYYY-MM-DD","boarding_station":"...","destination_station":"...",
-   *   "pnr_no":"...","seat_no":"...","passenger_name":"...","passenger_mobile":"...","passenger_email":"...",
-   *   "rating_coach_cleanliness":1-5,"rating_toilet_cleanliness":1-5,"rating_doorway_cleanliness":1-5,
-   *   "rating_bedroll":1-5,"rating_staff_behaviour":1-5,"rating_pest_control":1-5,
-   *   "feedback_type":"Feedback|Complaint","remarks":"...","janitor_name":"...",
-   *   "latitude":"...","longitude":"...","location":"...","photo":"<base64>"}}
-   * PSI is always recalculated on the server (avg of rated categories x 20).
+   *
+   * Accepts application/json ({"checkon":{...}}, photo as base64 string) or
+   * multipart/form-data (flat fields + photo=@image.jpg file upload).
+   *
+   * Rating fields (all required, only 4/3/2/1 accepted):
+   *   rating_toilet_cleaning, rating_compartment_cleaning,
+   *   rating_toiletries_availability, rating_behaviour
+   *   4=Very Good, 3=Good, 2=Poor, 1=Not Attended
+   *
+   * PSI is always recalculated on the server: (total score / 12) x 100,
+   * where Not Attended contributes 0.
    */
   function addObhsFeedback(){
-    $data=json_decode(file_get_contents("php://input"));
+    $data=$this->obhsRequestPayload();
     $check=$this->obhsAuth($data);
     if($check===false){
       echo json_encode(array('checkon'=>array('msg'=>'Unauthorized','status'=>'0')));
@@ -9749,22 +9822,18 @@ function addRfid(){
       return;
     }
 
-    $ratings = $this->obhsRatingsFromPayload($c);
+    $error = '';
+    $ratings = $this->obhsValidateRatings($c,$error);
+    if($ratings === false){
+      echo json_encode(array('checkon'=>array('msg'=>$error,'status'=>'0')));
+      return;
+    }
     $psi = $this->obhs->calculatePsi($ratings);
 
-    // Photo: base64 -> upload/obhs/ (existing attendance selfie pattern)
-    $photoPath = '';
-    if(!empty($c->photo)){
-      $img = base64_decode($c->photo);
-      if($img !== false){
-        if(!is_dir('upload/obhs')){ mkdir('upload/obhs',0755,true); }
-        $imgs = imagecreatefromstring($img);
-        if($imgs !== false){
-          $photoPath = 'upload/obhs/'.time().'_'.rand(1000,9999).'.jpg';
-          imagejpeg($imgs,$photoPath);
-          imagedestroy($imgs);
-        }
-      }
+    $photoPath = $this->obhsSavePhoto($c,$error);
+    if($photoPath === false){
+      echo json_encode(array('checkon'=>array('msg'=>$error,'status'=>'0')));
+      return;
     }
 
     $feedbackType = (isset($c->feedback_type) && $c->feedback_type=='Complaint') ? 'Complaint' : 'Feedback';
@@ -9812,7 +9881,11 @@ function addRfid(){
           $this->obhs->updateFeedback($feedbackId,$check['bid'],array('complaint_id'=>$complaintId));
         }
       }
-      $sendRes = array('msg'=>'Feedback Saved Successfully','status'=>'1','feedback_id'=>$feedbackId,'psi_score'=>$psi,'complaint_id'=>$complaintId);
+      $sendRes = array(
+        'msg'=>'Feedback Saved Successfully','status'=>'1','feedback_id'=>$feedbackId,
+        'psi_score'=>$psi,'complaint_id'=>$complaintId,
+        'photo'=>($photoPath !== '') ? base_url($photoPath) : ''
+      );
     }else{
       $sendRes = array('msg'=>'Failed to Save Feedback','status'=>'0');
     }
@@ -9852,7 +9925,13 @@ function addRfid(){
     )));
   }
 
-  /** View single feedback. Body: {"checkon":{"mobile":"...","id":123}} */
+  /**
+   * View single feedback. Body: {"checkon":{"mobile":"...","id":123}}
+   * Response feedback object contains only: the 4 rating fields
+   * (rating_toilet_cleaning, rating_compartment_cleaning,
+   * rating_toiletries_availability, rating_behaviour), psi_score,
+   * remarks and photo (full URL).
+   */
   function getObhsFeedbackDetail(){
     $data=json_decode(file_get_contents("php://input"));
     $check=$this->obhsAuth($data);
@@ -9862,10 +9941,14 @@ function addRfid(){
     }
     $row = $this->obhs->getFeedbackById((int)$data->checkon->id,$check['bid']);
     if(!empty($row) && ($check['user_group']==1 || $row['uid']==$check['id'])){
-      if(!empty($row['photo'])){
-        $row['photo'] = base_url($row['photo']);
+      $feedback = array();
+      foreach($this->obhs->rating_fields as $field => $label){
+        $feedback[$field] = (int)$row[$field];
       }
-      echo json_encode(array('checkon'=>array('status'=>'1','feedback'=>$row)));
+      $feedback['psi_score'] = $row['psi_score'];
+      $feedback['remarks']   = $row['remarks'];
+      $feedback['photo']     = !empty($row['photo']) ? base_url($row['photo']) : '';
+      echo json_encode(array('checkon'=>array('status'=>'1','feedback'=>$feedback)));
     }else{
       echo json_encode(array('checkon'=>array('msg'=>'No Data Found','status'=>'0')));
     }

@@ -13,21 +13,31 @@ Mobile APIs for the OBHS (On Board Housekeeping Service) Feedback System, implem
 - **Auth:** Identity is the caller's registered `mobile` (looked up in the `login` table).
   - `user_group = 2` -> staff / janitor (submits feedback, sees own records).
   - `user_group = 1` -> business admin (lists all company records, updates, exports).
-- **PSI:** The server always recalculates the PSI score (average of the rated 1-5 categories x 20 => 0-100).
-  Any `psi_score` sent by the client is ignored.
+- **PSI:** The server always recalculates the PSI score: `PSI = (total score / 12) x 100`.
+  Very Good scores 4, Good 3, Poor 2, and **Not Attended scores 0** (it does not contribute,
+  but the denominator stays 12). Any `psi_score` sent by the client is ignored.
+  Example: 4 + 3 + 2 + 0 = 9 => (9/12) x 100 = **75.00**.
 - **Auto complaint:** When `feedback_type = "Complaint"`, a row is also inserted into the existing
   `complain` table (category `OBHS`) and linked via `obhs_feedback.complaint_id`.
 
-## Rating fields (all optional, 1-5 scale, 0 or omitted = not rated)
+## Rating fields (all required, only the 4 values below are accepted)
 
 | Field | Meaning |
 |-------|---------|
-| `rating_coach_cleanliness` | Coach Cleanliness |
-| `rating_toilet_cleanliness` | Toilet Cleanliness |
-| `rating_doorway_cleanliness` | Doorway Cleanliness |
-| `rating_bedroll` | Bedroll Quality |
-| `rating_staff_behaviour` | Staff Behaviour |
-| `rating_pest_control` | Pest Control |
+| `rating_toilet_cleaning` | Cleaning of Toilet |
+| `rating_compartment_cleaning` | Cleaning of Compartment |
+| `rating_toiletries_availability` | Availability of Toiletries |
+| `rating_behaviour` | Behaviour |
+
+| Value | Label | PSI score contribution |
+|-------|-------|------------------------|
+| `4` | Very Good | 4 |
+| `3` | Good | 3 |
+| `2` | Poor | 2 |
+| `1` | Not Attended | 0 |
+
+Any other value (including a missing field) is rejected with
+`{"checkon":{"msg":"rating_... must be one of 4 (Very Good), 3 (Good), 2 (Poor), 1 (Not Attended)","status":"0"}}`.
 
 ---
 
@@ -36,7 +46,9 @@ Mobile APIs for the OBHS (On Board Housekeeping Service) Feedback System, implem
 `POST /Api_v20/addObhsFeedback`
 
 Saves a feedback/complaint record. Required: `mobile`, `train_no`, `coach_no`, `journey_date`,
-`passenger_name`. `photo` is an optional base64 JPEG string (saved to `upload/obhs/`).
+`passenger_name` and all four rating fields.
+
+**Option A - JSON body** (photo as optional base64 string):
 
 ```bash
 curl -X POST "http://localhost/attendence/index.php/Api_v20/addObhsFeedback" \
@@ -55,12 +67,10 @@ curl -X POST "http://localhost/attendence/index.php/Api_v20/addObhsFeedback" \
       "passenger_name": "Rahul Sharma",
       "passenger_mobile": "9999999999",
       "passenger_email": "rahul@example.com",
-      "rating_coach_cleanliness": 5,
-      "rating_toilet_cleanliness": 4,
-      "rating_doorway_cleanliness": 4,
-      "rating_bedroll": 3,
-      "rating_staff_behaviour": 5,
-      "rating_pest_control": 4,
+      "rating_toilet_cleaning": 4,
+      "rating_compartment_cleaning": 3,
+      "rating_toiletries_availability": 2,
+      "rating_behaviour": 1,
       "feedback_type": "Feedback",
       "remarks": "Coach was clean and staff polite",
       "janitor_name": "Suresh Kumar",
@@ -72,10 +82,32 @@ curl -X POST "http://localhost/attendence/index.php/Api_v20/addObhsFeedback" \
   }'
 ```
 
-**Response**
+**Option B - multipart/form-data** (real image file upload, fields sent flat):
+
+```bash
+curl -X POST "http://localhost/attendence/index.php/Api_v20/addObhsFeedback" \
+  -F "mobile=9876543210" \
+  -F "train_no=12951" \
+  -F "train_name=Mumbai Rajdhani" \
+  -F "coach_no=B4" \
+  -F "journey_date=2026-07-19" \
+  -F "passenger_name=Rahul Sharma" \
+  -F "rating_toilet_cleaning=4" \
+  -F "rating_compartment_cleaning=3" \
+  -F "rating_toiletries_availability=2" \
+  -F "rating_behaviour=1" \
+  -F "feedback_type=Feedback" \
+  -F "remarks=Coach was clean" \
+  -F "photo=@image.jpg"
+```
+
+(In Postman: Body -> form-data, add the fields above and set `photo` to type File.
+A `checkon` form field holding the whole JSON payload string also works alongside the file.)
+
+**Response** (photo is returned as a full URL when uploaded)
 
 ```json
-{"checkon":{"msg":"Feedback Saved Successfully","status":"1","feedback_id":1,"psi_score":84,"complaint_id":0}}
+{"checkon":{"msg":"Feedback Saved Successfully","status":"1","feedback_id":1,"psi_score":75,"complaint_id":0,"photo":"http://.../upload/obhs/1754212345_1234.jpg"}}
 ```
 
 For a complaint, set `"feedback_type": "Complaint"`; the response `complaint_id` will be the
@@ -153,13 +185,21 @@ curl -X POST "http://localhost/attendence/index.php/Api_v20/getObhsFeedbackDetai
   -d '{"checkon":{"mobile":"9876543210","id":1}}'
 ```
 
-**Response**
+**Response** - the feedback object contains only the 4 ratings, PSI, remarks and photo:
 
 ```json
-{"checkon":{"status":"1","feedback":{ "id":"1", "train_no":"12951", "photo":"http://.../upload/obhs/....jpg", "...": "..." }}}
+{"checkon":{"status":"1","feedback":{
+  "rating_toilet_cleaning": 4,
+  "rating_compartment_cleaning": 3,
+  "rating_toiletries_availability": 2,
+  "rating_behaviour": 1,
+  "psi_score": "75.00",
+  "remarks": "Coach was clean and staff polite",
+  "photo": "http://.../upload/obhs/1754212345_1234.jpg"
+}}}
 ```
 
-`photo` is returned as a full URL. Staff can only view their own records.
+`photo` is returned as a full URL ('' when none). Staff can only view their own records.
 
 ---
 

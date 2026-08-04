@@ -26,15 +26,13 @@ CREATE TABLE IF NOT EXISTS `obhs_feedback` (
   `passenger_mobile` varchar(20) NOT NULL DEFAULT '',
   `passenger_email` varchar(255) NOT NULL DEFAULT '',
 
-  -- Service ratings, 1-5 scale (0 = not rated)
-  `rating_coach_cleanliness` tinyint(1) NOT NULL DEFAULT 0,
-  `rating_toilet_cleanliness` tinyint(1) NOT NULL DEFAULT 0,
-  `rating_doorway_cleanliness` tinyint(1) NOT NULL DEFAULT 0,
-  `rating_bedroll` tinyint(1) NOT NULL DEFAULT 0,
-  `rating_staff_behaviour` tinyint(1) NOT NULL DEFAULT 0,
-  `rating_pest_control` tinyint(1) NOT NULL DEFAULT 0,
+  -- Service ratings: 4=Very Good, 3=Good, 2=Poor, 1=Not Attended (0 = legacy/not recorded)
+  `rating_toilet_cleaning` tinyint(1) NOT NULL DEFAULT 0,
+  `rating_compartment_cleaning` tinyint(1) NOT NULL DEFAULT 0,
+  `rating_toiletries_availability` tinyint(1) NOT NULL DEFAULT 0,
+  `rating_behaviour` tinyint(1) NOT NULL DEFAULT 0,
 
-  -- PSI = average of rated (non-zero) categories x 20 => 0-100 (server calculated)
+  -- PSI = (total score / 12) x 100, Not Attended contributes 0 (server calculated)
   `psi_score` decimal(5,2) NOT NULL DEFAULT 0.00,
 
   `feedback_type` varchar(20) NOT NULL DEFAULT 'Feedback' COMMENT 'Feedback | Complaint',

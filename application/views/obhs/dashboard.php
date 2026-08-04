@@ -98,7 +98,7 @@ date_default_timezone_set('Asia/Kolkata');
         <div class="row">
           <div class="col-md-6">
             <div class="card">
-              <div class="card-header"><h3 class="card-title">Category Wise Average Rating (1-5)</h3></div>
+              <div class="card-header"><h3 class="card-title">Category Wise Average Score (0-4, Not Attended = 0)</h3></div>
               <div class="card-body"><canvas id="categoryChart" height="220"></canvas></div>
             </div>
           </div>
@@ -171,10 +171,10 @@ new Chart(document.getElementById('categoryChart'),{
     datasets:[{
       label:'Avg Rating',
       data: categoryData.map(function(c){return c.avg;}),
-      backgroundColor:['#17a2b8','#28a745','#ffc107','#dc3545','#6f42c1','#fd7e14']
+      backgroundColor:['#17a2b8','#28a745','#ffc107','#dc3545']
     }]
   },
-  options:{scales:{yAxes:[{ticks:{beginAtZero:true,max:5}}]},legend:{display:false}}
+  options:{scales:{yAxes:[{ticks:{beginAtZero:true,max:4}}]},legend:{display:false}}
 });
 
 new Chart(document.getElementById('psiChart'),{

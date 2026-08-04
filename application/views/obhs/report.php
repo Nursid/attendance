@@ -181,6 +181,9 @@ $export_qs = obhs_qs();
                     foreach($columns as $key => $label){
                       $val = isset($row[$key]) ? $row[$key] : '';
                       if($key=='journey_date' && $val!=''){ $val = date('d-m-Y',strtotime($val)); }
+                      if(strpos($key,'rating_')===0){
+                        $val = isset($this->obhs->rating_options[(int)$val]) ? $this->obhs->rating_options[(int)$val] : '-';
+                      }
                       if($key=='psi_score' || $key=='avg_psi'){
                         $badge = ($val>=80)?'success':(($val>=60)?'info':(($val>=40)?'warning':'danger'));
                         $val = "<span class='badge badge-$badge'>$val</span>";
