@@ -86,11 +86,12 @@ class Obhs extends CI_Controller {
 			'master' => array(
 				'title'   => 'Master Search',
 				'columns' => array(
-					'id'=>'ID','journey_date'=>'Journey Date','train_no'=>'Train No','train_name'=>'Train Name',
-					'coach_no'=>'Coach','pnr_no'=>'PNR','passenger_name'=>'Passenger','passenger_mobile'=>'Mobile',
-					'psi_score'=>'PSI','feedback_type'=>'Type','status'=>'Status','janitor_name'=>'Janitor'
+					'journey_date'=>'Journey Date','train_no'=>'Train No','coach_no'=>'Coach','seat_no'=>'Birth No.',
+					'pnr_no'=>'PNR','passenger_name'=>'Passenger','passenger_mobile'=>'Mobile',
+					'psi_score'=>'PSI','janitor_name'=>'Janitor','remarks'=>'Remark'
 				),
-				'sortable'=> array('id','journey_date','train_no','coach_no','passenger_name','psi_score','feedback_type','status'),
+				'sortable'=> array('journey_date','train_no','coach_no','passenger_name','psi_score'),
+				// Ordering only - id is no longer a displayed column but keeps the list newest first
 				'default_sort'=>'id',
 				'detail_link'=>true
 			),

@@ -127,25 +127,22 @@ date_default_timezone_set('Asia/Kolkata');
                 <table class="table table-hover table-sm text-nowrap">
                   <thead>
                     <tr>
-                      <th>ID</th><th>Journey Date</th><th>Train</th><th>Coach</th><th>Passenger</th>
-                      <th>PSI</th><th>Type</th><th>Status</th><th>Janitor</th><th></th>
+                      <th>Journey Date</th><th>Train No</th><th>Coach</th><th>Passenger</th>
+                      <th>PSI</th><th>Janitor</th><th></th>
                     </tr>
                   </thead>
                   <tbody>
                     <?php foreach($recent as $row){ ?>
                     <tr>
-                      <td><?php echo $row['id'];?></td>
                       <td><?php echo date('d-m-Y',strtotime($row['journey_date']));?></td>
-                      <td><?php echo $row['train_no'].' '.$row['train_name'];?></td>
+                      <td><?php echo $row['train_no'];?></td>
                       <td><?php echo $row['coach_no'];?></td>
                       <td><?php echo $row['passenger_name'];?></td>
                       <td><span class="badge badge-<?php echo ($row['psi_score']>=80)?'success':(($row['psi_score']>=60)?'info':(($row['psi_score']>=40)?'warning':'danger'));?>"><?php echo $row['psi_score'];?></span></td>
-                      <td><?php echo $row['feedback_type'];?></td>
-                      <td><?php echo $row['status'];?></td>
                       <td><?php echo !empty($row['janitor_name']) ? $row['janitor_name'] : $row['staff_name'];?></td>
                       <td><a href="<?php echo base_url('obhs-feedback/'.$row['id'])?>" class="btn btn-xs btn-outline-primary">View</a></td>
                     </tr>
-                    <?php } if(empty($recent)){ echo '<tr><td colspan="10" class="text-center">No feedback yet</td></tr>'; } ?>
+                    <?php } if(empty($recent)){ echo '<tr><td colspan="7" class="text-center">No feedback yet</td></tr>'; } ?>
                   </tbody>
                 </table>
               </div>

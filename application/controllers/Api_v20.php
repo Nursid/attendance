@@ -9918,11 +9918,11 @@ function addRfid(){
 
     header("Content-Type: application/vnd.ms-excel");
     header("Content-Disposition: attachment; filename=OBHS_Feedback_".date('Ymd').".xls");
-    echo "S.No\tDate\tTrain No\tTrain Name\tCoach\tJourney Date\tPNR\tSeat\tPassenger\tMobile\tCoach Clean\tToilet Clean\tDoorway\tBedroll\tStaff Behaviour\tPest Control\tPSI\tType\tStatus\tJanitor\tRemarks\tLocation\n";
+    echo "S.No\tDate\tTrain No\tCoach\tJourney Date\tPNR\tSeat\tPassenger\tMobile\tCoach Clean\tToilet Clean\tDoorway\tBedroll\tStaff Behaviour\tPest Control\tPSI\tJanitor\tRemarks\tLocation\n";
     $i=1;
     foreach($list as $row){
       $remarks = str_replace(array("\t","\n","\r"),' ',(string)$row['remarks']);
-      echo $i++."\t".date('d-m-Y',(int)$row['date_time'])."\t".$row['train_no']."\t".$row['train_name']."\t".$row['coach_no']."\t".$row['journey_date']."\t".$row['pnr_no']."\t".$row['seat_no']."\t".$row['passenger_name']."\t".$row['passenger_mobile']."\t".$row['rating_coach_cleanliness']."\t".$row['rating_toilet_cleanliness']."\t".$row['rating_doorway_cleanliness']."\t".$row['rating_bedroll']."\t".$row['rating_staff_behaviour']."\t".$row['rating_pest_control']."\t".$row['psi_score']."\t".$row['feedback_type']."\t".$row['status']."\t".$row['janitor_name']."\t".$remarks."\t".$row['location']."\n";
+      echo $i++."\t".date('d-m-Y',(int)$row['date_time'])."\t".$row['train_no']."\t".$row['coach_no']."\t".$row['journey_date']."\t".$row['pnr_no']."\t".$row['seat_no']."\t".$row['passenger_name']."\t".$row['passenger_mobile']."\t".$row['rating_coach_cleanliness']."\t".$row['rating_toilet_cleanliness']."\t".$row['rating_doorway_cleanliness']."\t".$row['rating_bedroll']."\t".$row['rating_staff_behaviour']."\t".$row['rating_pest_control']."\t".$row['psi_score']."\t".$row['janitor_name']."\t".$remarks."\t".$row['location']."\n";
     }
   }
 
